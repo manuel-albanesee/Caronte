@@ -53,6 +53,13 @@
     ".claude/routing/ICM.md": "caeeefdeec4abc8bae33f21b3b076309d9601008ec0ec73bd9348dc92b077bf9",
     ".claude/hooks/compact-focus.cjs": "cf3506dc54e9a7eac51ca4b490971b0447325f75199d4be7f482a816580dede7"
   },
+  "outputFilterHashes": {
+    ".claude/routing/telemetry.cjs": "2a430f69e9ad40dd18200a09113bca2b726133c943c177a45386120145dbb921"
+  },
+  "v24Hashes": {
+    ".claude/hooks/record-telemetry.cjs": "fb554b80d39bc09800fc29ecf2fb63175803e8b7aa7fb30de9228820f3624bb7",
+    ".claude/routing/telemetry.cjs": "d85fda8f6229355ecff87898fb388124e04beaec6ea65b66a7bbe1ee367eec73"
+  },
   "v232Hashes": {
     ".claude/settings.routing.example.json": "3cde3f42bddbc67fc43c9e42bc71a6e3dfe18a6c2066e7263a1c982a03c471d6",
     ".claude/hooks/sync-dependencies.cjs": "00ebb797404e7e597f3a2348f5681aa85409978d41b097d6bf8da3da52cbc624",

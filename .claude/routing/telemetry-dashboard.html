@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
+<title>Caronte · Telemetria locale</title>
+<style>
+:root { color-scheme:dark; --bg:#10151b; --panel:#171f27; --inset:#131b22; --line:#33434e; --text:#f0f4ef; --muted:#afbec8; --green:#d5ee9a; --blue:#82d8e4; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,sans-serif; }
+main { max-width:1110px; margin:auto; padding:32px 28px 42px; }
+header,.heading,.tabs { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+header,.heading { justify-content:space-between; }
+header { border-bottom:1px solid var(--line); padding-bottom:18px; }
+.brand { font-size:20px; font-weight:730; }
+.mark { display:inline-grid; place-items:center; width:32px; height:32px; margin-right:9px; border:1px solid var(--green); border-radius:8px; color:var(--green); font-weight:680; }
+.status,.tabs { background:var(--inset); border:1px solid var(--line); border-radius:8px; }
+.status { padding:5px 10px; color:var(--muted); }
+.heading { margin:26px 0 18px; }
+h1,h2,p { margin:0; }
+h1 { font-size:clamp(30px,5vw,43px); line-height:1.15; letter-spacing:-.04em; }
+h2 { font-size:18px; letter-spacing:-.015em; }
+.sub,.note,.info,th,.caption,footer { color:var(--muted); }
+.sub { margin-top:5px; }
+.note { margin-top:5px; font-size:13px; }
+.tabs { gap:3px; padding:3px; }
+button { min-height:36px; padding:5px 12px; border:0; border-radius:5px; background:none; color:var(--muted); font:inherit; cursor:pointer; }
+button[aria-pressed=true] { background:var(--green); color:#192216; font-weight:700; }
+button:focus-visible,.table-scroll:focus-visible { outline:2px solid var(--blue); outline-offset:3px; }
+.panel { margin-top:14px; padding:18px; border:1px solid var(--line); border-radius:12px; background:var(--panel); }
+.cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:14px; }
+.card { min-width:0; padding:11px 12px; border:1px solid var(--line); border-radius:8px; background:var(--inset); overflow-wrap:anywhere; }
+.card strong { display:block; overflow-wrap:anywhere; margin:4px 0 1px; font-size:clamp(19px,2.8vw,28px); line-height:1.2; }
+.card:first-child strong { color:var(--green); }
+.caption,.info,footer { font-size:13px; }
+.split { display:grid; grid-template-columns:1.2fr 1fr; gap:14px; }
+.split .cards { grid-template-columns:1fr 1fr; }
+.table-scroll { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; margin-top:9px; text-align:right; white-space:nowrap; font-size:13px; }
+th,td { padding:8px 0 8px 9px; border-top:1px solid var(--line); }
+th { font-weight:550; }
+th:first-child,td:first-child { text-align:left; padding-left:0; }
+td:first-child { font-weight:650; }
+strong,td { font-variant-numeric:tabular-nums; }
+.info { border-left:2px solid var(--blue); padding-left:10px; margin-top:13px; }
+footer { margin-top:14px; }
+@media(max-width:740px) { .cards { grid-template-columns:1fr 1fr; } .split { grid-template-columns:1fr; gap:0; } }
+@media(max-width:460px) { main { padding:23px 15px; } .panel { padding:14px; } .card { padding:9px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="brand"><span class="mark" aria-hidden="true">C</span>Caronte</div>
+    <div id="status" class="status"></div>
+  </header>
+  <div class="heading">
+    <div><h1>Telemetria locale</h1><p class="sub" id="range" role="status"></p></div>
+    <div class="tabs" role="group" aria-label="Periodo del report">
+      <button type="button" data-days="7" aria-pressed="true">7 giorni</button>
+      <button type="button" data-days="30" aria-pressed="false">30 giorni</button>
+    </div>
+  </div>
+  <div id="report"></div>
+  <noscript><p>Abilita JavaScript per consultare il report locale.</p></noscript>
+  <footer>Questa istantanea si aggiorna quando riesegui il comando dashboard.</footer>
+</main>
+<script>
+const reports = /* CARONTE_REPORTS */ null;
+const fmt = new Intl.NumberFormat('it-IT');
+const n = value => fmt.format(value ?? 0);
+const total = map => Object.values(map ?? {}).reduce((sum, value) => sum + value, 0);
+const bytes = value => value < 1024 ? n(value) + ' B' : fmt.format(Math.round(value / 1024 * 10) / 10) + ' KiB';
+const card = (label, value, detail) => '<div class="card"><span class="caption">' + label + '</span><strong>' + value +
+  '</strong><span class="caption">' + detail + '</span></div>';
+const row = (label, ...values) => '<tr><th scope="row">' + label + '</th>' + values.map(value => '<td>' + value + '</td>').join('') + '</tr>';
+const reasons = {
+  worker_command:'Comando fuori dal piano', brief_invalid:'Brief non valido', review_plan:'Piano di revisione',
+  permission_denied:'Permesso negato', icm_gate:'Dipendenza non pronta', worker_scope:'Modifica fuori ambito',
+};
+const models = {
+  'claude-sonnet-5-5':'Sonnet 5.5', 'claude-haiku-5-5':'Haiku 5.5', 'claude-opus-5-5':'Opus 5.5',
+};
+const safeModel = name => models[name] ?? (/^[a-z0-9-]+$/.test(name) && name !== 'other' ? name : 'Altro');
+const buttons = document.querySelectorAll('[data-days]');
+
+function render(days) {
+  const data = reports[days];
+  const file = data.fileContext;
+  const usage = data.usage;
+  const filter = data.outputFilter;
+  const target = document.getElementById('report');
+  document.getElementById('status').textContent = data.enabled ? 'Raccolta attiva' : 'Raccolta disattivata';
+  document.getElementById('range').textContent = data.from + ' → ' + data.to + ' · UTC';
+  const fileCoverage = file.scans === 0
+    ? 'In attesa del primo transcript. I dati arrivano alla chiusura della sessione o del subagent.'
+    : n(file.scansWithTextReads) + ' di ' + n(file.scans) + ' transcript analizzati contengono letture di testo compatibili.'
+      + (file.truncatedScans ? ' Scansioni parziali: ' + n(file.truncatedScans) + '.' : '');
+  const table = (label, columns, rows) => '<div class="table-scroll" role="region" aria-label="' + label +
+    '" tabindex="0"><table aria-label="' + label + '"><thead><tr>' + columns.map(name => '<th scope="col">' + name +
+    '</th>').join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
+  const volume = row('Avvisi di modifica', n(file.notices), '—',
+    file.measuredNotices ? bytes(file.noticeSnippetBytes) + ' · ' + n(file.measuredNotices) + ' estratti' : '—') +
+    row('Risultati delle riletture', n(file.rereads), n(file.rereadLines),
+      file.measuredRereads ? bytes(file.rereadBytes) + ' · ' + n(file.measuredRereads) + ' risultati' : '—');
+  const modelRows = Object.entries(usage.byModel).map(([name, value]) => row(safeModel(name), n(value.calls),
+    n(value.input), n(value.output), n(value.cache_read), n(value.cache_write))).join('');
+  const blockRows = Object.entries(data.blocks).map(([name, count]) =>
+    row(reasons[name] ?? 'Altro', n(count), n(data.retries[name]))).join('');
+
+  target.innerHTML =
+    '<section class="panel" aria-labelledby="reread-title"><h2 id="reread-title">Riletture dopo modifiche su disco</h2>' +
+    '<p class="note">' + fileCoverage + '</p><div class="cards">' +
+    card('Episodi rilevati', n(file.changeEpisodes), n(file.changesDetectedByComparison) + ' da confronto tra letture') +
+    card('Avvisi di Claude', n(file.notices), 'Avvisi visibili nel transcript') +
+    card('Riletture', n(file.rereads), 'Dopo una modifica rilevata') +
+    card('File intero / intervallo', n(file.fullReads) + ' / ' + n(file.partialReads), 'Estensione effettiva della lettura') +
+    '</div>' + table('Volume di avvisi e riletture', ['Origine', 'Campioni', 'Righe', 'Volume misurato'], volume) +
+    '<p class="info">Il confronto rileva il cambiamento del testo senza attribuirlo a una persona. I volumi sono byte UTF-8 del transcript.</p></section>' +
+    '<div class="split"><section class="panel"><h2>Utilizzo API</h2><p class="note">' + n(usage.calls) + ' richieste · ' +
+    n(usage.sessions) + ' di ' + n(data.sessions) + ' sessioni con token registrati.</p>' +
+    (modelRows ? table('Utilizzo per modello', ['Modello', 'Richieste', 'Input', 'Output', 'Cache letta', 'Cache scritta'], modelRows)
+      : '<p class="info">In attesa di conteggi API compatibili.</p>') +
+    '</section><section class="panel"><h2>Filtro dei log</h2><div class="cards">' +
+    card('Chiamate', n(filter.calls), 'Test e build') +
+    card('Prima', bytes(filter.stdoutBytesBefore), 'Stdout originale') +
+    card('Dopo', bytes(filter.stdoutBytesAfter), 'Stdout restituito') +
+    card('Righe omesse', n(filter.linesOmitted), bytes(filter.stdoutBytesRemoved) + ' rimossi') + '</div></section></div>' +
+    '<div class="split"><section class="panel"><h2>Blocchi e retry</h2><p class="note">' + n(total(data.blocks)) +
+    ' blocchi · ' + n(total(data.retries)) + ' retry candidati.</p>' +
+    (blockRows ? table('Cause dei blocchi', ['Causa', 'Blocchi', 'Retry'], blockRows) : '') +
+    '</section><section class="panel"><h2>Verifiche e revisioni</h2><div class="cards">' +
+    card('Test riusciti', n(data.targetedChecks.pass), 'Verifiche mirate') +
+    card('Test da rivedere', n(data.targetedChecks.fail + data.targetedChecks.stale), 'Falliti o obsoleti') +
+    card('Revisioni valide', n(data.reviews.pass), 'Con ricevuta') +
+    card('Revisioni aperte', n(data.reviews.fail + data.reviews.stale + data.reviews['not-run']),
+      n(data.reviews['not-applicable']) + ' senza test applicabili') + '</div></section></div>';
+}
+
+buttons.forEach(button => button.addEventListener('click', () => {
+  if (!reports) return;
+  buttons.forEach(item => item.setAttribute('aria-pressed', String(item === button)));
+  render(button.dataset.days);
+}));
+if (reports) render(7);
+else document.getElementById('report').textContent = 'Genera il report con il comando dashboard di Caronte.';
+</script>
+</body>
+</html>

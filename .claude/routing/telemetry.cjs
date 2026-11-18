@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { fileContextScan, summarizeFileContext } = require('./file-context.cjs');
 
 const DAY = 86400000;
 const RETENTION_DAYS = 30;
@@ -126,7 +127,7 @@ function operation(event) {
   return JSON.stringify(input);
 }
 
-function toolEvent(root, event, outcome, reason) {
+function toolEvent(root, event, outcome, reason, outputFilter) {
   if (!TOOLS.has(event.tool_name)) return;
   if (!['ok', 'failed', 'blocked'].includes(outcome)) return;
   capture(root, hash => [{
@@ -135,6 +136,11 @@ function toolEvent(root, event, outcome, reason) {
     profile: event.agent_id ? profile(event.agent_type) : 'orchestrator',
     call: hash(event.tool_use_id),
     op: hash(event.tool_name + '\0' + operation(event)),
+    output_filter: outcome === 'ok' && outputFilter ? {
+      stdout_before_bytes: outputFilter.stdout_before_bytes,
+      stdout_after_bytes: outputFilter.stdout_after_bytes,
+      lines_omitted: outputFilter.lines_omitted,
+    } : undefined,
   }]);
 }
 
@@ -175,10 +181,15 @@ function collectUsage(root, event) {
       actor: isChild ? hash(event.agent_id) : 'main',
       profile: isChild ? profile(event.agent_type) : 'orchestrator',
     };
+    const files = fileContextScan(hash, scope);
     for (const line of reading.lines) {
       let record;
       try { record = JSON.parse(line); } catch { continue; }
-      if (record.type !== 'assistant' || record.sessionId !== event.session_id || !(Date.parse(record.timestamp) >= since)) continue;
+      if (record?.sessionId !== event.session_id) continue;
+      const at = Date.parse(record.timestamp);
+      if (!(at >= since)) continue;
+      if (isChild || !record.isSidechain) files.observe(record, at);
+      if (record.type !== 'assistant') continue;
       const msg = record.message;
       const usage = msg?.usage;
       if (!usage || typeof msg.id !== 'string' || !msg.id.startsWith('msg_')) continue;
@@ -186,14 +197,16 @@ function collectUsage(root, event) {
       const get = key => Number.isSafeInteger(usage[key]) && usage[key] >= 0 ? usage[key] : 0;
       const key = hash(event.session_id + '\0' + msg.id);
       rows.set(key, {
-        type: 'usage', ...scope, sample: key, model: model(msg.model), occurred_at: Date.parse(record.timestamp),
+        type: 'usage', ...scope, sample: key, model: model(msg.model), occurred_at: at,
         input: get('input_tokens'), output: get('output_tokens'),
         cache_read: get('cache_read_input_tokens'), cache_write: get('cache_creation_input_tokens'),
       });
     }
     return [
-      { type: 'coverage', ...scope, usage_found: rows.size > 0, transcript_truncated: reading.truncated },
+      { type: 'coverage', ...scope, usage_found: rows.size > 0, transcript_truncated: reading.truncated,
+        file_context_text_reads: files.textReadsFound },
       ...rows.values(),
+      ...files.rows.values(),
     ];
   });
 }
@@ -221,9 +234,12 @@ function summarize(root, days = 7, now = Date.now()) {
   rows.sort((a, b) => a.at - b.at);
   const sessions = new Set();
   const usages = new Map();
+  const fileSamples = new Map();
   const coverage = new Map();
   const failures = new Map();
   const toolCalls = new Set();
+  const filteredCalls = new Set();
+  const outputFilter = { calls: 0, stdoutBytesBefore: 0, stdoutBytesAfter: 0, stdoutBytesRemoved: 0, linesOmitted: 0 };
   const blocks = {};
   const retries = {};
   const generations = new Map();
@@ -231,14 +247,26 @@ function summarize(root, days = 7, now = Date.now()) {
   const reviews = { pass: 0, fail: 0, stale: 0, 'not-run': 0, 'not-applicable': 0 };
   for (const row of rows) {
     if (row.run) sessions.add(row.run);
-    if (row.type === 'usage' && row.sample && Number.isSafeInteger(row.occurred_at)) {
+    if (['usage', 'file_context'].includes(row.type) && row.sample && Number.isSafeInteger(row.occurred_at)) {
       const day = date(row.occurred_at);
-      if (day >= from && day <= to) usages.set(row.sample, row);
+      if (day >= from && day <= to) (row.type === 'usage' ? usages : fileSamples).set(row.sample, row);
     }
     if (row.type === 'coverage') coverage.set((row.run || '') + ':' + (row.actor || 'main'), row);
     if (row.type === 'test') count(targetedChecks, row.outcome);
     if (row.type === 'review') count(reviews, row.outcome);
     if (row.type !== 'tool') continue;
+    const measurement = row.output_filter;
+    if (row.outcome === 'ok' && measurement && (!row.call || !filteredCalls.has(row.call))) {
+      const { stdout_before_bytes: before, stdout_after_bytes: after, lines_omitted: lines } = measurement;
+      if ([before, after, lines].every(Number.isSafeInteger) && after >= 0 && before > after && lines > 0) {
+        if (row.call) filteredCalls.add(row.call);
+        outputFilter.calls++;
+        outputFilter.stdoutBytesBefore += before;
+        outputFilter.stdoutBytesAfter += after;
+        outputFilter.stdoutBytesRemoved += before - after;
+        outputFilter.linesOmitted += lines;
+      }
+    }
     if (row.call && toolCalls.has(row.call)) continue;
     if (row.call) toolCalls.add(row.call);
     const generation = generations.get(row.run) || 0;
@@ -272,8 +300,25 @@ function summarize(root, days = 7, now = Date.now()) {
     schema: 1, enabled: config(dir).enabled, from, to, sessions: sessions.size,
     usage: { sessions: usageSessions.size, calls: usages.size, tokens: usages.size ? tokens : null, byModel,
       truncatedScans: [...coverage.values()].filter(row => row.transcript_truncated).length },
-    blocks, retries, targetedChecks, reviews,
+    blocks, retries, targetedChecks, reviews, outputFilter,
+    fileContext: summarizeFileContext(fileSamples.values(), coverage.values()),
   };
+}
+
+function writeDashboard(root) {
+  const dir = directory(root);
+  const now = Date.now();
+  const reports = { 7: summarize(root, 7, now), 30: summarize(root, 30, now) };
+  const data = JSON.stringify(reports).replaceAll('<', '\\u003c');
+  const template = fs.readFileSync(path.join(__dirname, 'telemetry-dashboard.html'), 'utf8');
+  const html = template.replace('/* CARONTE_REPORTS */ null', () => data);
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const file = path.join(dir, 'dashboard.html');
+  const temp = path.join(dir, crypto.randomUUID() + '.tmp');
+  fs.writeFileSync(temp, html, { mode: 0o600, flag: 'wx' });
+  try { fs.renameSync(temp, file); }
+  finally { fs.rmSync(temp, { force: true }); }
+  return file;
 }
 
 if (require.main === module) {
@@ -290,14 +335,16 @@ if (require.main === module) {
       console.log(JSON.stringify({ enabled: readStatus(root) }));
     } else if (command === 'report') {
       console.log(JSON.stringify(summarize(root, days === undefined ? 7 : Number(days)), null, 2));
+    } else if (command === 'dashboard') {
+      console.log(writeDashboard(root));
     } else if (command === 'purge') {
       const dir = directory(root);
       setMode(root, false);
       if (fs.existsSync(dir)) for (const file of fs.readdirSync(dir)) {
-        if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(file)) fs.rmSync(path.join(dir, file), { force: true });
+        if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(file) || file === 'dashboard.html') fs.rmSync(path.join(dir, file), { force: true });
       }
       console.log('Caronte: dati di telemetria del worktree eliminati, raccolta disattivata.');
-    } else throw Error('Usage: node .claude/routing/telemetry.cjs on|off|status|report [days]|purge');
+    } else throw Error('Usage: node .claude/routing/telemetry.cjs on|off|status|report [days]|dashboard|purge');
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
 

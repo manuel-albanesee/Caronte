@@ -2,6 +2,30 @@
 
 18 novembre 2026. Ambiente di esecuzione Linux, Node v24.22.3. Lo ZIP contiene la suite e il relativo risultato TAP, eseguibili senza dipendenze npm.
 
+## Riletture e dashboard
+
+- Tutti i 70 test della suite sono passati su Linux con Node 22.13.1 e 24.22.3.
+- Una sessione del CLI ufficiale Claude Code 2.1.327 ha letto un file,
+  ricevuto una modifica di una riga da un processo esterno e riletto
+  prima un intervallo, poi il file intero. L'API di prova era simulata in locale.
+- Il transcript non conteneva un avviso di modifica per questo caso. Il
+  confronto ha rilevato un episodio e due riletture, per 126 righe e
+  2.408 byte di risultati registrati. I casi con avviso nativo sono coperti
+  da fixture del transcript.
+
+## Filtro dei log di test e build
+
+- Tutti i 67 test della suite aggiornata sono passati su Linux con Node 22.13.1 e 24.22.3.
+- Il CLI ufficiale Claude Code 2.1.327 ha eseguito una build sintetica contro
+  un'API locale simulata. Con il filtro attivo, lo stdout è passato da 11.319
+  a 1.601 byte. Il risultato inviato all'API conteneva l'avviso e il riepilogo
+  della build. Il report ha registrato 220 righe omesse e due richieste API.
+- La stessa prova con il filtro disattivato ha trasmesso lo stdout integrale.
+  I conteggi di token dell'API simulata sono sintetici.
+- L'installer ha aggiornato una copia della 2.4.0 mantenendo la scelta di
+  disattivare la telemetria. Una seconda installazione ha rilevato zero modifiche.
+  PowerShell è coperto con payload simulati dei tool.
+
 ## Esiti locali
 
 - 63 test automatici superati, zero fallimenti (`node --test tests/routing.test.cjs tests/telemetry.test.cjs`).

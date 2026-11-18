@@ -4,7 +4,7 @@
 
 Delegate a task with just enough context, run the relevant application tests, and review the actual Git diff before accepting the change.
 
-Caronte combines model routing, selected ECC specialists, focused test plans, and resumable ICM workflows. RTK filters supported shell output. An existing Headroom launch command can keep handling request-side context compression.
+Caronte combines model routing, selected ECC specialists, focused test plans, and resumable ICM workflows. RTK filters supported shell output. Caronte also shortens verbose test and build logs before they reach Claude. An existing Headroom launch command can keep handling request-side context compression.
 
 ## Quick start
 
@@ -77,7 +77,10 @@ The project hooks cover the registered Claude Code tools. Managed settings, sand
 Local telemetry starts automatically on the first Claude Code startup or
 resume with Caronte. Run `/caronte-telemetry-off` to stop it for the current
 worktree, or `/caronte-telemetry-on` to turn it back on.
-Read the [telemetry guide](TELEMETRY.md) for the local report and removal commands.
+Run `node .claude/routing/telemetry.cjs dashboard` from the installed worktree
+and open the HTML path it prints. The local dashboard shows rereads after
+detected file changes, API usage, and test and build output filtering.
+See the [telemetry guide](TELEMETRY.md) for coverage and controls.
 
 ## License and attribution
 
