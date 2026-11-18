@@ -1,8 +1,8 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 
-const view = import('../.claude/caronte-panel/hooks/view.js');
-const mod = import('../.claude/caronte-panel/hooks/register.js');
+const view = import('../.claude/skills/caronte-panel/hooks/view.js');
+const mod = import('../.claude/skills/caronte-panel/hooks/register.js');
 
 const box = props => ({ children: props.children });
 const text = props => ({ children: props.children });
@@ -53,6 +53,7 @@ test('checkpoint completion follows the session, agent and review evidence in a 
   ]);
   let tick;
   let paneOpen;
+  let opens = 0;
   let session = 'session';
   let redraws = 0;
   const agents = [{ id: 'worker', type: 'ecc:writer', status: 'running', startTime: 1 }];
@@ -75,14 +76,14 @@ test('checkpoint completion follows the session, agent and review evidence in a 
     ui: {
       open: async args => {
         assert.equal(args.id, 'caronte-panel');
-        paneOpen = true;
-        return { isPlaced: true };
+        paneOpen = { id: args.id, isPlaced: ++opens > 1 };
+        return { isPlaced: paneOpen.isPlaced };
       },
       close: async args => {
         assert.equal(args.id, 'caronte-panel');
         paneOpen = false;
       },
-      panes: async () => paneOpen ? [{ id: 'caronte-panel' }] : [],
+      panes: async () => paneOpen ? [paneOpen] : [],
       resolve: () => ({ Box: box, Text: text }),
       invalidate: () => { redraws++; },
     },
@@ -93,10 +94,13 @@ test('checkpoint completion follows the session, agent and review evidence in a 
     requestId: 'caronte-panel', props: { bodyColumns: 40 },
   }, next)).join('\n');
 
-  assert.equal(await hooks.get('session.start')(api, {}, next), result);
+  assert.equal(await hooks.get('session.start')(api, { isInteractive: true, surface: 'terminal' }, next), result);
+  assert.equal(opens, 1);
+  assert.equal(paneOpen.isPlaced, false);
   await tick();
   assert.equal(redraws, 0);
   await hooks.get('command.run')(api);
+  assert.equal(paneOpen.isPlaced, true);
   await tick();
   assert.match(await render(), /Avanzamento —/);
   files.set(active, JSON.stringify({ id, agent: 'worker', session }));
@@ -132,7 +136,7 @@ test('checkpoint completion follows the session, agent and review evidence in a 
   await hooks.get('command.run')(api);
   assert.equal(paneOpen, false);
   await hooks.get('command.run')(api);
-  assert.equal(paneOpen, true);
+  assert.equal(paneOpen.isPlaced, true);
 
   session = 'new';
   agents.push(worker);

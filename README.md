@@ -37,16 +37,12 @@ See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
 
 ### Live subagent panel
 
-From the installed worktree, start Claude Code with the Caronte mod.
-
-```sh
-claude --plugin-dir ./.claude/caronte-panel
-```
-
-Run `/caronte-panel` to open the native pane. Use `/tui fullscreen` and a wide
-terminal to dock it on the right. The pane shows subagent activity, model and
-tokens, plus verified checkpoints for an observed Caronte plan. Tested with
-Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).
+Start `claude` from the root of a trusted worktree with Caronte installed.
+The panel loads with the project and opens automatically when the terminal has
+enough space. Use `/tui fullscreen` for the right-hand sidebar and
+`/caronte-panel` to toggle the pane, including in narrow terminals.
+It shows subagent activity, model, tokens and verified Caronte checkpoints.
+Tested with Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).
 
 ## How it works
 

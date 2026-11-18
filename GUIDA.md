@@ -82,16 +82,17 @@ I riferimenti al diff e alle ricevute vengono dalla verifica dell’orchestrator
 
 ## Pannello subagent in Claude Code
 
-Dalla root del worktree dove hai installato Caronte, anche su PowerShell:
+Avvia `claude` dalla root del worktree dove hai installato Caronte e conferma la
+fiducia nel progetto al primo avvio. Il mod fa parte del progetto e il pannello
+si apre automaticamente se Claude Code ha spazio. Usa `/tui fullscreen` per
+vederlo sulla destra. In un terminale stretto, `/caronte-panel` lo apre sopra il
+prompt. Lo stesso comando lo chiude anche durante una risposta.
 
-```sh
-claude --plugin-dir ./.claude/caronte-panel
-```
-
-In Claude Code digita `/caronte-panel` per aprirlo o chiuderlo. Con `/tui fullscreen`
-e un terminale abbastanza largo, il pannello si aggancia a destra. Con meno spazio
-si apre sopra il prompt. Il mod è stato verificato su
-Claude Code 2.1.327 e si può caricare insieme al plugin ECC completo.
+Per disattivarlo nei prossimi avvii di quel progetto, esegui dalla root
+`claude plugin disable caronte-panel@skills-dir --scope local`. Per riattivarlo
+usa `claude plugin enable caronte-panel@skills-dir --scope local`.
+Il mod è stato verificato su Claude Code 2.1.327 e si carica insieme al plugin
+ECC completo.
 
 | Dato | Come leggerlo |
 | --- | --- |

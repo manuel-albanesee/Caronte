@@ -21,6 +21,12 @@ async function readJson($, path) {
   }
 }
 
+async function openPane($) {
+  return $.ui.open({
+    id: pane, title: 'CARONTE', columns: 40, rows: 16, backgroundColor: '#101920',
+  });
+}
+
 async function workState($, root) {
   try {
     const gitFile = root + '/.git';
@@ -112,8 +118,14 @@ export function register(on) {
   };
 
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: pane, description: 'Mostra o chiudi la sidebar Caronte con attività, verifiche e token' });
+    await $.command.register({
+      name: pane, immediate: true, description: 'Mostra o chiudi la sidebar Caronte con attività, verifiche e token',
+    });
     $.clock.every(900, () => refresh($, board));
+    if (e.isInteractive && e.surface === 'terminal') {
+      const placement = await openPane($).catch(() => null);
+      board.open = placement?.isPlaced === true;
+    }
     return next(e);
   });
 
@@ -128,14 +140,12 @@ export function register(on) {
   });
 
   on('command.run', { command: 'caronte-panel' }, async ($) => {
-    if ((await $.ui.panes()).some(item => item.id === pane)) {
+    if ((await $.ui.panes()).some(item => item.id === pane && item.isPlaced)) {
       await $.ui.close({ id: pane });
       board.open = false;
       return {};
     }
-    const result = await $.ui.open({
-      id: pane, title: 'CARONTE', columns: 40, rows: 16, backgroundColor: '#101920',
-    });
+    const result = await openPane($);
     board.open = result.isPlaced;
     if (!board.open) return { text: 'Apri /caronte-panel in una sessione terminale interattiva.' };
     return {};
@@ -143,7 +153,7 @@ export function register(on) {
 
   on('ui.close', { id: 'caronte-panel' }, async ($, e, next) => {
     const result = await next(e);
-    board.open = (await $.ui.panes()).some(item => item.id === pane);
+    board.open = (await $.ui.panes()).some(item => item.id === pane && item.isPlaced);
     return result;
   });
 
@@ -189,6 +199,8 @@ export function register(on) {
 
   on('ui.render', { component: 'Pane' }, async ($, e, next) => {
     if (e.requestId !== pane) return next(e);
+    // Claude Code can place the pane after the user widens their terminal.
+    board.open = true;
     const { Box, Text } = $.ui.resolve(e);
     return drawPanel(Box, Text, e.props.bodyColumns, board.cards);
   });
