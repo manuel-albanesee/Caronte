@@ -3,6 +3,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { randomUUID } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+const { deliveryEvent } = require('./telemetry.cjs');
 const { filePath } = require('./icm.cjs');
 
 const runner = 'node .claude/routing/delivery.cjs';
@@ -167,6 +168,7 @@ function enforceWorker(root, event) {
   if (!grant.agent) save(path.join(repo.state, 'active.json'), { ...grant, agent: event.agent_id });
 }
 function check(root, id) {
+  const started = Date.now();
   const repo = locate(root), spec = load(repo, id);
   const grant = active(repo);
   if (grant?.id !== id || !grant.agent || !spec.tests.length) throw Error('Nessun test mirato autorizzato per questo piano.');
@@ -213,6 +215,9 @@ function check(root, id) {
   const unchanged = before === tree(repo.root, spec.inputs);
   const ok = unchanged && results.every(r => r.exitCode === 0 && !r.error);
   save(receipt, { tree: before, ok, results });
+  deliveryEvent(repo.root, { type: 'test', session: grant.session, actor: grant.agent, profile: spec.profile,
+    id, inputTree: before, outcome: !unchanged ? 'stale' : ok ? 'pass' : 'fail',
+    durationMs: Date.now() - started, checks: results.length });
   return { ok, unchanged, results, receipt };
 }
 function review(root, id) {
@@ -231,7 +236,11 @@ function review(root, id) {
   const changed = git(repo.root, ['diff', '--name-only', '-z', spec.baseline, current]).split('\0').filter(Boolean);
   const result = { patch, changed, checks, ...(fs.existsSync(receipt) ? { receipt } : {}), noTestsReason: spec.noTestsReason };
   save(path.join(dir, 'review.json'), result);
-  if (active(repo)?.id === id) fs.unlinkSync(path.join(repo.state, 'active.json'));
+  const grant = active(repo);
+  if (grant?.id === id) {
+    fs.unlinkSync(path.join(repo.state, 'active.json'));
+    if (changed.length) deliveryEvent(repo.root, { type: 'review', session: grant.session, id, inputTree: current, outcome: checks });
+  }
   return result;
 }
 if (require.main === module) {

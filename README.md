@@ -60,10 +60,11 @@ Node.js, Vitest, Jest, pytest, .NET with VSTest filtering, Maven, and Gradle. Th
 ## Verification and documentation
 
 ```sh
-node --test tests/routing.test.cjs
+node --test tests/routing.test.cjs tests/telemetry.test.cjs
 ```
 
 - [Italian user guide](GUIDA.md)
+- [Local telemetry, controls and data fields](TELEMETRY.md)
 - [Dependency and update behavior](DIPENDENZE.md)
 - [Verification record and remaining coverage](VERIFICA.md)
 - [ICM stages and recovery](.claude/routing/ICM.md)
@@ -71,13 +72,28 @@ node --test tests/routing.test.cjs
 
 The project hooks cover the registered Claude Code tools. Managed settings, sandboxing, and other tools may affect runtime behavior. Caronte makes no measured token-savings claim.
 
+## Local telemetry
+
+Local telemetry starts automatically on the first Claude Code startup or
+resume with Caronte. Run `/caronte-telemetry-off` to stop it for the current
+worktree, or `/caronte-telemetry-on` to turn it back on.
+Read the [telemetry guide](TELEMETRY.md) for the local report and removal commands.
+
 ## License and attribution
 
-Caronte's original components use the [Caronte Project Attribution License](LICENSE), a custom source-available license. If you use Caronte to develop a project, include this credit in that project's README, credits, or equivalent documentation. Private projects can keep the credit private.
+Caronte's original material is owned by **Manuel Albanese** and uses the
+[Caronte Source-Available License v2.0](LICENSE). Development, testing, and
+CI/CD of products you sell are permitted under the free grant. Running
+Caronte as part of a paid product or service requires a separate paid
+commercial runtime license from [Manuel Albanese](https://github.com/manuel-albanesee).
+
+If you use Caronte to develop a project, include this credit in that
+project's README, credits, or equivalent documentation. Private projects can
+keep the credit private.
 
 > Developed with [Caronte](https://github.com/manuel-albanesee/Caronte) by Manuel Albanese (@manuel-albanesee).
 
-Bundled MIT materials retain their respective licenses. See [NOTICE.md](NOTICE.md).
+Bundled MIT materials retain their respective licenses. See [NOTICE.md](NOTICE.md) and the [contribution policy](CONTRIBUTING.md).
 
 ## Credits
 

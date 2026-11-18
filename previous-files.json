@@ -52,5 +52,12 @@
     ".claude/skills/sviluppo-icm/SKILL.md": "acd2621dc956e8424d7d787398b816caaef5469804f3801897803ea79ce29232",
     ".claude/routing/ICM.md": "caeeefdeec4abc8bae33f21b3b076309d9601008ec0ec73bd9348dc92b077bf9",
     ".claude/hooks/compact-focus.cjs": "cf3506dc54e9a7eac51ca4b490971b0447325f75199d4be7f482a816580dede7"
+  },
+  "v232Hashes": {
+    ".claude/settings.routing.example.json": "3cde3f42bddbc67fc43c9e42bc71a6e3dfe18a6c2066e7263a1c982a03c471d6",
+    ".claude/hooks/sync-dependencies.cjs": "00ebb797404e7e597f3a2348f5681aa85409978d41b097d6bf8da3da52cbc624",
+    ".claude/hooks/validate-agent-brief.cjs": "01160e7de737c5bbed300e25bca2a7b3bf5a7ee00d6fdc71feb134bdfca58d2a",
+    ".claude/hooks/enforce-worker.cjs": "40319d1bd73818ba853ba3e4c1c79a1f240cc563b6bd589d1f7a5f4bb09a2b9e",
+    ".claude/routing/delivery.cjs": "db21784bbf5e3e9263ce621f96378cc801fc792eb77bf43c480216ea496e2efa"
   }
 }

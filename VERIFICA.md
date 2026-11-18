@@ -1,12 +1,14 @@
-# Verifica Caronte 2.3.2
+# Verifica Caronte 2.4.0
 
 18 novembre 2026. Ambiente di esecuzione Linux, Node v24.22.3. Lo ZIP contiene la suite e il relativo risultato TAP, eseguibili senza dipendenze npm.
 
 ## Esiti locali
 
-- 58 test automatici superati, zero fallimenti (`node --test tests/routing.test.cjs`).
+- 63 test automatici superati, zero fallimenti (`node --test tests/routing.test.cjs tests/telemetry.test.cjs`).
 - Installazione da CLI: `--verify` prima e dopo il setup, `--dry-run` senza scritture, regole preesistenti conservate e seconda installazione senza modifiche. RTK è stato simulato nella prova d’installazione.
 - Integrazione: binario ufficiale Claude Code 2.1.327 su Linux con API Anthropic simulata in locale. Una nuova sessione ha caricato `CLAUDE.md`, negato un brief incompleto, avviato `ecc-tdd-guide`, bloccato `npm test` nel worker ed eseguito con successo il comando di test mirato autorizzato. Questo verifica il collegamento effettivo degli hook, dei profili e del runner con il CLI.
+- Telemetria: attivazione locale al primo avvio, disattivazione persistente, cancellazione, deduplica, ripartenza del confronto dopo un edit e nessun dato grezzo nei registri. Prova con Claude Code 2.1.327 e API simulata: 6 richieste nel report, 1 blocco del worker e 1 verifica mirata. I token del collaudo sono sintetici.
+- Migrazione 2.3.2 → 2.4.0 verificata anche con il file settings precedente in CRLF.
 - Chat principale: il blocco del kit in `CLAUDE.md` definisce gli aggiornamenti e il resoconto di consegna. L’applicazione del formato da parte di Claude resta da osservare in una sessione reale.
 - Parser: campi, placeholder, CRLF, blocchi di codice backtick/tilde e annidati, stringhe letterali, metadati, file con spazi e Unicode, rifiuti restituiti come JSON.
 - Deleghe: stessa validazione per nomi di modello diversi e metadati annidati simulati; promemoria SubagentStart tramite stdin; comandi manuali senza fork diretto; profili scrivibili dedicati.

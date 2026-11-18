@@ -23,8 +23,10 @@ function install(target, dry = false, configureRtk = null) {
         const content = fs.readFileSync(path.join(source, rel)), p = filePath(root, rel);
         if (fs.existsSync(p)) {
           const before = fs.readFileSync(p);
+          const known = [previous.hashes[rel], previous.v2Hashes[rel], previous.v21Hashes[rel], previous.v232Hashes?.[rel]];
           const digest = hash(before);
-          if (!before.equals(content) && ![previous.hashes[rel], previous.v2Hashes[rel], previous.v21Hashes[rel]].includes(digest)) throw Error('Conflitto, file personalizzato: ' + rel + '. Nessuna modifica applicata.');
+          const normalized = hash(before.toString('utf8').replace(/\r\n/g, '\n'));
+          if (!before.equals(content) && !known.includes(digest) && !known.includes(normalized)) throw Error('Conflitto, file personalizzato: ' + rel + '. Nessuna modifica applicata.');
         }
         plan(rel, content);
       }

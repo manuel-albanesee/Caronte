@@ -1,4 +1,5 @@
 const fs = require('node:fs');
+const { toolEvent } = require('../routing/telemetry.cjs');
 const { gate, loadRun, filePath } = require('../routing/icm.cjs');
 const { authorize, writingProfiles, readingProfiles } = require('../routing/delivery.cjs');
 const fields = ['OBIETTIVO', 'INPUT', 'FATTI', 'VINCOLI', 'USCITA', 'VERIFICA'];
@@ -73,10 +74,18 @@ function validate(event, root) {
   }
 }
 function main() {
+  let event, root;
   try {
-    const event = JSON.parse(fs.readFileSync(0, 'utf8').replace(/^\uFEFF/, ''));
-    validate(event, process.env.CLAUDE_PROJECT_DIR || event.cwd || process.cwd());
+    event = JSON.parse(fs.readFileSync(0, 'utf8').replace(/^\uFEFF/, ''));
+    root = process.env.CLAUDE_PROJECT_DIR || event.cwd || process.cwd();
+    validate(event, root);
   } catch (error) {
+    if (event && root) {
+      const message = error.message;
+      const reason = /ICM|manifest|dipendenz/i.test(message) ? 'icm_gate'
+        : /REVIEW_ID|piano|baseline|orchestratore|delega scrivibile/i.test(message) ? 'review_plan' : 'brief_invalid';
+      toolEvent(root, event, 'blocked', reason);
+    }
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `${error.message} Brief: ${fields.join(', ')}. Conserva i letterali in blocchi di codice.` } }));
   }
 }

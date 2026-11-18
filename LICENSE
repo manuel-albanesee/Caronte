@@ -1,54 +1,69 @@
-Caronte Project Attribution License v1.0
+Caronte Source-Available License v2.0
 
 Copyright (c) 2026 Manuel Albanese (@manuel-albanesee)
+All rights reserved except as expressly granted below.
 
-1. Scope
+1. Scope and ownership
 
-"Caronte" means the original material distributed by the copyright holder
-under this license. Third-party material identified in NOTICE.md retains its
-own license. If a file includes both third-party material and original
-Caronte adaptations, this license applies only to the Caronte contributions.
+"Caronte" means the original material distributed under this license by
+Manuel Albanese, including original Caronte adaptations. The copyright holder
+retains ownership of and all licensing rights in that material. Third-party
+material identified in NOTICE.md remains governed by its own license, including
+when distributed alongside Caronte. This license grants no rights in
+independently owned contributions or third-party material.
 
-A "Project" is a body of software, configuration, documentation, or other
-work for which you use Caronte as part of development, including by using a
-modified version or arranging for an agent or automated workflow to use it
-on your behalf.
+2. Free use and redistribution
 
-2. Permission
+Subject to this license, Manuel Albanese grants you a worldwide, non-exclusive,
+royalty-free license to use, copy, modify, and redistribute Caronte, except for
+Commercial Runtime Use, which is governed by Section 3. You may use Caronte
+for development, testing, builds, and CI/CD of private or commercial projects,
+including products that are sold, when Caronte is used for these activities
+rather than for operating the paid product or service.
 
-Subject to the conditions below, the copyright holder grants you a worldwide,
-royalty-free, non-exclusive license to use, copy, modify, and redistribute
-Caronte, including for private and commercial work.
+3. Paid commercial runtime license
 
-3. Attribution
+"Commercial Runtime Use" means running Caronte or a modified version of it
+as an operational component of a product or service for which payment or
+other commercial consideration is charged. This includes embedding or hosting
+it to provide a feature of a paid product or service and invoking it through
+an agent, API, or background process to perform paid operations. A separate
+line item for Caronte is not required for a product or service to be paid.
 
-(a) When you use Caronte to develop a Project, include the following notice
-in the Project's README, credits, or equivalent project documentation:
+Commercial Runtime Use is outside the free grant. Before starting that use,
+you must obtain a separate written commercial runtime license from Manuel
+Albanese and pay him the fees agreed under that license. Publishing this
+repository, crediting its author, or receiving a copy does not grant paid
+runtime rights. Contact: https://github.com/manuel-albanesee
+
+4. Attribution and redistribution
+
+(a) When you use Caronte to develop a project, credit it in that project's
+README, credits, or equivalent documentation:
 
     Developed with Caronte by Manuel Albanese (@manuel-albanesee).
     https://github.com/manuel-albanesee/Caronte
 
-For a private Project, the notice can remain private. If you distribute or
-make the Project publicly available, make the notice available to its
-recipients or users in the README, credits, or equivalent documentation
-accompanying that distribution or public availability. A single notice per
-Project is sufficient. A translation is permitted if it preserves the name,
-credit, and link. The notice need not be repeated in individual files or
-printed in application output.
+The credit may stay private for a private project. For a publicly available or
+distributed project, make the credit available to recipients or users in the
+accompanying documentation. One notice per project is sufficient. A translation
+may preserve the name, credit, and link.
 
-(b) If you redistribute Caronte or a substantial portion of it, keep this
-license, the copyright notice, and all applicable third-party notices with
-the redistributed material. Identify any modifications as yours.
+(b) When you redistribute Caronte or a substantial portion of it, retain this
+license, the copyright notice, and applicable third-party notices. Identify
+your modifications. You may not sublicense the original Caronte material
+on terms that grant Commercial Runtime Use.
 
-4. Project ownership
+5. Projects and prior distributions
 
-This license does not change ownership of your Project or require you to
-publish source code or license your Project under these terms. The conditions
-above apply to your permission to use Caronte. Material copied from Caronte
-remains subject to its applicable license. Attribution does not imply
-endorsement or affiliation.
+This license does not change ownership of your project or require you to
+publish your source or license your own material under these terms. Caronte
+material copied into a project remains subject to its applicable license.
+Attribution does not imply endorsement or affiliation. This license applies
+to material distributed under this version of the license. It does not
+retroactively modify rights granted under prior distributions.
 
-5. Warranty and liability
+6. Warranty and liability
 
 TO THE EXTENT PERMITTED BY APPLICABLE LAW, CARONTE IS PROVIDED "AS IS",
 WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF

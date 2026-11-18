@@ -3,7 +3,7 @@
 ## Caronte
 
 Created by [Manuel Albanese (@manuel-albanesee)](https://github.com/manuel-albanesee).
-The original material is distributed under the [Caronte Project Attribution License](LICENSE).
+The original material is distributed under the [Caronte Source-Available License v2.0](LICENSE). Commercial runtime rights for the original Caronte material are granted separately by Manuel Albanese.
 
 ## ICM and ICM Architect
 

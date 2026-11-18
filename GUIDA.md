@@ -1,4 +1,4 @@
-# Caronte — guida del kit 2.3.2
+# Caronte — guida del kit 2.4.0
 
 Aggiornato il 18 novembre 2026. Brief preparati dal coordinatore, ricerca e sviluppo delegati per scopo, ripresa ICM verificabile. Il kit conserva Headroom e gli hook esistenti. Ricerca e benchmark esterni sono in [RICERCA.md](RICERCA.md).
 
@@ -54,6 +54,14 @@ Esempio di consegna per una correzione .NET:
 > **Stato.** Modifica in locale. Nessuna migrazione necessaria.
 
 I riferimenti al diff e alle ricevute vengono dalla verifica dell’orchestratore. I log e i dettagli delle deleghe sono disponibili su richiesta.
+
+## Telemetria locale
+
+La raccolta locale parte al primo avvio di Claude Code con Caronte. Dalla root
+del worktree usa `/caronte-telemetry-off` per fermarla e `/caronte-telemetry-on`
+per riattivarla. Il report
+locale distingue blocchi, retry candidati, test mirati e conteggi token
+presenti nelle sessioni Claude Code. Vedi [TELEMETRY.md](TELEMETRY.md).
 
 ## Contesto e compattazione
 
