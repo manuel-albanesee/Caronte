@@ -12,6 +12,9 @@
   confronto ha rilevato un episodio e due riletture, per 126 righe e
   2.408 byte di risultati registrati. I casi con avviso nativo sono coperti
   da fixture del transcript.
+- Chromium ha mostrato i conteggi su desktop e mobile. Il selettore ha
+  cambiato periodo senza richieste di rete. A 390 px la tabella scorre nel
+  proprio contenitore e la pagina mantiene la larghezza della finestra.
 
 ## Filtro dei log di test e build
 

@@ -53,6 +53,9 @@
     ".claude/routing/ICM.md": "caeeefdeec4abc8bae33f21b3b076309d9601008ec0ec73bd9348dc92b077bf9",
     ".claude/hooks/compact-focus.cjs": "cf3506dc54e9a7eac51ca4b490971b0447325f75199d4be7f482a816580dede7"
   },
+  "dashboardHashes": {
+    ".claude/routing/telemetry-dashboard.html": "39d5854e02539e89d9fc9a833c5450779451f0738e939a73c69be8320de4402b"
+  },
   "outputFilterHashes": {
     ".claude/routing/telemetry.cjs": "2a430f69e9ad40dd18200a09113bca2b726133c943c177a45386120145dbb921"
   },
