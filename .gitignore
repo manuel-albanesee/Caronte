@@ -1,4 +1,6 @@
 .claude/settings.local.json
+.claude/caronte-panel/.claude-plugin/types/
+.claude/caronte-panel/tsconfig.json
 .claude-routing-backups/
 node_modules/
 .env

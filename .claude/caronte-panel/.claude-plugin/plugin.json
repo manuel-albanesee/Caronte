@@ -1,0 +1,6 @@
+{
+  "name": "caronte-panel",
+  "version": "0.1.0",
+  "description": "Pannello live di Caronte per subagent, verifiche e token",
+  "author": { "name": "Manuel Albanese" }
+}

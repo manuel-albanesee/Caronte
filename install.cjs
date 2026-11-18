@@ -18,6 +18,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   function walk(folder) {
     for (const entry of fs.readdirSync(path.join(source, folder), { withFileTypes: true })) {
       const rel = folder + '/' + entry.name;
+      if (rel === '.claude/caronte-panel/.claude-plugin/types' || rel === '.claude/caronte-panel/tsconfig.json') continue;
       if (entry.isDirectory()) walk(rel);
       else if (entry.isFile()) {
         const content = fs.readFileSync(path.join(source, rel)), p = filePath(root, rel);

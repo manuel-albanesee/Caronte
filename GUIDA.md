@@ -80,6 +80,32 @@ Esempio di consegna per una correzione .NET:
 
 I riferimenti al diff e alle ricevute vengono dalla verifica dell’orchestratore. I log e i dettagli delle deleghe sono disponibili su richiesta.
 
+## Pannello subagent in Claude Code
+
+Dalla root del worktree dove hai installato Caronte, anche su PowerShell:
+
+```sh
+claude --plugin-dir ./.claude/caronte-panel
+```
+
+In Claude Code digita `/caronte-panel` per aprirlo o chiuderlo. Con `/tui fullscreen`
+e un terminale abbastanza largo, il pannello si aggancia a destra. Con meno spazio
+si apre sopra il prompt. Il mod è stato verificato su
+Claude Code 2.1.327 e si può caricare insieme al plugin ECC completo.
+
+| Dato | Come leggerlo |
+| --- | --- |
+| Stato e attività | Stato nativo dell’agente, descrizione della delega e strumento in esecuzione quando disponibile. |
+| In / Out | Token di input senza cache e token generati, dai contatori di Claude Code per l’agente e dai totali dei turni conclusi. |
+| Cache ↓ / ↑ | Token letti dalla cache e token scritti in cache durante le richieste dell’agente. |
+| Avanzamento | Checkpoint osservati nel piano Caronte del worktree e della sessione. Uno per l’assegnazione, uno per i test mirati se previsti e uno per la revisione del diff. Se la revisione vede test obsoleti, il relativo checkpoint torna incompleto. |
+
+Un trattino indica che Claude Code non ha ancora fornito contatori o che il
+pannello non ha osservato un piano misurabile per quell’agente. Il 100% indica il
+completamento dei checkpoint previsti dal piano. Il pannello aggiorna la vista
+in memoria, senza chiamate al modello o nuove registrazioni nel dashboard locale.
+Aprilo prima di delegare per seguire anche l’assegnazione del piano.
+
 ## Telemetria locale
 
 La raccolta locale parte al primo avvio di Claude Code con Caronte. Dalla root

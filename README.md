@@ -35,6 +35,19 @@ If the project uses the full native ECC plugin, run the installer with
 and explicit Caronte plans while the ECC plugin runs its full workflows.
 See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
 
+### Live subagent panel
+
+From the installed worktree, start Claude Code with the Caronte mod.
+
+```sh
+claude --plugin-dir ./.claude/caronte-panel
+```
+
+Run `/caronte-panel` to open the native pane. Use `/tui fullscreen` and a wide
+terminal to dock it on the right. The pane shows subagent activity, model and
+tokens, plus verified checkpoints for an observed Caronte plan. Tested with
+Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).
+
 ## How it works
 
 | Feature | What you get |
@@ -65,7 +78,7 @@ Node.js, Vitest, Jest, pytest, .NET with VSTest filtering, Maven, and Gradle. Th
 ## Verification and documentation
 
 ```sh
-node --test tests/routing.test.cjs tests/telemetry.test.cjs
+node --test tests/*.test.cjs
 ```
 
 - [Italian user guide](GUIDA.md)
