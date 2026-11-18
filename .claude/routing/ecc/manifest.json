@@ -1,0 +1,35 @@
+{
+  "repo": "affaan-m/ECC",
+  "version": "2.2.3",
+  "commit": "3f14a103a8694e51c1df9a806217a6d0b5f7a6f7",
+  "profiles": {
+    "tdd-guide": {
+      "path": "agents/tdd-guide.md",
+      "blob": "d4f6443b8fa3b7e31d469d9b557b658f612f6077"
+    },
+    "java-build-resolver": {
+      "path": "agents/java-build-resolver.md",
+      "blob": "ba638dd07208f38df6fef1a0ae86abec69699359"
+    },
+    "build-error-resolver": {
+      "path": "agents/build-error-resolver.md",
+      "blob": "23be5e7c9ed26dbf3751f83eb4853c7add5612a0"
+    },
+    "typescript-reviewer": {
+      "path": "agents/typescript-reviewer.md",
+      "blob": "c72b2edd6acfbd3b2ed6f82241c841d359d13afa"
+    },
+    "csharp-reviewer": {
+      "path": "agents/csharp-reviewer.md",
+      "blob": "57bbaf6d65de8cc06b2171eaab7bafaa84cb2efe"
+    },
+    "java-reviewer": {
+      "path": "agents/java-reviewer.md",
+      "blob": "fbe19bf40d8e69954173af9ae545e3c6490e7da5"
+    },
+    "code-reviewer": {
+      "path": "agents/code-reviewer.md",
+      "blob": "884d94ec2d45a51ba091519dbee416c7d563e3d6"
+    }
+  }
+}

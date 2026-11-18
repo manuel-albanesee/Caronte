@@ -1,0 +1,57 @@
+Caronte Project Attribution License v1.0
+
+Copyright (c) 2026 Manuel Albanese (@manuel-albanesee)
+
+1. Scope
+
+"Caronte" means the original material distributed by the copyright holder
+under this license. Third-party material identified in NOTICE.md retains its
+own license. If a file includes both third-party material and original
+Caronte adaptations, this license applies only to the Caronte contributions.
+
+A "Project" is a body of software, configuration, documentation, or other
+work for which you use Caronte as part of development, including by using a
+modified version or arranging for an agent or automated workflow to use it
+on your behalf.
+
+2. Permission
+
+Subject to the conditions below, the copyright holder grants you a worldwide,
+royalty-free, non-exclusive license to use, copy, modify, and redistribute
+Caronte, including for private and commercial work.
+
+3. Attribution
+
+(a) When you use Caronte to develop a Project, include the following notice
+in the Project's README, credits, or equivalent project documentation:
+
+    Developed with Caronte by Manuel Albanese (@manuel-albanesee).
+    https://github.com/manuel-albanesee/Caronte
+
+For a private Project, the notice can remain private. If you distribute or
+make the Project publicly available, make the notice available to its
+recipients or users in the README, credits, or equivalent documentation
+accompanying that distribution or public availability. A single notice per
+Project is sufficient. A translation is permitted if it preserves the name,
+credit, and link. The notice need not be repeated in individual files or
+printed in application output.
+
+(b) If you redistribute Caronte or a substantial portion of it, keep this
+license, the copyright notice, and all applicable third-party notices with
+the redistributed material. Identify any modifications as yours.
+
+4. Project ownership
+
+This license does not change ownership of your Project or require you to
+publish source code or license your Project under these terms. The conditions
+above apply to your permission to use Caronte. Material copied from Caronte
+remains subject to its applicable license. Attribution does not imply
+endorsement or affiliation.
+
+5. Warranty and liability
+
+TO THE EXTENT PERMITTED BY APPLICABLE LAW, CARONTE IS PROVIDED "AS IS",
+WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WARRANTIES OF
+MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+THE COPYRIGHT HOLDER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM CARONTE OR ITS USE.

@@ -1,0 +1,7 @@
+.claude/settings.local.json
+.claude-routing-backups/
+node_modules/
+.env
+.env.*
+*.tgz
+.DS_Store

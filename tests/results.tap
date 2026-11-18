@@ -1,0 +1,358 @@
+TAP version 13
+# Subtest: brief corretto e CRLF
+ok 1 - brief corretto e CRLF
+  ---
+  duration_ms: 4.219428
+  type: 'test'
+  ...
+# Subtest: rifiuta placeholder TODO
+ok 2 - rifiuta placeholder TODO
+  ---
+  duration_ms: 2.822295
+  type: 'test'
+  ...
+# Subtest: rifiuta placeholder TBD
+ok 3 - rifiuta placeholder TBD
+  ---
+  duration_ms: 0.46007
+  type: 'test'
+  ...
+# Subtest: rifiuta placeholder ...
+ok 4 - rifiuta placeholder ...
+  ---
+  duration_ms: 0.721037
+  type: 'test'
+  ...
+# Subtest: rifiuta placeholder <da compilare>
+ok 5 - rifiuta placeholder <da compilare>
+  ---
+  duration_ms: 0.354094
+  type: 'test'
+  ...
+# Subtest: rifiuta placeholder N/A
+ok 6 - rifiuta placeholder N/A
+  ---
+  duration_ms: 0.359418
+  type: 'test'
+  ...
+# Subtest: rifiuta campo mancante
+ok 7 - rifiuta campo mancante
+  ---
+  duration_ms: 0.332733
+  type: 'test'
+  ...
+# Subtest: rifiuta duplicato reale
+ok 8 - rifiuta duplicato reale
+  ---
+  duration_ms: 0.7135
+  type: 'test'
+  ...
+# Subtest: rifiuta ordine errato
+ok 9 - rifiuta ordine errato
+  ---
+  duration_ms: 1.554481
+  type: 'test'
+  ...
+# Subtest: rifiuta vuoto e nessuno obbligatorio
+ok 10 - rifiuta vuoto e nessuno obbligatorio
+  ---
+  duration_ms: 1.210788
+  type: 'test'
+  ...
+# Subtest: etichette dentro fence conservate
+ok 11 - etichette dentro fence conservate
+  ---
+  duration_ms: 0.795179
+  type: 'test'
+  ...
+# Subtest: fence annidati con lunghezza diversa
+ok 12 - fence annidati con lunghezza diversa
+  ---
+  duration_ms: 0.22723
+  type: 'test'
+  ...
+# Subtest: fence tilde e righe indentate
+ok 13 - fence tilde e righe indentate
+  ---
+  duration_ms: 1.053204
+  type: 'test'
+  ...
+# Subtest: fence aperto rifiutato
+ok 14 - fence aperto rifiutato
+  ---
+  duration_ms: 0.68472
+  type: 'test'
+  ...
+# Subtest: metadata citati non attivi
+ok 15 - metadata citati non attivi
+  ---
+  duration_ms: 2.213011
+  type: 'test'
+  ...
+# Subtest: metadata duplicati rifiutati
+ok 16 - metadata duplicati rifiutati
+  ---
+  duration_ms: 1.863498
+  type: 'test'
+  ...
+# Subtest: file esistente con spazi e unicode
+ok 17 - file esistente con spazi e unicode
+  ---
+  duration_ms: 3.326421
+  type: 'test'
+  ...
+# Subtest: file assente e path esterno rifiutati
+ok 18 - file assente e path esterno rifiutati
+  ---
+  duration_ms: 0.825187
+  type: 'test'
+  ...
+# Subtest: INPUT_FILES schema errato rifiutato
+ok 19 - INPUT_FILES schema errato rifiutato
+  ---
+  duration_ms: 0.596667
+  type: 'test'
+  ...
+# Subtest: stesso controllo ogni modello e depth
+ok 20 - stesso controllo ogni modello e depth
+  ---
+  duration_ms: 2.112596
+  type: 'test'
+  ...
+# Subtest: Task validato, altri tool fuori scope
+ok 21 - Task validato, altri tool fuori scope
+  ---
+  duration_ms: 0.686918
+  type: 'test'
+  ...
+# Subtest: worker lettore non riceve capability write
+ok 22 - worker lettore non riceve capability write
+  ---
+  duration_ms: 1.405006
+  type: 'test'
+  ...
+# Subtest: stdin malformato negato con JSON valido
+ok 23 - stdin malformato negato con JSON valido
+  ---
+  duration_ms: 276.01665
+  type: 'test'
+  ...
+# Subtest: SubagentStart propaga la procedura
+ok 24 - SubagentStart propaga la procedura
+  ---
+  duration_ms: 337.051165
+  type: 'test'
+  ...
+# Subtest: fase successiva bloccata prima del check
+ok 25 - fase successiva bloccata prima del check
+  ---
+  duration_ms: 14.650618
+  type: 'test'
+  ...
+# Subtest: due fasi e ripresa in nuovo processo
+ok 26 - due fasi e ripresa in nuovo processo
+  ---
+  duration_ms: 679.579678
+  type: 'test'
+  ...
+# Subtest: invalida input/contratto/output input.txt
+ok 27 - invalida input/contratto/output input.txt
+  ---
+  duration_ms: 1037.173014
+  type: 'test'
+  ...
+# Subtest: invalida input/contratto/output contract-a.md
+ok 28 - invalida input/contratto/output contract-a.md
+  ---
+  duration_ms: 297.254686
+  type: 'test'
+  ...
+# Subtest: invalida input/contratto/output out-a.txt
+ok 29 - invalida input/contratto/output out-a.txt
+  ---
+  duration_ms: 401.865331
+  type: 'test'
+  ...
+# Subtest: invalida input/contratto/output verify.cjs
+ok 30 - invalida input/contratto/output verify.cjs
+  ---
+  duration_ms: 318.500748
+  type: 'test'
+  ...
+# Subtest: cambio comando invalida
+ok 31 - cambio comando invalida
+  ---
+  duration_ms: 146.967656
+  type: 'test'
+  ...
+# Subtest: test fallito elimina vecchio pass
+ok 32 - test fallito elimina vecchio pass
+  ---
+  duration_ms: 841.684261
+  type: 'test'
+  ...
+# Subtest: output mancante non puo passare
+ok 33 - output mancante non puo passare
+  ---
+  duration_ms: 122.144555
+  type: 'test'
+  ...
+# Subtest: input assente blocca gate
+ok 34 - input assente blocca gate
+  ---
+  duration_ms: 4.039533
+  type: 'test'
+  ...
+# Subtest: input cambiato dal verificatore rifiutato
+ok 35 - input cambiato dal verificatore rifiutato
+  ---
+  duration_ms: 248.990978
+  type: 'test'
+  ...
+# Subtest: timeout registrato come fallimento
+ok 36 - timeout registrato come fallimento
+  ---
+  duration_ms: 33.817324
+  type: 'test'
+  ...
+# Subtest: dipendenze cicliche rifiutate
+ok 37 - dipendenze cicliche rifiutate
+  ---
+  duration_ms: 0.824432
+  type: 'test'
+  ...
+# Subtest: ricevuta corrotta non accettata
+ok 38 - ricevuta corrotta non accettata
+  ---
+  duration_ms: 184.766447
+  type: 'test'
+  ...
+# Subtest: hook ICM blocca dipendenza obsoleta
+ok 39 - hook ICM blocca dipendenza obsoleta
+  ---
+  duration_ms: 211.457745
+  type: 'test'
+  ...
+# Subtest: metadata ICM incompleti rifiutati
+ok 40 - metadata ICM incompleti rifiutati
+  ---
+  duration_ms: 1.10464
+  type: 'test'
+  ...
+# Subtest: installazione conserva proxy e hook, ripetibile
+ok 41 - installazione conserva proxy e hook, ripetibile
+  ---
+  duration_ms: 20.679746
+  type: 'test'
+  ...
+# Subtest: dry run senza modifiche
+ok 42 - dry run senza modifiche
+  ---
+  duration_ms: 20.038937
+  type: 'test'
+  ...
+# Subtest: conflitto personalizzato non sovrascritto
+ok 43 - conflitto personalizzato non sovrascritto
+  ---
+  duration_ms: 3.39143
+  type: 'test'
+  ...
+# Subtest: comandi utente restano nel coordinatore
+ok 44 - comandi utente restano nel coordinatore
+  ---
+  duration_ms: 0.351048
+  type: 'test'
+  ...
+# Subtest: worker di sviluppo ha scrittura e test
+ok 45 - worker di sviluppo ha scrittura e test
+  ---
+  duration_ms: 0.550165
+  type: 'test'
+  ...
+# Subtest: CAPABILITY citata in codice non cambia il tipo
+ok 46 - CAPABILITY citata in codice non cambia il tipo
+  ---
+  duration_ms: 0.383398
+  type: 'test'
+  ...
+# Subtest: upgrade kit precedente e deduplica scope hook
+ok 47 - upgrade kit precedente e deduplica scope hook
+  ---
+  duration_ms: 15.459911
+  type: 'test'
+  ...
+# Subtest: lock impedisce verifiche concorrenti
+ok 48 - lock impedisce verifiche concorrenti
+  ---
+  duration_ms: 1.229087
+  type: 'test'
+  ...
+# Subtest: routing CLAUDE personalizzato non duplicato
+ok 49 - routing CLAUDE personalizzato non duplicato
+  ---
+  duration_ms: 4.911678
+  type: 'test'
+  ...
+# Subtest: installer imposta finestra orchestratore e mantiene le altre impostazioni dei modelli
+ok 50 - installer imposta finestra orchestratore e mantiene le altre impostazioni dei modelli
+  ---
+  duration_ms: 12.830309
+  type: 'test'
+  ...
+# Subtest: installer segnala un override del wrapper senza cancellarlo
+ok 51 - installer segnala un override del wrapper senza cancellarlo
+  ---
+  duration_ms: 8.029324
+  type: 'test'
+  ...
+# Subtest: RTK già disponibile e hook utente esistente vengono riusati
+ok 52 - RTK già disponibile e hook utente esistente vengono riusati
+  ---
+  duration_ms: 14.999614
+  type: 'test'
+  ...
+# Subtest: RTK mancante usa WinGet soltanto dopo il dry-run e configura il progetto una volta
+ok 53 - RTK mancante usa WinGet soltanto dopo il dry-run e configura il progetto una volta
+  ---
+  duration_ms: 27.390988
+  type: 'test'
+  ...
+# Subtest: installazione RTK fallita mantiene il routing e non aggiunge un hook inutilizzabile
+ok 54 - installazione RTK fallita mantiene il routing e non aggiunge un hook inutilizzabile
+  ---
+  duration_ms: 18.85559
+  type: 'test'
+  ...
+# Subtest: delegato esegue un solo test impattato, orchestratore verifica il delta Git e mantiene lo staging
+ok 55 - delegato esegue un solo test impattato, orchestratore verifica il delta Git e mantiene lo staging
+  ---
+  duration_ms: 2776.380701
+  type: 'test'
+  ...
+# Subtest: recezione senza match e test divenuti obsoleti non validano il diff
+ok 56 - recezione senza match e test divenuti obsoleti non validano il diff
+  ---
+  duration_ms: 1435.298261
+  type: 'test'
+  ...
+# Subtest: piano senza filtro applicativo e delega scrivibile senza REVIEW_ID vengono respinti
+ok 57 - piano senza filtro applicativo e delega scrivibile senza REVIEW_ID vengono respinti
+  ---
+  duration_ms: 76.088127
+  type: 'test'
+  ...
+# Subtest: avvio aggiorna i profili ECC validati e prova RTK tramite WinGet senza cambiare le regole locali
+ok 58 - avvio aggiorna i profili ECC validati e prova RTK tramite WinGet senza cambiare le regole locali
+  ---
+  duration_ms: 156.555476
+  type: 'test'
+  ...
+1..58
+# tests 58
+# suites 0
+# pass 58
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 10134.319105
