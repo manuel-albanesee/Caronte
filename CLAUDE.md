@@ -1,5 +1,6 @@
 # Routing dei modelli e ICM
 
+- Con Caronte installato in modalità ECC completo, applica il protocollo qui sotto alle deleghe del kit e a quelle per cui prepari esplicitamente un piano Caronte. Quando l'utente chiede un comando, una skill o un flusso nativo di ECC, usa il plugin ufficiale e segui la sua procedura.
 - Esegui direttamente task piccoli e operazioni deterministiche. Delega solo quando il lavoro autonomo evita letture o lavoro superfluo nel coordinatore. Una delega alla volta salvo reale indipendenza.
 - Usa ricerca-haiku per ricerca estesa, decisione-opus per una decisione ad alto impatto, implementazione-haiku per modifiche meccaniche con test noto, implementazione-sonnet per sviluppo circoscritto più articolato. Rispetta modello, effort e tool del profilo; niente escalation ripetute senza nuove evidenze.
 - Preferisci uno specialista ECC quando il ruolo coincide con il problema: ecc-tdd-guide per regressione o test-first, ecc-build-error-resolver per build e tipi JS/TS, ecc-java-build-resolver per Maven/Gradle e i reviewer ECC per richieste di revisione mirate Java, C#, TypeScript o trasversali. Usa i profili del kit con prefisso ecc-. Evita una seconda revisione se non serve.

@@ -10,6 +10,8 @@ const runner = 'node .claude/routing/delivery.cjs';
 const idPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const writingProfiles = new Set(['implementazione-haiku', 'implementazione-sonnet', 'ecc-tdd-guide', 'ecc-build-error-resolver', 'ecc-java-build-resolver']);
 const readingProfiles = new Set(['ricerca-haiku', 'decisione-opus', 'ecc-typescript-reviewer', 'ecc-java-reviewer', 'ecc-csharp-reviewer', 'ecc-code-reviewer']);
+const eccFull = () => process.env.CARONTE_ECC_FULL === '1';
+const isKitProfile = profile => writingProfiles.has(profile) || readingProfiles.has(profile);
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
 function save(file, data) {
   const tmp = file + '.' + randomUUID() + '.tmp';
@@ -132,6 +134,20 @@ function active(repo) {
     throw error;
   }
 }
+function assignmentFor(repo, event) {
+  const grant = active(repo);
+  if (!grant || grant.session !== event.session_id) return null;
+  return { grant, spec: load(repo, grant.id) };
+}
+function matchesAssignment(assignment, event) {
+  if (!assignment) return false;
+  return assignment.spec.profile === event.agent_type || assignment.grant.agent === event.agent_id;
+}
+function isManagedWorker(root, event) {
+  if (!event.agent_id) return false;
+  if (isKitProfile(event.agent_type)) return true;
+  return matchesAssignment(assignmentFor(locate(root), event), event);
+}
 function authorize(root, id, event) {
   const repo = locate(root), spec = load(repo, id);
   if (event.agent_id || !event.session_id) throw Error('Solo la sessione orchestratore può aprire una delega scrivibile.');
@@ -146,12 +162,14 @@ function authorize(root, id, event) {
 }
 function enforceWorker(root, event) {
   if (!event.agent_id) return;
+  const repo = locate(root);
+  const assignment = assignmentFor(repo, event);
+  if (eccFull() && !isKitProfile(event.agent_type) && !matchesAssignment(assignment, event)) return;
   const shell = ['Bash', 'PowerShell'].includes(event.tool_name);
   const edit = ['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(event.tool_name);
   if (!shell && !edit) throw Error('Usa gli strumenti del profilo; per shell e test usa il piano mirato dell’orchestratore.');
-  const repo = locate(root), grant = active(repo);
-  if (!grant || grant.session !== event.session_id) throw Error('Nessun piano scrivibile attivo per questo worker.');
-  const spec = load(repo, grant.id);
+  if (!assignment) throw Error('Nessun piano scrivibile attivo per questo worker.');
+  const { grant, spec } = assignment;
   if (spec.profile !== event.agent_type || (grant.agent && grant.agent !== event.agent_id)) throw Error('Il piano è assegnato a un altro worker.');
   if (shell) {
     if (!spec.tests.length || event.tool_input?.command !== runner + ' check ' + grant.id) {
@@ -256,4 +274,7 @@ if (require.main === module) {
     console.log(JSON.stringify(result, null, 2));
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
-module.exports = { plan, authorize, enforceWorker, check, review, readingProfiles, writingProfiles };
+module.exports = {
+  plan, authorize, enforceWorker, check, review, readingProfiles, writingProfiles,
+  eccFull, isKitProfile, isManagedWorker,
+};

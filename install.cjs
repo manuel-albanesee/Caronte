@@ -5,7 +5,7 @@ const { filePath } = require('./.claude/routing/icm.cjs');
 const { prepareRtk } = require('./rtk-setup.cjs');
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
-function install(target, dry = false, configureRtk = null) {
+function install(target, dry = false, configureRtk = null, enableFullEcc = false) {
   const root = fs.realpathSync(target), source = __dirname;
   if (root === fs.realpathSync(source)) throw Error('Scegli la root del progetto, non la cartella del kit.');
   const previous = JSON.parse(fs.readFileSync(path.join(source, 'previous-files.json'), 'utf8'));
@@ -25,7 +25,7 @@ function install(target, dry = false, configureRtk = null) {
           const before = fs.readFileSync(p);
           const known = [previous.hashes[rel], previous.v2Hashes[rel], previous.v21Hashes[rel],
             previous.v232Hashes?.[rel], previous.v24Hashes?.[rel], previous.outputFilterHashes?.[rel],
-            previous.dashboardHashes?.[rel]];
+            previous.dashboardHashes?.[rel], previous.preEccFullHashes?.[rel]];
           const digest = hash(before);
           const normalized = hash(before.toString('utf8').replace(/\r\n/g, '\n'));
           if (!before.equals(content) && !known.includes(digest) && !known.includes(normalized)) throw Error('Conflitto, file personalizzato: ' + rel + '. Nessuna modifica applicata.');
@@ -72,10 +72,13 @@ function install(target, dry = false, configureRtk = null) {
   for (const model of Object.values(settings.modelSettings || {})) {
     if (model && Object.hasOwn(model, 'autoCompactWindow')) model.autoCompactWindow = sample.autoCompactWindow;
   }
-  settings.env = { ...settings.env, ...sample.env };
+  if (enableFullEcc) settings.env = { ...settings.env, CARONTE_ECC_FULL: '1' };
+  const fullEcc = (settings.env?.CARONTE_ECC_FULL ?? project.env?.CARONTE_ECC_FULL) === '1';
+  settings.env = fullEcc ? { ...settings.env } : { ...settings.env, ...sample.env };
   const overrides = ['CLAUDE_CODE_AUTO_COMPACT_WINDOW', 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', 'DISABLE_AUTO_COMPACT', 'DISABLE_COMPACT']
     .filter(key => [process.env, settings.env, project.env].some(env => env?.[key]));
   const summary = { model: settings.model, autoCompactWindow: settings.autoCompactWindow };
+  if (fullEcc) summary.eccFull = true;
   if (overrides.length) summary.checkEnvironmentOverrides = overrides;
   settings.hooks ??= {};
   if (Array.isArray(settings.hooks) || typeof settings.hooks !== 'object') throw Error('hooks non valido.');
@@ -109,16 +112,18 @@ function install(target, dry = false, configureRtk = null) {
 }
 if (require.main === module) {
   try {
-    const usage = 'Caronte — node install.cjs <project-root> [--dry-run | --verify]';
+    const usage = 'Caronte — node install.cjs <project-root> [--dry-run | --verify] [--ecc-full]';
     const args = process.argv.slice(2);
     if (args.includes('--help') || args.includes('-h')) console.log(usage);
     else {
       const flags = args.filter(arg => arg.startsWith('--'));
       const targets = args.filter(arg => !arg.startsWith('--'));
-      if (targets.length !== 1 || flags.length > 1 || flags.some(flag => !['--dry-run', '--verify'].includes(flag))) throw Error(usage);
+      if (targets.length !== 1 || new Set(flags).size !== flags.length ||
+          flags.some(flag => !['--dry-run', '--verify', '--ecc-full'].includes(flag)) ||
+          (flags.includes('--dry-run') && flags.includes('--verify'))) throw Error(usage);
       if (Number(process.versions.node.split('.')[0]) < 22) throw Error('Caronte requires Node.js 22 or later.');
       const dry = flags.includes('--dry-run'), verify = flags.includes('--verify');
-      const result = install(targets[0], dry || verify, prepareRtk);
+      const result = install(targets[0], dry || verify, prepareRtk, flags.includes('--ecc-full'));
       if (verify) {
         result.verified = result.changed.length === 0 && result.rtk.hook === 'reused' && !result.rtk.pathNote;
         if (!result.verified) process.exitCode = 1;

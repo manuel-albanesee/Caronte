@@ -1,7 +1,7 @@
 const fs = require('node:fs');
 const { toolEvent } = require('../routing/telemetry.cjs');
 const { gate, loadRun, filePath } = require('../routing/icm.cjs');
-const { authorize, writingProfiles, readingProfiles } = require('../routing/delivery.cjs');
+const { authorize, writingProfiles, readingProfiles, eccFull, isKitProfile, isManagedWorker } = require('../routing/delivery.cjs');
 const fields = ['OBIETTIVO', 'INPUT', 'FATTI', 'VINCOLI', 'USCITA', 'VERIFICA'];
 const empty = /^(?:todo|tbd|n\/?a|da (?:definire|compilare)|placeholder|\.{3}|…|\?|<[^>]+>|\{[^}]+\})[.!]?$/i;
 function parseBrief(prompt) {
@@ -54,7 +54,16 @@ function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE']) 
 }
 function validate(event, root) {
   if (!['Agent', 'Task'].includes(event.tool_name)) return;
-  const sections = parseBrief(event.tool_input?.prompt), meta = inputMetadata(sections.INPUT);
+  const { subagent_type: profile, prompt } = event.tool_input || {};
+  const coexist = eccFull();
+  const kitProfile = isKitProfile(profile);
+  if (coexist) {
+    const managedCaller = isManagedWorker(root, event);
+    if (managedCaller && !kitProfile) throw Error('Usa un profilo Caronte per una sotto-delega gestita dal kit.');
+    const kitBrief = typeof prompt === 'string' && prompt.trimStart().startsWith('OBIETTIVO:');
+    if (!kitProfile && !kitBrief) return;
+  }
+  const sections = parseBrief(prompt), meta = inputMetadata(sections.INPUT);
   if (meta.INPUT_FILES !== undefined) {
     const files = JSON.parse(meta.INPUT_FILES);
     if (!Array.isArray(files) || files.some(f => typeof f !== 'string')) throw Error('INPUT_FILES deve essere un array JSON di percorsi.');
@@ -64,8 +73,10 @@ function validate(event, root) {
     if (!meta.ICM_RUN || !meta.ICM_STAGE) throw Error('Specifica sia ICM_RUN sia ICM_STAGE.');
     gate(loadRun(root, meta.ICM_RUN), meta.ICM_STAGE);
   }
-  const profile = event.tool_input?.subagent_type;
   const { CAPABILITY, REVIEW_ID } = inputMetadata(sections.VINCOLI, ['CAPABILITY', 'REVIEW_ID']);
+  if (coexist && !kitProfile && CAPABILITY !== 'write' && REVIEW_ID === undefined) {
+    throw Error('Usa un profilo Caronte per una delega gestita in sola lettura, oppure assegna un piano di scrittura con REVIEW_ID.');
+  }
   if (writingProfiles.has(profile) && CAPABILITY !== 'write') throw Error('Il profilo di sviluppo richiede CAPABILITY: write e REVIEW_ID.');
   if (CAPABILITY === 'write' || REVIEW_ID !== undefined) {
     if (readingProfiles.has(profile)) throw Error('Destinatario in sola lettura. Usa un worker implementazione.');

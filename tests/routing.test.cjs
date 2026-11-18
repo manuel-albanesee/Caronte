@@ -42,6 +42,79 @@ test('Task validato, altri tool fuori scope',t=>{const r=temporary(t);validate(e
 test('worker lettore non riceve capability write',t=>{const r=temporary(t);const e=event(brief.replace('VINCOLI: sola lettura','VINCOLI: modifica src/x\nCAPABILITY: write'));e.tool_input.subagent_type='ricerca-haiku';assert.throws(()=>validate(e,r));});
 test('stdin malformato negato con JSON valido',()=>{const p=spawnSync(process.execPath,[path.join(kit,'.claude/hooks/validate-agent-brief.cjs')],{input:'{broken',encoding:'utf8'});assert.equal(JSON.parse(p.stdout).hookSpecificOutput.permissionDecision,'deny');});
 test('SubagentStart propaga la procedura',()=>{const p=spawnSync(process.execPath,[path.join(kit,'.claude/hooks/delegation-context.cjs')],{input:JSON.stringify({hook_event_name:'SubagentStart'}),encoding:'utf8'});assert.match(JSON.parse(p.stdout).hookSpecificOutput.additionalContext,/OBIETTIVO/);});
+
+function fullEccHook(root, script, payload) {
+  const result = spawnSync(process.execPath, [path.join(kit, '.claude/hooks', script + '.cjs')], {
+    cwd: root, env: { ...process.env, CLAUDE_PROJECT_DIR: root, CARONTE_ECC_FULL: '1' },
+    input: JSON.stringify(payload), encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr);
+  return result.stdout && JSON.parse(result.stdout).hookSpecificOutput;
+}
+
+test('ECC completo lascia funzionare i profili nativi, le loro sotto-deleghe generiche e il tool Skill', t => {
+  const root = temporary(t);
+  assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
+  const native = { agent_id: 'native', agent_type: 'ecc:tdd-guide', session_id: 'session' };
+  const task = { tool_name: 'Agent', tool_input: { subagent_type: native.agent_type, prompt: 'Review the failing test.' } };
+  assert.equal(fullEccHook(root, 'validate-agent-brief', task), '');
+  assert.match(fullEccHook(root, 'validate-agent-brief', {
+    ...task, tool_input: { ...task.tool_input, prompt: brief },
+  }).permissionDecisionReason, /sola lettura/);
+  assert.equal(fullEccHook(root, 'validate-agent-brief', {
+    ...native, ...task, tool_input: { subagent_type: 'general-purpose', prompt: 'Read the test output.' },
+  }), '');
+  assert.equal(fullEccHook(root, 'delegation-context', { ...native, hook_event_name: 'SubagentStart' }), '');
+  assert.equal(fullEccHook(root, 'enforce-worker', {
+    ...native, tool_name: 'Bash', tool_input: { command: 'npm test' },
+  }), '');
+  assert.equal(fullEccHook(root, 'enforce-worker', {
+    ...native, tool_name: 'Skill', tool_input: { skill: 'ecc:tdd-workflow' },
+  }), '');
+  const kitTask = { ...task, tool_input: { ...task.tool_input, subagent_type: 'ecc-tdd-guide' } };
+  assert.equal(fullEccHook(root, 'validate-agent-brief', kitTask).permissionDecision, 'deny');
+  assert.equal(fullEccHook(root, 'enforce-worker', {
+    ...native, agent_type: 'ecc-tdd-guide', tool_name: 'Bash', tool_input: { command: 'npm test' },
+  }).permissionDecision, 'deny');
+});
+
+test('ECC completo conserva i limiti di un piano Caronte anche con un profilo del plugin', t => {
+  const root = temporary(t);
+  assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
+  write(root, 'app.txt', 'hello');
+  const { plan } = require('../.claude/routing/delivery.cjs');
+  const type = 'ecc:tdd-guide';
+  const planned = plan(root, { profile: type, files: ['app.txt'], tests: [], noTestsReason: 'Modifica di testo.' });
+  const prompt = brief.replace('VINCOLI: sola lettura', 'VINCOLI: solo app.txt\nCAPABILITY: write\nREVIEW_ID: ' + planned.id);
+  assert.equal(fullEccHook(root, 'validate-agent-brief', {
+    tool_name: 'Agent', tool_input: { subagent_type: type, prompt }, session_id: 'session',
+  }), '');
+  const agent = { agent_id: 'managed', agent_type: type, session_id: 'session' };
+  assert.match(fullEccHook(root, 'delegation-context', { ...agent, hook_event_name: 'SubagentStart' }).additionalContext, /REVIEW_ID/);
+  assert.equal(fullEccHook(root, 'enforce-worker', { ...agent, tool_name: 'Edit', tool_input: { file_path: 'app.txt' } }), '');
+  assert.equal(fullEccHook(root, 'enforce-worker', { ...agent, tool_name: 'Edit', tool_input: { file_path: 'other.txt' } }).permissionDecision, 'deny');
+  assert.equal(fullEccHook(root, 'validate-agent-brief', {
+    ...agent, tool_name: 'Agent', tool_input: { subagent_type: 'general-purpose', prompt: 'Edit the file.' },
+  }).permissionDecision, 'deny');
+});
+
+test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie ECC completo', t => {
+  const root = temporary(t);
+  const localSettings = '.claude/settings.local.json';
+  const eccHook = { matcher: 'Bash', hooks: [{ type: 'command', command: 'ecc-hook' }] };
+  write(root, localSettings, JSON.stringify({
+    enabledPlugins: { 'ecc@ecc': true },
+    env: { ECC_HOOK_PROFILE: 'strict', CLAUDE_CODE_FORK_SUBAGENT: '1' },
+    hooks: { PreToolUse: [eccHook] },
+  }));
+  assert.equal(install(root, false, null, true).eccFull, true);
+  const config = JSON.parse(fs.readFileSync(path.join(root, localSettings), 'utf8'));
+  assert.deepEqual(config.enabledPlugins, { 'ecc@ecc': true });
+  assert.deepEqual(config.env, { ECC_HOOK_PROFILE: 'strict', CLAUDE_CODE_FORK_SUBAGENT: '1', CARONTE_ECC_FULL: '1' });
+  assert.deepEqual(config.hooks.PreToolUse[0], eccHook);
+  assert.deepEqual(install(root).changed, []);
+});
+
 test('fase successiva bloccata prima del check',t=>{const f=fixture(t);assert.throws(()=>gate(f.run(),'b'));});
 test('due fasi e ripresa in nuovo processo',t=>{const f=fixture(t);check(f.run(),'a');gate(f.run(),'b');check(f.run(),'b');const p=spawnSync(process.execPath,[path.join(kit,'.claude/routing/icm.cjs'),'status','.icm/task/run.json'],{cwd:f.root,env:{...process.env,CLAUDE_PROJECT_DIR:f.root},encoding:'utf8'});assert.equal(p.status,0);assert.equal(JSON.parse(p.stdout).next,null);});
 for(const file of ['input.txt','contract-a.md','out-a.txt','verify.cjs'])test('invalida input/contratto/output '+file,t=>{const f=fixture(t);check(f.run(),'a');check(f.run(),'b');write(f.root,file,'changed');assert.equal(valid(f.run(),'a').ok,false);assert.equal(valid(f.run(),'b').ok,false);assert.throws(()=>gate(f.run(),'b'));});

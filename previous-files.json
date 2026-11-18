@@ -53,6 +53,11 @@
     ".claude/routing/ICM.md": "caeeefdeec4abc8bae33f21b3b076309d9601008ec0ec73bd9348dc92b077bf9",
     ".claude/hooks/compact-focus.cjs": "cf3506dc54e9a7eac51ca4b490971b0447325f75199d4be7f482a816580dede7"
   },
+  "preEccFullHashes": {
+    ".claude/hooks/validate-agent-brief.cjs": "31e29fb5693e761399893cb02bad166febf815a423df02fdea216c872cddb856",
+    ".claude/hooks/delegation-context.cjs": "b369d344dde09923a9d8e4e886403369a1578be92a579e0ae4e4704bc3595e1e",
+    ".claude/routing/delivery.cjs": "f38a71573226c46d108abdc0b87789e16cde81ecdcfad2a4e0967336f1b87dfb"
+  },
   "dashboardHashes": {
     ".claude/routing/telemetry-dashboard.html": "39d5854e02539e89d9fc9a833c5450779451f0738e939a73c69be8320de4402b"
   },

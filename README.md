@@ -30,6 +30,11 @@ node install.cjs "<project-root>" --verify
 
 Start Claude Code from the target worktree. Use `/agents` and `/hooks` to see what the new session loaded. Your normal Claude Code permissions still apply.
 
+If the project uses the full native ECC plugin, run the installer with
+`--ecc-full`. Caronte scopes its delegation protocol to its own profiles
+and explicit Caronte plans while the ECC plugin runs its full workflows.
+See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
+
 ## How it works
 
 | Feature | What you get |

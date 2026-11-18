@@ -39,6 +39,31 @@ I sette profili ECC inclusi si aggiungono a quelli del kit. Il coordinatore sele
 
 Avvia Claude Code normalmente dopo l’installazione. Il controllo dei riferimenti ECC e di RTK è in [DIPENDENZE.md](DIPENDENZE.md).
 
+### ECC completo e Caronte
+
+Mantieni il plugin nativo `ecc@ecc` abilitato nello scope del tuo progetto o
+utente. Se devi installarlo, usa la [procedura ufficiale di ECC](https://github.com/affaan-m/ECC#install-with-claude-code).
+Esegui l’installer di Caronte dalla sua copia locale.
+
+```powershell
+node install.cjs "C:\percorso\mio-progetto" --ecc-full
+```
+
+Apri una nuova sessione nella root del progetto. `/plugin`, `/agents` e
+`/hooks` mostrano i componenti caricati. L'opzione è salvata nei settings
+locali del worktree e rispetta l'impostazione dei fork già decisa per il progetto.
+
+- Per i flussi ECC usa i suoi comandi, skill e subagent nativi. Anche le loro
+  deleghe generiche conservano il flusso di ECC. Le normali approvazioni di
+  Claude Code e gli hook di ECC continuano ad applicarsi.
+- Per `/implementa` e gli altri flussi Caronte valgono il brief e i controlli del
+  kit. Puoi assegnare un profilo esterno a un piano Caronte dichiarando il nome
+  completo e il `REVIEW_ID`. Le deleghe Caronte in sola lettura e le
+  sotto-deleghe di un worker gestito usano i profili del kit.
+- L'autoformattazione di ECC può aggiornare i file dopo una verifica. Se
+  cambia un input, la ricevuta del test diventa obsoleta e va rigenerata
+  prima di usare quei risultati per accettare la consegna.
+
 ## Messaggi nella chat principale
 
 All’avvio compare un avviso quando il kit aggiorna ECC o RTK. Durante il lavoro, il coordinatore comunica i passaggi che incidono sul risultato o richiedono una decisione. Alla consegna espone l’effetto della modifica, le evidenze che ha controllato e ciò che resta da fare. Per una richiesta di sola analisi, riporta i risultati e le fonti pertinenti.
@@ -126,6 +151,10 @@ Per input/fatti/vincoli realmente assenti è ammesso `nessuno`. Non è ammesso a
 Il chiamante verifica contenuto e tool nel proprio turno. Lo script non può provare che i fatti siano veri o sufficienti, né scoprire dati della chat omessi. Non aggiunge un modello revisore per ogni brief. La risposta del worker contiene esito, evidenze, controllo effettuato e ostacolo preciso. Riprendi un worker per integrare dati mancanti senza ripetere inutilmente tutta l'indagine.
 
 ## Copertura reale
+
+In modalità ECC completo, il validatore delle deleghe della tabella si
+applica ai profili del kit, ai brief Caronte espliciti e alle sotto-deleghe
+dei worker gestiti dal kit.
 
 | Superficie | Comportamento |
 |---|---|
