@@ -74,7 +74,7 @@ test('the ASCII view preserves every column and row of the README artwork at any
   const { drawArtwork } = await view;
   const { ferryman, ferrymanWidth } = await import('../.claude/skills/caronte-panel/hooks/ferryman.js');
   const readme = readFileSync(path.join(__dirname, '../README.md'), 'utf8');
-  const [, artwork] = readme.match(/<summary>Caronte ASCII artwork<\/summary>\s*```text\n([\s\S]*?)\n```/);
+  const [, artwork] = readme.match(/^#### Caronte ASCII artwork\r?\n\r?\n200 columns by 100 rows\.\s*```text\n([\s\S]*?)\n```/m);
   assert.equal(artwork, ferryman.join('\n'));
   assert.equal(ferrymanWidth, 200);
   assert.equal(ferryman.length, 100);

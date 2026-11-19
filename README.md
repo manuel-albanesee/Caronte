@@ -79,8 +79,25 @@ installations are recognized on the first launch. See the
 
 *Sidebar reopened in Claude Code after a test session with simulated token usage.*
 
-<details open>
-<summary>Caronte ASCII artwork</summary>
+Start `claude` from the root of a trusted worktree with Caronte installed.
+The panel loads with the project and opens automatically when the terminal has
+enough space. Use `/tui fullscreen` for the right-hand sidebar and
+`/caronte-panel` to toggle the pane, including in narrow terminals.
+The black pane gives 20% of its height to the ASCII logo and GitHub link, 60% to
+live and completed subagent activity, and 20% to project totals. The footer
+shows input, output, cache-read and cache-write tokens, and estimated USD cost
+from Claude Code. Caronte restores the locally recorded activity and totals
+when you open the project again.
+Use **↑** and **↓** or `/caronte-panel prev` and `/caronte-panel next` to page
+through subagent details and Caronte checkpoints.
+Select **ASCII** or use `/caronte-panel ascii` to open the original artwork.
+Use **←** and **→** to pan across it, scroll vertically for its full height,
+and select **Subagent** to return to the panel.
+Tested with Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).
+
+#### Caronte ASCII artwork
+
+200 columns by 100 rows.
 
 ```text
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
@@ -184,24 +201,6 @@ installations are recognized on the first launch. See the
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 ```
-
-</details>
-
-Start `claude` from the root of a trusted worktree with Caronte installed.
-The panel loads with the project and opens automatically when the terminal has
-enough space. Use `/tui fullscreen` for the right-hand sidebar and
-`/caronte-panel` to toggle the pane, including in narrow terminals.
-The black pane gives 20% of its height to the ASCII logo and GitHub link, 60% to
-live and completed subagent activity, and 20% to project totals. The footer
-shows input, output, cache-read and cache-write tokens, and estimated USD cost
-from Claude Code. Caronte restores the locally recorded activity and totals
-when you open the project again.
-Use **↑** and **↓** or `/caronte-panel prev` and `/caronte-panel next` to page
-through subagent details and Caronte checkpoints.
-Select **ASCII** or use `/caronte-panel ascii` to open the original artwork.
-Use **←** and **→** to pan across it, scroll vertically for its full height,
-and select **Subagent** to return to the panel.
-Tested with Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).
 
 ## How it works
 
