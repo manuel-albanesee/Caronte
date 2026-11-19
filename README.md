@@ -35,6 +35,21 @@ If the project uses the full native ECC plugin, run the installer with
 and explicit Caronte plans while the ECC plugin runs its full workflows.
 See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
 
+### Update installed projects from one checkout
+
+From the permanent Caronte clone, enable automatic updates once for your Claude
+Code user. This registers a `SessionStart` hook in your user settings.
+
+```sh
+node install.cjs --enable-auto-update
+```
+
+After that, run `git pull --ff-only` only in the Caronte clone. The next time
+you start or resume Claude Code in an installed project or worktree, Caronte
+updates its managed files if the clone has a newer Git revision. Existing
+installations are recognized on the first launch. See the
+[automatic update guide](GUIDA.md#aggiornamento-automatico-di-caronte).
+
 ### Live subagent panel
 
 ![Caronte’s ASCII logo above live subagent progress and token usage in Claude Code](docs/images/caronte-subagent-panel.png)
@@ -121,7 +136,7 @@ Tested with Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagen
 | **Evidence-based review** | The orchestrator reads the Git diff and checks the test receipt against current inputs. The full suite is reserved for the orchestrator after review. |
 | **Context controls** | Configured auto-compact windows of 200k for the main session and 100k for bundled workers, plus selective reads and RTK output filtering. These are context settings, not spending limits. |
 | **Resumable stages** | ICM contracts record dependencies and outputs so a new session can find the first stage that needs work. |
-| **Launch updates** | Compatible ECC references and package-managed RTK are checked on session start or resume. Cached references remain available offline. |
+| **Launch updates** | An optional user hook updates Caronte from a local checkout. Compatible ECC references and package-managed RTK have their own session-start check. |
 
 ```mermaid
 flowchart TD
