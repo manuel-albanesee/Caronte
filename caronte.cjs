@@ -17,13 +17,26 @@ async function start(args) {
   const settingsFile = path.join(root, '.claude', 'settings.local.json');
   const settings = fs.existsSync(settingsFile) ? JSON.parse(fs.readFileSync(settingsFile, 'utf8').replace(/^\uFEFF/, '')) : {};
   const configured = settings.env?.CARONTE_HEADROOM_PATH ?? process.env.CARONTE_HEADROOM_PATH;
-  const { report } = planHeadroom(root, configured && path.resolve(root, configured));
+  let report;
+  try {
+    ({ report } = planHeadroom(root, configured && path.resolve(root, configured)));
+  } catch (error) {
+    if (!configured || !['EPERM', 'EACCES', 'ENOENT'].includes(error.code)) throw error;
+    ({ report } = planHeadroom(root));
+    if (report.runtime !== 'present') throw error;
+    console.error('Caronte | Uso la copia Headroom disponibile in ' + report.executable + '.');
+  }
   if (report.runtime !== 'present') {
     throw Error(report.error ?? 'Headroom assente. Esegui caronte install-project nella root del progetto.');
   }
   const headroom = path.resolve(root, report.executable);
   await showLogo();
   const env = { ...process.env };
+  const separator = args.indexOf('--');
+  const wrapOptions = separator < 0 ? args : args.slice(0, separator);
+  if (!wrapOptions.some(arg => ['--code-memory', '--serena', '--no-serena'].includes(arg.split('=')[0]))) {
+    env.HEADROOM_CODE_MEMORY = 'none';
+  }
   const rtk = settings.env?.CARONTE_RTK_EXECUTABLE;
   if (rtk && path.isAbsolute(rtk) && fs.existsSync(rtk)) {
     const key = Object.keys(env).find(name => name.toLowerCase() === 'path') ?? 'PATH';

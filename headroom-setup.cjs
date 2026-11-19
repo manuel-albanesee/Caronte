@@ -25,7 +25,11 @@ const runtimeCheck = [
 function planHeadroom(root, explicitPath) {
   if (explicitPath) {
     const external = probeHeadroom(root, explicitPath);
-    if (!external.version) throw Error('Headroom (' + explicitPath + '): ' + external.error);
+    if (!external.version) {
+      const error = Error('Headroom (' + explicitPath + '): ' + external.error);
+      error.code = external.code;
+      throw error;
+    }
     return { report: { executable: explicitPath, version: external.version, status: 'external', runtime: 'present' } };
   }
   const external = findExternalHeadroom(root);

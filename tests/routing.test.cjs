@@ -219,17 +219,32 @@ test('caronte start uses the Headroom path saved by the installer and forwards C
     'const args = process.argv.slice(2);',
     'if (args[0] === "--version") console.log("headroom, version 0.45.0");',
     'else if (args.includes("--help")) console.log("Usage: headroom wrap claude");',
-    'else { console.log(JSON.stringify(args)); process.exitCode = 23; }',
+    'else { console.log(JSON.stringify({ args, memory: process.env.HEADROOM_CODE_MEMORY })); process.exitCode = 23; }',
     '',
   ].join('\n'));
   fs.chmodSync(executable, 0o755);
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: executable } }));
   const options = ['--resume', 'session id'];
-  const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'start', ...options], {
-    cwd: root, encoding: 'utf8',
-  });
-  assert.equal(result.status, 23, result.stderr);
-  assert.deepEqual(JSON.parse(result.stdout), ['wrap', 'claude', ...options]);
+  function start(args) {
+    const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'start', ...args], {
+      cwd: root, encoding: 'utf8', env: {
+        ...process.env, HEADROOM_CODE_MEMORY: 'serena',
+        PATH: path.dirname(executable) + path.delimiter + process.env.PATH,
+      },
+    });
+    assert.equal(result.status, 23, result.stderr);
+    return result;
+  }
+  assert.deepEqual(JSON.parse(start(options).stdout), { args: ['wrap', 'claude', ...options], memory: 'none' });
+  const optedIn = ['--code-memory=serena', ...options];
+  assert.deepEqual(JSON.parse(start(optedIn).stdout), { args: ['wrap', 'claude', ...optedIn], memory: 'serena' });
+  const blocked = path.join(root, 'unavailable', 'headroom');
+  write(root, 'unavailable/headroom', 'not executable');
+  fs.chmodSync(blocked, 0o644);
+  write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: blocked } }));
+  const fallback = start(options);
+  assert.match(fallback.stderr, /Uso la copia Headroom disponibile/);
+  assert.deepEqual(JSON.parse(fallback.stdout), { args: ['wrap', 'claude', ...options], memory: 'none' });
 });
 
 test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
