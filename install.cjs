@@ -29,7 +29,7 @@ function atomicWrite(file, content, mode = 0o666) {
 }
 
 function install(target, dry = false, configureRtk = null, enableFullEcc = false, {
-  snapshot, installedFiles, automatic = false, manageEcc = false,
+  snapshot, installedFiles, automatic = false, manageEcc = false, progress,
 } = {}) {
   const root = fs.realpathSync(target), source = __dirname;
   if (root === fs.realpathSync(source)) throw Error('Scegli la root del progetto, non la cartella del kit.');
@@ -117,7 +117,10 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   }
   const ecc = manageEcc ? planEcc(root, settings, project) : null;
   const headroom = manageEcc ? planHeadroom(root) : null;
-  const repositories = [ecc, headroom].filter(Boolean);
+  const repositories = [ecc, headroom].filter(plan => plan?.spec);
+  for (const repo of repositories) {
+    if (repo.report.status === 'present') progress?.(repo.spec.name + ': repository già presente, riuso la copia locale.');
+  }
   if (enableFullEcc || ecc) settings.env = { ...settings.env, CARONTE_ECC_FULL: '1' };
   const fullEcc = (settings.env?.CARONTE_ECC_FULL ?? project.env?.CARONTE_ECC_FULL) === '1';
   settings.env = fullEcc ? { ...settings.env } : automatic
@@ -128,8 +131,11 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   if (fullEcc) summary.eccFull = true;
   if (ecc) summary.ecc = ecc.report;
   if (headroom) {
-    setupHeadroom(root, headroom, true);
     summary.headroom = headroom.report;
+    if (headroom.report.runtime === 'present') {
+      const detail = headroom.report.status === 'external' ? 'eseguibile già disponibile nel PATH.' : 'ambiente Python già installato.';
+      progress?.('Headroom ' + headroom.report.version + ': ' + detail);
+    }
   }
   if (overrides.length) summary.checkEnvironmentOverrides = overrides;
   settings.hooks ??= {};
@@ -142,7 +148,8 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     settings.hooks[event] = [...retained, ...incoming];
   }
   if (configureRtk) {
-    const { entry, ...status } = configureRtk({ dry, settings, project, bundledGateGuard: ecc?.gateGuard });
+    progress?.('Controllo RTK e il collegamento a GateGuard.');
+    const { entry, ...status } = configureRtk({ dry, settings, project, bundledGateGuard: ecc?.gateGuard, progress });
     if (entry) settings.hooks.PreToolUse.unshift(entry);
     summary.rtk = status;
   } else if (automatic) {
@@ -155,6 +162,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     if (repo.report.status === 'planned' || repo.exclude || repo.report.runtime === 'planned') summary.changed.push(repo.spec.location);
   }
   if (dry || !summary.changed.length) return { dryRun: dry, ...summary };
+  if (changes.length) progress?.('Aggiorno i file di Caronte nel progetto.');
   const backupName = '.claude-routing-backups/' + new Date().toISOString().replace(/[:.]/g, '-') + '-' + process.pid;
   const backup = filePath(root, backupName); fs.mkdirSync(backup, { recursive: true });
   fs.writeFileSync(path.join(backup, 'manifest.json'), JSON.stringify(changes.map(x => ({ path: x.rel, existed: !!x.before })), null, 2));
@@ -166,7 +174,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
       atomicWrite(c.p, c.content, c.mode);
       applied.push(c);
     }
-    if (repositories.length) applyRepositories(root, repositories, atomicWrite);
+    if (repositories.length) applyRepositories(root, repositories, atomicWrite, progress);
   } catch (e) {
     for (const c of applied.reverse()) {
       if (c.before) atomicWrite(c.p, c.before, c.mode);
@@ -174,7 +182,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     }
     throw e;
   }
-  if (headroom?.report.runtime === 'planned') setupHeadroom(root, headroom, false);
+  if (headroom?.report.runtime === 'planned') setupHeadroom(root, headroom, false, progress);
   return { ...summary, backup: backupName };
 }
 function cli(args) {
@@ -194,13 +202,22 @@ function cli(args) {
       flags.some(flag => !['--dry-run', '--verify', '--ecc-full'].includes(flag)) ||
       (flags.includes('--dry-run') && flags.includes('--verify'))) throw Error(usage);
   const dry = flags.includes('--dry-run'), verify = flags.includes('--verify');
+  const progress = dry || verify ? undefined : message => process.stderr.write('Caronte | ' + message + '\n');
+  progress?.('Preparo l’installazione in ' + targets[0] + '.');
   const result = installFromCheckout(targets[0], dry || verify,
-    config => prepareRtk({ ...config, gateGuard }), flags.includes('--ecc-full'), true);
+    config => prepareRtk({ ...config, gateGuard }), flags.includes('--ecc-full'), { manageEcc: true, progress });
   if (verify) {
     result.verified = result.changed.length === 0 && result.headroom.runtime === 'present' &&
       result.rtk.hook === 'reused' && !result.rtk.pathNote;
     if (!result.verified) process.exitCode = 1;
-  } else if (!dry && (result.rtk.error || result.headroom.error)) process.exitCode = 1;
+  } else if (!dry) {
+    if (result.rtk.error || result.headroom.error) {
+      process.exitCode = 1;
+      progress('Installazione incompleta. Il riepilogo indica le dipendenze da verificare.');
+    } else {
+      progress(result.changed.length || result.rtk.binary === 'installed' ? 'Installazione completata.' : 'Installazione già aggiornata.');
+    }
+  }
   console.log(JSON.stringify(result, null, 2));
 }
 module.exports = { install, atomicWrite, kitAsset, installationFile, begin, end, cli };

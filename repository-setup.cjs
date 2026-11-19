@@ -40,7 +40,7 @@ function planRepository(root, spec) {
   };
 }
 
-function applyRepositories(root, plans, atomicWrite) {
+function applyRepositories(root, plans, atomicWrite, progress) {
   const pending = plans.filter(plan => plan.report.status === 'planned');
   const parent = filePath(root, '.claude-routing-backups');
   const staging = pending.length ? fs.mkdtempSync(path.join(parent, 'repositories-')) : null;
@@ -50,10 +50,12 @@ function applyRepositories(root, plans, atomicWrite) {
       const { spec } = plan;
       const checkout = path.join(staging, String(index));
       const platformOptions = process.platform === 'win32' ? ['-c', 'core.longpaths=true'] : [];
+      progress?.(spec.name + ': scarico il repository ' + spec.release + ' da GitHub.');
       const result = git(root, ['-c', 'advice.detachedHead=false', 'clone', '--quiet', ...platformOptions,
         '--depth=1', '--branch', spec.release, '--', spec.repository, checkout], 180000);
       if (result.status !== 0) throw Error('Download ' + spec.name + ' non riuscito: ' + (result.error?.message || result.stderr?.trim()));
       if (inspect(checkout, spec) !== spec.revision) throw Error('Revisione inattesa per la release ' + spec.name + '.');
+      progress?.(spec.name + ': download verificato.');
       return { plan, checkout };
     });
     for (const { plan, checkout } of checkouts) {

@@ -94,7 +94,7 @@ function removeStandaloneRtk(settings) {
   })).filter(group => group.hooks.length);
 }
 
-function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard }, {
+function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progress }, {
   platform = process.platform,
   arch = process.arch,
   env = process.env,
@@ -165,6 +165,7 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard }, {
     };
     packageManager ??= 'GitHub Releases';
     if (dry) return { binary: 'missing', packageManager, hook: 'planned' };
+    progress?.('RTK: installazione tramite ' + packageManager + '.');
     let result;
     if (installer) result = execute(installer.command, installer.args, 600000);
     else {
@@ -207,6 +208,7 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard }, {
     ...status, hook: 'unavailable',
     error: 'RTK è presente ma manca il suo hook nativo per Claude Code. Aggiorna RTK con il gestore con cui lo hai installato.',
   };
+  progress?.('RTK ' + status.version.replace(/^rtk\s+/i, '') + (binary === 'existing' ? ': binario già disponibile.' : ': installato.'));
 
   const args = ['${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs', gateGuard, executable];
   if (coordinator && JSON.stringify(coordinator.args) === JSON.stringify(args)) {

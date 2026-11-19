@@ -93,24 +93,24 @@ function withInstallLock(root, apply) {
   }
 }
 
-function applyCheckout(root, revision, previous, dry, configureRtk, fullEcc, automatic, manageEcc = false) {
+function applyCheckout(root, revision, previous, dry, configureRtk, fullEcc, automatic, options = {}) {
   const snapshot = snapshotAt(revision);
   const baseline = previous ?? legacyRevision;
   const available = git(['cat-file', '-e', baseline + '^{commit}'], { statuses: [0, 1, 128] }).status === 0;
   const installedFiles = revision === baseline ? snapshot.files : available ? snapshotAt(baseline).files : undefined;
   return install(root, dry, configureRtk, fullEcc, {
-    snapshot, installedFiles, automatic, manageEcc,
+    ...options, snapshot, installedFiles, automatic,
   });
 }
 
-function installFromCheckout(target, dry, configureRtk, fullEcc, manageEcc) {
+function installFromCheckout(target, dry, configureRtk, fullEcc, options = {}) {
   const root = fs.realpathSync(target);
   if (root === fs.realpathSync(source)) return install(root, dry, configureRtk, fullEcc);
   const revision = checkoutRevision();
   const apply = () => revision
-    ? applyCheckout(root, revision, installedRevision(root), dry, configureRtk, fullEcc, false, manageEcc)
-    : install(root, dry, configureRtk, fullEcc, { manageEcc });
-  return dry || (!revision && !manageEcc) ? apply() : withInstallLock(root, apply);
+    ? applyCheckout(root, revision, installedRevision(root), dry, configureRtk, fullEcc, false, options)
+    : install(root, dry, configureRtk, fullEcc, options);
+  return dry || (!revision && !options.manageEcc) ? apply() : withInstallLock(root, apply);
 }
 
 function hasInstallation(root) {

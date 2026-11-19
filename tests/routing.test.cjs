@@ -118,12 +118,18 @@ test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie EC
 
 test('install-project plans the full ECC and Headroom checkouts and preserves an existing ECC registration', t => {
   const root = temporary(t);
-  const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(root, 'claude-user') };
+  const command = process.platform === 'win32' ? 'headroom.exe' : 'headroom';
+  const directories = (process.env.PATH || '').split(path.delimiter);
+  const env = {
+    ...process.env, CLAUDE_CONFIG_DIR: path.join(root, 'claude-user'),
+    PATH: directories.filter(dir => !fs.existsSync(path.join(dir.replace(/^"(.*)"$/, '$1'), command))).join(path.delimiter),
+  };
   assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
   function dryRun() {
     const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run'],
       { cwd: root, env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
+    assert.equal(result.stderr, '');
     return JSON.parse(result.stdout);
   }
   const planned = dryRun();
@@ -138,6 +144,41 @@ test('install-project plans the full ECC and Headroom checkouts and preserves an
   write(root, '.claude/settings.json', JSON.stringify({ enabledPlugins: { 'ecc@ecc': true } }));
   assert.equal(dryRun().ecc.plugin, 'ecc@ecc');
   assert.equal(fs.existsSync(path.join(root, checkout)), false);
+});
+
+test('a working Headroom environment is reused even if its version differs from the fresh install', {
+  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
+}, t => {
+  const { setupHeadroom } = require('../headroom-setup.cjs');
+  const root = temporary(t);
+  const bin = '.claude/vendor/headroom/.venv/bin/';
+  write(root, bin + 'python', '#!/bin/sh\ncase "$*" in *importlib.metadata*) echo 0.45.0;; *) exit 12;; esac\n');
+  write(root, bin + 'headroom', '#!/bin/sh\ntest "$1" = --version\n');
+  for (const name of ['python', 'headroom']) fs.chmodSync(path.join(root, bin, name), 0o755);
+  const plan = { report: { runtime: 'planned', version: '0.44.0' } };
+  setupHeadroom(root, plan, false);
+  assert.equal(plan.report.runtime, 'present');
+  assert.equal(plan.report.version, '0.45.0');
+});
+
+test('install-project skips the Headroom checkout when the CLI is already on PATH', {
+  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
+}, t => {
+  const root = temporary(t);
+  write(root, 'bin/headroom', '#!/bin/sh\ncase "$*" in\n--version) echo "headroom, version 0.45.0";;\n"wrap claude --help") echo "Usage: headroom wrap claude";;\n*) exit 12;;\nesac\n');
+  const headroom = path.join(root, 'bin', 'headroom');
+  fs.chmodSync(headroom, 0o755);
+  const env = {
+    ...process.env, PATH: path.dirname(headroom) + path.delimiter + process.env.PATH,
+    CLAUDE_CONFIG_DIR: path.join(root, 'claude-user'),
+  };
+  const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run'], {
+    cwd: root, env, encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const { changed, headroom: report } = JSON.parse(result.stdout);
+  assert.deepEqual(report, { executable: headroom, version: '0.45.0', status: 'external', runtime: 'present' });
+  assert.ok(!changed.includes('.claude/vendor/headroom'));
 });
 
 test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
@@ -310,6 +351,8 @@ test('RTK mancante usa WinGet soltanto dopo il dry-run e configura il progetto u
   const gateGuard = path.join(root, 'gateguard-fact-force.js');
   write(root, 'gateguard-fact-force.js', 'exports.run = input => input;');
   const calls = [];
+  const messages = [];
+  const progress = message => messages.push(message);
   let installed = false;
   const setup = config => prepareRtk(config, {
     platform: 'win32',
@@ -319,24 +362,28 @@ test('RTK mancante usa WinGet soltanto dopo il dry-run e configura il progetto u
     lookup: name => name === 'winget' || (installed && name === 'rtk') ? name : null,
     run: (command, args) => {
       calls.push([command, ...args]);
-      if (command === 'winget') installed = true;
+      if (command === 'winget') {
+        assert.equal(messages.at(-1), 'RTK: installazione tramite WinGet.');
+        installed = true;
+      }
       return { status: 0, stdout: 'rtk 1.2.0' };
     },
   });
   assert.equal(install(root, true, setup).rtk.hook, 'planned');
   assert.deepEqual(fs.readdirSync(root), ['gateguard-fact-force.js']);
   assert.deepEqual(calls, []);
-  const result = install(root, false, setup);
+  const result = install(root, false, setup, false, { progress });
   assert.equal(result.rtk.binary, 'installed');
   assert.equal(result.rtk.hook, 'configured');
   assert.deepEqual(calls[0].slice(0, 7), ['winget', 'install', '--id', 'rtk-ai.rtk', '--exact', '--source', 'winget']);
   const settings = JSON.parse(fs.readFileSync(path.join(root, '.claude/settings.local.json'), 'utf8'));
   const bash = settings.hooks.PreToolUse.find(group => group.matcher === 'Bash');
   assert.deepEqual(bash.hooks[0].args.slice(1), [gateGuard, 'rtk']);
-  const repeated = install(root, false, setup);
+  const repeated = install(root, false, setup, false, { progress });
   assert.equal(repeated.rtk.hook, 'reused');
   assert.deepEqual(repeated.changed, []);
   assert.equal(calls.filter(call => call[0] === 'winget').length, 1);
+  assert.match(messages.at(-1), /RTK 1\.2\.0: binario già disponibile/);
 });
 
 test('installazione RTK fallita mantiene il routing e non aggiunge un hook inutilizzabile', t => {

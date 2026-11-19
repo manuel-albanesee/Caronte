@@ -9,7 +9,7 @@ Dopo aver installato il kit nel progetto, avvia Claude Code come al solito, anch
 | Claude Code | L’installazione nativa ha il proprio canale di aggiornamento. Le installazioni tramite gestore pacchetti seguono il relativo gestore. |
 | Node, Git e Python | Node 22+ esegue il kit, Git scarica i repository delle dipendenze e Python 3.11+ crea l’ambiente di Headroom. |
 | ICM | I template e la metodologia sono inclusi nel kit, con licenza e riferimenti propri. Il loro aggiornamento segue le versioni del kit perché deve restare compatibile con manifest e ricevute già creati. |
-| Headroom | L’installer scarica il repository della release 0.44.0 e installa la CLI con il proxy in `.claude/vendor/headroom/.venv/`. Le sessioni avviate tramite il wrapper eseguono il proxy. |
+| Headroom | L’installer riusa una CLI funzionante nel PATH. Se manca, scarica la release 0.44.0 e installa la CLI con il proxy in `.claude/vendor/headroom/.venv/`. Il wrapper avvia il proxy con la sessione. |
 | Caveman | Configurazione e aggiornamento indipendenti. |
 
 Il controllo degli aggiornamenti usa HTTPS verso GitHub. In assenza di rete, con API limitata, su cambio di major o se una release ECC rimuove o cambia in modo incompatibile un profilo, rimane in uso la copia valida precedente. Il risultato è registrato nello stato locale. Gli aggiornamenti di RTK dipendono anche dalla disponibilità del pacchetto presso il gestore. Nessuna credenziale GitHub è necessaria per consultare le release pubbliche.

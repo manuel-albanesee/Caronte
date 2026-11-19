@@ -14,6 +14,10 @@ caronte install-project
 
 Il comando installa Caronte, ECC, Headroom e RTK nella cartella corrente. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
 
+Durante l’installazione la console mostra i download, la preparazione dei componenti e il riuso delle copie già disponibili. I messaggi di avanzamento usano stderr. Il riepilogo JSON finale esce su stdout.
+
+Se Headroom già installato nel PATH risponde ai controlli della CLI, Caronte lo riusa direttamente. Se serve una nuova copia, l’installer scarica il repository e prepara l’ambiente Python nel progetto.
+
 Puoi anche avviare lo script direttamente dal clone o da uno ZIP estratto in una cartella separata dal progetto:
 
 ```powershell
@@ -27,7 +31,7 @@ L'installer copia i componenti `.claude`, inserisce un blocco aggiornabile in CL
 
 È ripetibile: una seconda installazione identica non cambia file. Prima di scrivere verifica conflitti sui file del kit; accetta automaticamente i file originali dei kit da 1 a 2.2. Se hai personalizzato un file che collide, si ferma prima delle modifiche, così Claude può integrare il diff preservando le personalizzazioni. I settings devono essere JSON valido; per JSON con commenti serve un merge consapevole. Il backup delle modifiche è in `.claude-routing-backups/<data>/`, con manifest dei file preesistenti. Non includere backup con configurazioni locali nel repository pubblico.
 
-Dopo l’installazione puoi usare il tuo comando di avvio abituale oppure la nuova CLI locale di Headroom. Esempio PowerShell dalla root del progetto:
+Dopo l’installazione usa `headroom wrap claude` se è stata riutilizzata la copia dal PATH che risolve il tuo terminale. Il campo `headroom.executable` indica l’eseguibile selezionato. Per una copia locale, esempio PowerShell dalla root del progetto:
 
 ```powershell
 & ".\.claude\vendor\headroom\.venv\Scripts\headroom.exe" wrap claude

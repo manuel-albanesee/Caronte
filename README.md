@@ -50,9 +50,10 @@ Start Claude Code from the target worktree. Use `/agents` and `/hooks` to see wh
 
 The installer downloads the full ECC release into `.claude/skills/ecc/` and
 enables its native Claude Code plugin. If the project already enables ECC from
-a marketplace, Caronte preserves that registration. The full Headroom checkout
-is in `.claude/vendor/headroom/` and its proxy CLI is installed in `.venv`
-inside that checkout. RTK uses the GateGuard module from the ECC checkout by
+a marketplace, Caronte preserves that registration. Caronte reuses a working
+Headroom CLI on PATH. When needed, it downloads Headroom into
+`.claude/vendor/headroom/` and installs its proxy CLI in the checkout's `.venv`.
+RTK uses the GateGuard module from the ECC checkout by
 default. See the [installation guide](GUIDA.md#installazione).
 
 ### Update installed projects from one checkout
