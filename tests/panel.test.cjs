@@ -74,10 +74,10 @@ test('the ASCII view preserves every column and row of the README artwork at any
   const { drawArtwork } = await view;
   const { ferryman, ferrymanWidth } = await import('../.claude/skills/caronte-panel/hooks/ferryman.js');
   const readme = readFileSync(path.join(__dirname, '../README.md'), 'utf8');
-  const [, artwork] = readme.match(/^#### Caronte ASCII artwork\r?\n\r?\n200 columns by 100 rows\.\s*```text\n([\s\S]*?)\n```/m);
-  assert.equal(artwork, ferryman.join('\n'));
-  assert.equal(ferrymanWidth, 200);
-  assert.equal(ferryman.length, 100);
+  const [, columnCount, rowCount, artwork] = readme.match(/<!-- caronte-logo: (\d+) columns by (\d+) rows -->\s*```text\r?\n([\s\S]*?)\r?\n```/);
+  assert.equal(artwork.replace(/\r\n/g, '\n'), ferryman.map(row => row.trimEnd()).join('\n'));
+  assert.equal(ferrymanWidth, Number(columnCount));
+  assert.equal(ferryman.length, Number(rowCount));
   assert.ok(ferryman.every(row => row.length === ferrymanWidth));
 
   for (const columns of [14, 40, 82, 102, 130]) {
@@ -172,16 +172,16 @@ test('checkpoint completion follows the session, agent and review evidence in a 
   await tick();
   assert.match(await render(), /33% · 1\/3/);
   control(await tree(), 'open-art').onPress();
-  assert.match(await render(), /(?:@{10}|[.:%#=]{3})/);
+  assert.match(await render(), /(?:\${10}|[.:%#=]{3})/);
   assert.doesNotMatch(await render(), /33% · 1\/3/);
   (await tree()).children[0].onPress();
   assert.match(await render(), /33% · 1\/3/);
   await command('ascii');
-  assert.match(await render(), /101–138\/200/);
+  assert.match(await render(), /49–86\/97/);
   await command('left');
-  assert.match(await render(), /67–104\/200/);
+  assert.match(await render(), /15–52\/97/);
   await command('right');
-  assert.match(await render(), /101–138\/200/);
+  assert.match(await render(), /49–86\/97/);
   await command('ascii');
   assert.match(await render(), /33% · 1\/3/);
 

@@ -1,217 +1,108 @@
+<div align="center">
+
+English · [Italiano](README.it.md)
+
+<!-- caronte-logo: 97 columns by 43 rows -->
+```text
+                                                            !{~`
+                                                          k$$$$$$$J.
+                                                       t&$$$$$$$$$$$$z
+                                                     +Q$$$o$$$$$$$$$$$MY;
+                                                        ;q$$$$$$$$&t  .?f^
+                                                .^l+(0$$$$$$$$$$w   /$$$:
+                                             Y$$$$$$$$$$$$$$$$\  ,&$$$&^
+                                          \Ou}+~~1d$$$$$$$$$c  Io$$$$$_
+                                         ?Q8$$$$$$$puQ$$$$$$w  $$$$$$v       .zCC^
+                                      .z$$$$$$$$$$$$$$&o$$$$$c 8$o%$8.      L$$$$$}
+                                    .Z$$$$$$$ml8$$$$$$$$$$$$$B;&U          t$$$$$$_
+                                  ,*$$$$$$8` o$$$$$$$$$$$$$$$$)$$$h`    ~M&: /$$8.
+                               >b$$$$$$$O^ f$$$$$$$$$$$$$$$$$$$$$$$$$$$$B? ,M$|.
+                   ,_)11(jzCa$$$$$$$$$X  .#$$$$$$$$M\$$$$$$$$$$$$$$$$$$1 `d$$x
+               /%$$$$$$$$$$$$$$$$$$*{   \$$$$$$$$$%:$$$$$$$$$$$$$$$$$j .U$$$*
+            ,h$$$$$$$$$$$$$$$$$$Bx ^~  m$$$$$$$$$@ Y$$$$$$$$$$$$$$$Y  j$$$$$[
+           #$$$$$$$$$$$$$$$$$$? ;o$$, q$$$$$$$$$$j q$$$$$$$$$$$$$p  ~$$$$$$t
+         O$\I         `>_]~' uM$$$$> M$$$$$#j{)J@  8$$$$$$$$$$$a, l8$$$$$$Q          n8$$$$$$$J
+       ;[              In0@$$$$$$$( p$$$|    .:.   u$$$$$$$$$8l ,k$$$$$$$Q         fxffd$$$$$$$%i
+                  `/8$$$$$$$$$$$$X Z$W+  )*$$$$$$$$_`a$$$$$$_ 'O$J#$$$$$d               '#$$$$f
+                I#$$$$$$$$$$$$$$&']$1 ^*$$$$$$$$$%        `^ u$o'   [W$a                 )$$$$.
+              ,8$$$$$$$$$$$$$$$$>`p  W$$$$$$$$$$$$$x       {$$$z                         >$$$%
+           :b$$$$$$$$$$$$$$$$$$C   C$$$$$$$$$$$$$$$$$&q'  {$$$$.                         ($$$$
+       `n#$$$$$$$$$$$$$$$$$$$$$! ~@$$$$$$$$$$$$$$$$@} ~@X$$$$$0                          w$$$$.
+    ^c$$$$$$$$$$$$$$$$$$$k$$$$1 Y$$$$$$$$$$$$$$$$$t  [$$$$$$$$$Q                        ?$$$$$^
+  'k&0I        /W$$$$&U'C$$$$X^8$$$$$$$$$$$$$$$$n  l$$$$$$$$$$$$$]                     {$$$$$$`
+ _^                   f$$$$$0z$$$$$$$$$$$$$$$$u   $$$$$$$$$$$$$$$$@                   Q$$$$$$$
+                   .w$$$$$$M$$$$$$$$$$$$$$$$Y   p$$$$$$$$$$$$$$$$$$$'               v$$$$$$$$O
+                <0$$$$$$$$$$$$$$$$$$$$$$$$Z'  X$$$$$$$$$$$$$$$$$$$$$$:           {h$$$$$$$$$$>
+             {o$$$$$$$$$$$$$$$$$$$$$$$$$b`  |$$$$$$$$$$$$$$$$$$$$$$$$a      ^)0$$$$$$$$$$$$$b
++@0~:      cM&@$$$$$$$$$$$$$$$$$$$$$$$&'  >$$$$$$$$$$$$$$$$8W*bY}:   ^l-U8$$$$$$$$$$$$$$$$$$-
+ r$$$$$$$@oJ[:             .`^,;;IliwI  ^$$!,`.           ^~jO*B$$$$$$$$$$$$$$$$$$$$$$$$$$$)
+  J$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$@]  .a$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$u
+  .&$$$$$$$$$$$$$$$$$$$$$$$$$$$$$t   J$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$}
+    o$$$$$$$$$$$$$$$$$$$$$$$@qX_   t$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$a`
+    `&$$$$$$$$$$$$$$$$$$$$u       r$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$B]
+      q$$$ox<^     ^_Y8$x         &$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$-
+          <cq*&%%%8MkZ~         :&$$$$w(>,.         `l}Y%$$$$$$$$$$$$$$$$$$$$$$$BuI
+   `-ud@$$$BB$$$$$$$m.         c$1I<{jcCZpkaahbq0Uu(i       ;?/uCwaMWMop0zj{>`
+                 ^1^         !@$$$$$Wp0JzvczCOb8$$$$$$$$$8pzt1?~!I:;!<-{\vzj<
+            ^!>~+<iI^       ~Zu-'   ^ll:'          ;)Lk#8$$$$$$$$@&*bU[`
+               IX%$$$$$$$$$$$$$$$Mvl
+                      '^^^^'.
+```
+
 # Caronte
+
+### Delegate to Claude Code with confidence.<br>Accept only what the Git diff proves.
 
 **A project-scoped orchestration and verification kit for Claude Code.**
 
-Delegate a task with just enough context, run the relevant application tests, and review the actual Git diff before accepting the change.
+[Get started in 2 minutes](#get-started) · [See how it works](#how-it-works) · [Read the docs](#documentation)
 
-Caronte combines model routing, selected ECC specialists, focused test plans, and resumable ICM workflows. RTK filters supported shell output. Caronte also shortens verbose test and build logs before they reach Claude. An existing Headroom launch command can keep handling request-side context compression.
+![Caronte's ASCII logo, GitHub link, restored subagent activity and project usage totals](docs/images/caronte-subagent-panel.png)
 
-## Quick start
+</div>
 
-**Requirements** include Git, Node.js 22+, Python 3.11+, and Claude Code 2.1.327+. The first install fetches dependencies from GitHub and the Python package index. On Windows, RTK uses WinGet if it is missing.
+---
 
-### Install with the Caronte CLI
+## The problem
 
-Register the `caronte` command once from a permanent Caronte clone. On Windows, for example:
+AI agents write code fast. Trusting it is the slow part.
 
-```powershell
-git clone https://github.com/manuel-albanesee/Caronte.git C:\git\Caronte
-Set-Location C:\git\Caronte
-npm link
-```
+- A worker says "done", but did the tests actually run on the files that changed?
+- A delegation drifts because the brief lacked context, or carried far too much of it.
+- Verbose build and test logs flood the conversation.
+- A long task dies with the session, and you restart from zero.
 
-If you already have a clone, update it and run `npm link` there. Then open a terminal in the root of each project you want to configure and run:
+## The Caronte answer
 
-```powershell
-caronte install-project
-```
+Caronte turns Claude Code into a disciplined team: a coordinator that scopes the work, specialists that execute it, and a verification step that **never takes a worker's word for it**.
 
-The command uses the current directory and installs Caronte, ECC, Headroom, and RTK. Run `caronte install-project --dry-run` to preview the setup or `caronte install-project --verify` to check it. The command uses the linked clone, so `git pull --ff-only` there updates its source for future installations.
+> **Delegate a task with just enough context. Run the relevant tests. Review the real Git diff. Then accept.**
 
-Use `caronte start` from the project root to launch Claude Code through the selected Headroom executable. Interactive installs and launches show the Caronte ASCII logo. Installs also show the current phase and native downloader progress.
+---
 
-### Install from Claude Code
+## Why teams choose Caronte
 
-Open Claude Code in the target project, then copy the [self-install prompt](INSTALL_PROMPT.md) into that session. The agent clones and inspects Caronte in a temporary directory, previews the project changes, installs, and verifies the resulting files. Start a fresh Claude Code session afterward.
+### Delegation that stays on target
+Every delegation carries a short, validated brief: goal, inputs, facts, constraints, deliverable and acceptance check. The right model and specialist are chosen for the job, and small or deterministic tasks stay with the orchestrator instead of being delegated for nothing.
 
-### Install from a terminal
+### Proof, not promises
+The orchestrator captures a Git baseline before a worker starts. The worker edits only declared files and runs only the targeted tests in its plan. Afterwards, the orchestrator reads the **actual diff** and checks the **test receipt** against the current files. A stale or missing receipt keeps the check open. The full suite is reserved for the orchestrator, after review.
 
-Clone Caronte **outside the target project** and run these commands from the Caronte checkout. Replace `<project-root>` with the target worktree path. The commands work in PowerShell and shells on macOS and Linux.
+### Specialists on call
+Caronte bundles selected [ECC](https://github.com/affaan-m/ECC) specialists: TDD guide, build-error resolvers for JS/TS and Java, and focused reviewers for Java, C#, TypeScript and cross-cutting risks. Workers have bounded scope, and repeated escalations need new evidence.
 
-```sh
-git clone https://github.com/manuel-albanesee/Caronte.git
-cd Caronte
-node install.cjs "<project-root>" --dry-run
-node install.cjs "<project-root>"
-node install.cjs "<project-root>" --verify
-```
+### Work that survives the session
+ICM stages record their dependencies and outputs. When you resume, Caronte shows the goal, the last valid evidence, what changed and the next step, then picks up at the first stage that still needs work.
 
-`--dry-run` previews the checkout and runtime setup. `--verify` checks the kit, the ECC checkout, the Headroom runtime, and the GateGuard/RTK hook. Keep `.claude/settings.local.json` and `.claude-routing-backups/` out of version control in your project.
+### A quieter context window
+RTK filters supported shell output, and Caronte shortens verbose test and build logs before they reach Claude. Auto-compact windows are configured at 200k for the main session and 100k for bundled workers. Your existing Headroom launch command keeps handling request-side context compression. These are context controls, not spending limits.
 
-Start Claude Code from the target worktree. Use `/agents` and `/hooks` to see what the new session loaded. Your normal Claude Code permissions still apply.
+### See everything, live
+A sidebar panel inside Claude Code shows live and completed subagent activity, project totals for input, output, cache-read and cache-write tokens, and the estimated USD cost reported by Claude Code. Closing the session doesn't lose it: Caronte restores the locally recorded activity when you reopen the project.
 
-The installer downloads the full ECC release into `.claude/skills/ecc/` and
-enables its native Claude Code plugin. If the project already enables ECC from
-a marketplace, Caronte preserves that registration. Caronte reuses a working
-Headroom CLI on PATH. When needed, it downloads Headroom into
-`.claude/vendor/headroom/` and installs its proxy CLI in the checkout's `.venv`.
-RTK uses the GateGuard module from the ECC checkout by
-default. See the [installation guide](GUIDA.md#installazione).
-
-### Update installed projects from one checkout
-
-From the permanent Caronte clone, enable automatic updates once for your Claude
-Code user. This registers a `SessionStart` hook in your user settings.
-
-```sh
-node install.cjs --enable-auto-update
-```
-
-After that, run `git pull --ff-only` only in the Caronte clone. The next time
-you start or resume Claude Code in an installed project or worktree, Caronte
-updates its managed files if the clone has a newer Git revision. Existing
-installations are recognized on the first launch. See the
-[automatic update guide](GUIDA.md#aggiornamento-automatico-di-caronte).
-
-### Live subagent panel
-
-![Caronte’s ASCII logo, GitHub link, restored subagent activity and project usage totals](docs/images/caronte-subagent-panel.png)
-
-*Sidebar reopened in Claude Code after a test session with simulated token usage.*
-
-Start `claude` from the root of a trusted worktree with Caronte installed.
-The panel loads with the project and opens automatically when the terminal has
-enough space. Use `/tui fullscreen` for the right-hand sidebar and
-`/caronte-panel` to toggle the pane, including in narrow terminals.
-The black pane gives 20% of its height to the ASCII logo and GitHub link, 60% to
-live and completed subagent activity, and 20% to project totals. The footer
-shows input, output, cache-read and cache-write tokens, and estimated USD cost
-from Claude Code. Caronte restores the locally recorded activity and totals
-when you open the project again.
-Use **↑** and **↓** or `/caronte-panel prev` and `/caronte-panel next` to page
-through subagent details and Caronte checkpoints.
-Select **ASCII** or use `/caronte-panel ascii` to open the original artwork.
-Use **←** and **→** to pan across it, scroll vertically for its full height,
-and select **Subagent** to return to the panel.
-Tested with Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).
-
-#### Caronte ASCII artwork
-
-200 columns by 100 rows.
-
-```text
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.       :#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=              .#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:                   .+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=                         .+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*:                              :#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#=:        :.                       .*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+..=#=                   .-*@@@@@%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:                  .+@@@@@@@%#=:%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                   +@@@@@@@*.   .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#*-:..                   .#@@@@@@+.     =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=:.                              =%@@@@@#:       +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*.                                =@@@@@@+         +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#-                                 =@@@@@@+          -@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:.:-=+#@@@@@@#=-.                  -@@@@@@+           .%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#*:       .=#%@#.               -@@@@%.            #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.                  .=%*              %@@@#            =@@@@@@@@@@@@@@@@+... .#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                          :#:            %@@#           .@@@@@@@@@@@@@@@-        :%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                               :=          -@@%.   -.     %@@@@@@@@@@@@@*.           %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                .=-                           *@%.  *@@@@%#%@@@@@@@@@@@@@+             -@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+               -#@+                             .%%. .#@@@@@@@@@@@@@@@@@@@@+            =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%-              :%@@#                                ##     #@@@@@@@@@@@@@@@#*..%@%.       #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.              =@@@%                                  *:       -%@@@@@@@@%=   .#@@@@-     :%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%.               +@@@@-                                   -            .#%:.     #@@@@+     +%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+.                #@@@@#.                                                         *@@@@*    =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%*-.                 :#@@@@@:                  :-                                     +@@@@#.    =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#+==========-:                       -%@@@@@#.                  +#                                    =@@@@%:     .#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#+.                                     .+@@@@@@@-                   *@:                                  -%@@@@-       -@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#:                                       -@@@@@@@@%                    *@*                                 :%@@@@=        .@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-                                       .%@@@@@@@@@%                    +@@-                               .%@@@@*          *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@%.                                       #@@@@%..@@@@+                    -@@%                               %@@@@#           -@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@%:                                     :#@@@%-.   %@@@:                     %@@=                             #@@@@%.           :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@:         .:---:.                    +%@@@*-     .@@@@:                     *@@@                            *@@@@@:             %@@@@@@@@@@@@@@@@@@@@@@@@@@%***%@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@-    -+%@@@@@@@@@@@@@@@@%+=-.    .=*@@@@%+.        #@@%:                     .%@@@                          =@@@@@-             .%@@@@@@@@@@@@@@@@@@@@@*=            .=%@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@*. -*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%*.           %@@@.          :=%@@@@@@@@*+@@@%                        -@@@@@+               #@@@@@@@@@@@@@@@@@@@#:                   +@@@@@@@
-@@@@@@@@@@@@@@@@@@@@--%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#-               +@@@:       .*@@@@@@@@@@@@@@@@@@@.                     -@@@@@#                #@@@@@@@@@@@@@@@@@@#                        *@@@@@
-@@@@@@@@@@@@@@@@@@#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%:                    =@@@.      -@@@@@@@@%%#=::=#%%@@@@@+                  :@@@@@%                 #@@@@@@@@@@@@@@@@@@:#@@@@@@@*              .%@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+.                        .@@@+     #@@@@@@@-.             .#@@@:              :%@@@@@.                 *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*           #@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:                            %@@*    +@@@@@%:                   =%@@%.          .%@@@@@:   #@@*.          *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*         +@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+.                             +@@#   =@@@@@=.                   +@@@@@@@%+++++++=#@@@@@-   -@@@@@@@*.      +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@-        %@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*                                @@@. :@@@@%=                     +@@@@@@@@@@@@@@@@@#=#@+     #@@@@@@@@@@*:  =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+       :@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+                                 @@@-.#@@@@-                       :*#@@@@@@@@@@@@@@@@*       :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*       -@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%-                                  =@@#-@@@@=                              .%@@@@@@@@@@@@@:      #@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*       -@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=                                     @@@%@@@*                                  .*@@@@@@@@@*       :@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+       :@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@#.                                       #@@@@@%:                                       *@@@@@-        =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:       .@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@#-.                                         -@@@@@=                                   :%@@@. -@#.          %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#        .@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@=.                                             %@@@%.                                  .#@@@@@+               %@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@.         @@@@@@@@@@
-@@@@@@@@@@@@@@%=                                       .        *@@@+                                   #@@@@@*.                 =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+          %@@@@@@@@@
-@@@@@@@@@@@@#:       .:------:.                     -#:        -@@%:                                 .*@@@@@#.                    .#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*           %@@@@@@@@@
-@@@@@@@@@@%.   .=%@@@@@@@@@@@@@@@%-.            .-%@#         :@@+                                  +@@@@@%.                        -@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#            %@@@@@@@@@
-@@@@@@@@@. :%@@@@@@@@@@@@@@@@@@@@@@@@*      .*@@@@@.          @%:                                 +@@@@@@:                            *@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+             @@@@@@@@@@
-@@@@@@@+*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:          :@+                                 +@@@@@@-                               .%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@:             :@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#:           .*.                                =%@@@@@+                                   =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+               =@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=.            ::                                -%@@@@@*.                                     =@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+.                #@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@+.                                               :%@@@@@#.                                        +@@@@@@@@@@@@@@@@@@@@@@@@@@@@%-                  .@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%+                                                 .@@@@@@%.                                           *@@@@@@@@@@@@@@@@@@@@@@@@%+                     -@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%:                                                  .#@@@@@@-                                              *@@@@@@@@@@@@@@@@@@@@#:                        #@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.                                                    #@@@@@@=                                                 #@@@@@@@@@@@@@@@*.                           -@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@#.                                                     *@@@@@@+                                               .=*#%@@@@@@@@@%=:.                              .%@@@@@@@@@@@@
-@@@@@#  :-*@@@@@@@@@@@@@@%-                                                      *@@@@@@*                                      .-+**#%@@@@@@@@@@@#=-.                                     =@@@@@@@@@@@@@
-@@@@@@-       .-=+#@@@@@@@@@@@@@%%%#*+++==-:..                                 +@@@@@@%.                    .:-===++*#%%%@@@@@@@@@@@@@%#+==:.                                            -@@@@@@@@@@@@@@
-@@@@@@@:                .-=***#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%%%%%%%%%##+.=@@@@@@%:  .+%%%@@@@@@@@@@@@@@@@@@@@@@@@@@%#****=-..                                                       .%@@@@@@@@@@@@@@
-@@@@@@@%.                                ...::--=++***####################:-@@@@@@@-   :########**++==-::...                                                                           .@@@@@@@@@@@@@@@@
-@@@@@@@@#                                                                :@@@@@@@+                                                                                                    .%@@@@@@@@@@@@@@@@
-@@@@@@@@@+                                                             :@@@@@@@*                                                                                                     -@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@-                                                          .%@@@@@@%.                                                                                                     =@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@-                                                       .#@@@@@@@:                                                                                                      #@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@:                                                 :=*%@@@@@@@@-                                                                                                      -%@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@:                                           .+%@@@@@@@@@@@@+                                                                                                      .#@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@-                                        .*@@@@@@@@@@@@@@@                                                                                                      +@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@=                 ........            .#@@@@@@@@@@@@@@@@%                                                                                                    =@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@*       -*%%@@@@@@@@@@@@@@@@@%#+.   #@@@@@@@@@@@@@@@@@@=                                                                                                  +@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@%#%@@@@@@@@@@@@@@@@%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=                :+*##%%%%%%%%%%%##*=:                                                           :#@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@%+-:.                   .#@@@@@@@@@@@@@@@@@@@%.        .=*#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#+-.                                              -+%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@%*=.                         =@@@@@@@@@@@@@@@@@@@@-  .:=+#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#+-:                                :-+#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@%%#*+:         ..:::...            -%@@@@@@@@@@@@@@@@@@@#.  *@%#***=-:.                       .:-+*#%@@@@@@@@@@@@@@@@@@%%#+=-----::::----=+*#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%+:.  -%@@@@@@@@@@@@@@@@@@@@-                                                 :=*#%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#*+=%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%             .:=*#%@@@@@@@@@@%#*=:.                          .:-=*#%%%%%%%%%%%%#+=-.    .+%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@=      .=#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#=                                        .=%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#+=-::::::-=+*#@@@@@@@@@@@@@@@@%#%%@@@@@@@@@@@@@#+=-:+#%@@@@@@@@@@@@@@@@@@@@@@@@%%#*=:.                   .:=*#%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#+-.              ..:-=++*#######*++=--:.   -+#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@#+-.                          .-=*%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%#+=---:::::---=+*#%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
-```
+---
 
 ## How it works
-
-| Feature | What you get |
-| --- | --- |
-| **Model routing** | A short, validated brief provides the selected agent with its scope, inputs, facts, deliverable, and acceptance check. |
-| **Scoped execution** | The orchestrator captures a Git baseline. A worker edits declared files and runs only the targeted commands in its test plan. |
-| **Evidence-based review** | The orchestrator reads the Git diff and checks the test receipt against current inputs. The full suite is reserved for the orchestrator after review. |
-| **Context controls** | Configured auto-compact windows of 200k for the main session and 100k for bundled workers, plus selective reads and RTK output filtering. These are context settings, not spending limits. |
-| **Resumable stages** | ICM contracts record dependencies and outputs so a new session can find the first stage that needs work. |
-| **Launch updates** | An optional user hook updates Caronte from a local checkout. Compatible ECC references and package-managed RTK have their own session-start check. |
 
 ```mermaid
 flowchart TD
@@ -223,13 +114,99 @@ flowchart TD
     E --> F
 ```
 
-The main chat reports useful progress, what changed, what was verified, and what remains open. The underlying briefs, logs, and measurements are available when needed.
+| Step | What happens |
+| --- | --- |
+| **1. Brief** | The orchestrator prepares a validated brief with scope, inputs, facts, deliverable and acceptance check. |
+| **2. Baseline** | A Git baseline and a test plan with the exact files and the relevant tests are captured. |
+| **3. Execute** | A worker edits the declared files and runs only the targeted commands. |
+| **4. Review** | The orchestrator reads the Git diff, including modified tests, and checks the test receipt against current inputs. |
+| **5. Deliver** | You get the concrete effect, the files that changed, the verified targeted tests and the full-suite result, or an explicit "not run". |
 
-## Supported test plans
+The main chat reports useful progress, what changed, what was verified and what remains open. Briefs, logs and measurements stay available whenever you want them.
 
-Node.js, Vitest, Jest, pytest, .NET with VSTest filtering, Maven, and Gradle. The test plan names the affected file or selector and the reason it belongs in scope. Runtimes and project test dependencies are supplied by the target project. See [delivery and review](.claude/routing/CONSEGNA.md) for selectors and capability boundaries.
+### Works with your stack
 
-## Verification and documentation
+Node.js, Vitest, Jest, pytest, .NET (VSTest filtering), Maven and Gradle. Each test plan names the affected file or selector and why it is in scope. Runtimes and test dependencies come from your project. See [delivery and review](.claude/routing/CONSEGNA.md) for selectors and capability boundaries.
+
+---
+
+## Get started
+
+**Requirements:** Git, Node.js 22+, Python 3.11+ and Claude Code 2.1.327+. The first install fetches dependencies from GitHub and the Python package index. On Windows, RTK is installed through WinGet if it is missing.
+
+### Option 1: the Caronte CLI (recommended)
+
+Register the `caronte` command once from a permanent clone. On Windows, for example:
+
+```powershell
+git clone https://github.com/manuel-albanesee/Caronte.git C:\git\Caronte
+Set-Location C:\git\Caronte
+npm link
+```
+
+Then, in the root of each project you want to equip:
+
+```powershell
+caronte install-project
+```
+
+This installs Caronte, ECC, Headroom and RTK in the current directory. Preview it with `caronte install-project --dry-run`, check it with `caronte install-project --verify`, and launch Claude Code with `caronte start`.
+
+### Option 2: let Claude Code install it
+
+Open Claude Code in the target project and paste the [self-install prompt](INSTALL_PROMPT.md). The agent inspects Caronte in a temporary directory, previews the project changes, installs and verifies the result. Start a fresh session afterwards.
+
+### Option 3: from a terminal
+
+Clone Caronte **outside the target project** and run from the checkout, replacing `<project-root>` with the target worktree path (PowerShell, macOS and Linux):
+
+```sh
+git clone https://github.com/manuel-albanesee/Caronte.git
+cd Caronte
+node install.cjs "<project-root>" --dry-run
+node install.cjs "<project-root>"
+node install.cjs "<project-root>" --verify
+```
+
+Keep `.claude/settings.local.json` and `.claude-routing-backups/` out of version control. Then start Claude Code from the target worktree and use `/agents` and `/hooks` to see what the session loaded. Your normal Claude Code permissions still apply.
+
+The installer downloads the full ECC release into `.claude/skills/ecc/` and enables its native Claude Code plugin, preserving an existing marketplace registration. It reuses a working Headroom CLI on PATH, or otherwise downloads it into `.claude/vendor/headroom/` with its proxy CLI in the checkout's `.venv`. RTK uses the GateGuard module from the ECC checkout by default. See the [installation guide](GUIDA.md#installazione).
+
+### Stay up to date automatically
+
+From the permanent clone, enable automatic updates once for your Claude Code user. This registers a `SessionStart` hook in your user settings:
+
+```sh
+node install.cjs --enable-auto-update
+```
+
+After that, `git pull --ff-only` in the Caronte clone is all you do. The next time you start or resume Claude Code in an installed project or worktree, Caronte updates its managed files if the clone has a newer revision. See the [automatic update guide](GUIDA.md#aggiornamento-automatico-di-caronte).
+
+---
+
+## The live subagent panel
+
+Start `claude` from the root of a trusted worktree with Caronte installed. The panel loads with the project and opens automatically when the terminal has enough space.
+
+- `/tui fullscreen` gives you the right-hand sidebar, and `/caronte-panel` toggles it, even in narrow terminals.
+- The pane gives 20% of its height to the logo and GitHub link, 60% to live and completed subagent activity, and 20% to project totals.
+- **↑** / **↓**, or `/caronte-panel prev` and `/caronte-panel next`, page through subagent details and Caronte checkpoints.
+- **ASCII**, or `/caronte-panel ascii`, opens the original artwork. Pan with **←** / **→**, and select **Subagent** to go back.
+
+*Tested with Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).*
+
+
+---
+
+## Honest by design
+
+- Caronte makes **no measured token-savings claim**, because the product is still in an active testing phase. Token figures are shown only when measured, with their scope.
+- Project hooks cover the registered Claude Code tools. Managed settings, sandboxing and other tools may affect runtime behavior.
+- Local telemetry starts on the first startup or resume with Caronte, and it stays on your machine. Run `/caronte-telemetry-off` to stop it for the current worktree and `/caronte-telemetry-on` to restart it. Run `node .claude/routing/telemetry.cjs dashboard` to open a local dashboard of rereads after file changes, API usage, and test and build output filtering. See the [telemetry guide](TELEMETRY.md).
+
+---
+
+## Documentation
 
 ```sh
 node --test tests/*.test.cjs
@@ -240,35 +217,24 @@ node --test tests/*.test.cjs
 - [Dependency and update behavior](DIPENDENZE.md)
 - [Verification record and remaining coverage](VERIFICA.md)
 - [ICM stages and recovery](.claude/routing/ICM.md)
+- [Delivery and review](.claude/routing/CONSEGNA.md)
 - [Third-party notices](NOTICE.md)
+- [Contribution policy](CONTRIBUTING.md)
 
-The project hooks cover the registered Claude Code tools. Managed settings, sandboxing, and other tools may affect runtime behavior. Caronte makes no measured token-savings claim.
+---
 
-## Local telemetry
+## License
 
-Local telemetry starts automatically on the first Claude Code startup or
-resume with Caronte. Run `/caronte-telemetry-off` to stop it for the current
-worktree, or `/caronte-telemetry-on` to turn it back on.
-Run `node .claude/routing/telemetry.cjs dashboard` from the installed worktree
-and open the HTML path it prints. The local dashboard shows rereads after
-detected file changes, API usage, and test and build output filtering.
-See the [telemetry guide](TELEMETRY.md) for coverage and controls.
+Caronte's original material is owned by **Manuel Albanese** and uses the [Caronte Source-Available License v2.0](LICENSE).
 
-## License and attribution
+- **Free:** development, testing and CI/CD of the products you sell.
+- **Paid:** running Caronte as part of a paid product or service requires a separate commercial runtime license from [Manuel Albanese](https://github.com/manuel-albanesee).
 
-Caronte's original material is owned by **Manuel Albanese** and uses the
-[Caronte Source-Available License v2.0](LICENSE). Development, testing, and
-CI/CD of products you sell are permitted under the free grant. Running
-Caronte as part of a paid product or service requires a separate paid
-commercial runtime license from [Manuel Albanese](https://github.com/manuel-albanesee).
-
-If you use Caronte to develop a project, include this credit in that
-project's README, credits, or equivalent documentation. Private projects can
-keep the credit private.
+If you use Caronte to develop a project, include this credit in that project's README, credits or equivalent documentation. Private projects can keep the credit private.
 
 > Developed with [Caronte](https://github.com/manuel-albanesee/Caronte) by Manuel Albanese (@manuel-albanesee).
 
-Bundled MIT materials retain their respective licenses. See [NOTICE.md](NOTICE.md) and the [contribution policy](CONTRIBUTING.md).
+Bundled MIT materials retain their respective licenses. See [NOTICE.md](NOTICE.md).
 
 ## Credits
 

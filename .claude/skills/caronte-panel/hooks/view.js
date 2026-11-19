@@ -11,9 +11,14 @@ const warm = '#FFCA80';
 const background = '#000000';
 export const githubProfile = 'https://github.com/manuel-albanesee';
 const palette = ' .:-=+*#%@';
-const firstArtRow = ferryman.findIndex(row => /[^@]/.test(row));
-const drawing = ferryman.slice(firstArtRow, ferryman.findLastIndex(row => /[^@]/.test(row)) + 1);
-const density = drawing.map(row => [...row].map(character => palette.length - 1 - palette.indexOf(character)));
+const firstArtRow = ferryman.findIndex(row => /\S/.test(row));
+const drawing = ferryman.slice(firstArtRow, ferryman.findLastIndex(row => /\S/.test(row)) + 1);
+// Visual weight of a glyph on a 0–9 scale: the artwork is light ink on a blank field,
+// so spaces carry no weight and dense glyphs such as "$" carry the most.
+const lightInk = '.,\'`:;"^-_';
+const midInk = '~!<>()[]{}|/\\ilI1+=*?rtfjxnuvczsJLYT7';
+const inkWeight = character => (character === ' ' ? 0 : lightInk.includes(character) ? 2 : midInk.includes(character) ? 5 : 9);
+const density = drawing.map(row => [...row].map(inkWeight));
 const number = new Intl.NumberFormat('it-IT');
 const dollars = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const date = new Intl.DateTimeFormat('it-IT', { dateStyle: 'short', timeStyle: 'short' });
