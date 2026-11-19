@@ -202,6 +202,6 @@ export function register(on) {
     // Claude Code can place the pane after the user widens their terminal.
     board.open = true;
     const { Box, Text } = $.ui.resolve(e);
-    return drawPanel(Box, Text, e.props.bodyColumns, board.cards);
+    return drawPanel(Box, Text, e.props.bodyColumns, board.cards, e.props.placement === 'inline');
   });
 }

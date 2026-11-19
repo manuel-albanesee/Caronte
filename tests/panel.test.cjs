@@ -29,16 +29,17 @@ test('the panel displays live activity, cumulative token categories and missing 
   assert.deepEqual(cards.map(card => card.id), ['live', 'done']);
   assert.deepEqual(cards[0].usage, [12, 23, 34, 45]);
   const wide = lines(drawPanel(box, text, 40, cards)).join('\n');
-  assert.match(wide, /_ +_____ ____\n/);
-  assert.match(wide, /~ ~~\nSUBAGENT/);
+  assert.match(wide, /\+%@%\+:\n/);
   assert.match(wide, /› Lettura/);
   assert.match(wide, /Cache ↓ 34 +↑ 45/);
   assert.match(wide, /Token —/);
   assert.doesNotMatch(wide, /[\u001b\u202E]|\b100%/);
-  const compact = lines(drawPanel(box, text, 24, cards));
-  assert.equal(compact[0].trim(), '.-- CARONTE --.');
-  assert.match(compact[1], /\\_+\//);
-  assert.equal(lines(drawPanel(box, text, 14, cards))[0].trim(), 'CARONTE');
+  for (const [columns, inline, height] of [[40, false, 14], [82, true, 7], [24, false, 7], [14, false, 5]]) {
+    const rendered = lines(drawPanel(box, text, columns, [], inline));
+    const emblem = rendered.slice(0, rendered.findIndex(row => row.startsWith('SUBAGENT')));
+    assert.equal(emblem.length, height);
+    assert.ok(emblem.every(row => /^[ .:=+*#%@-]+$/.test(row) && row.length <= Math.min(46, columns - 2)));
+  }
 });
 
 test('checkpoint completion follows the session, agent and review evidence in a linked worktree', async () => {

@@ -59,7 +59,13 @@
     ".claude/routing/delivery.cjs": "f38a71573226c46d108abdc0b87789e16cde81ecdcfad2a4e0967336f1b87dfb"
   },
   "sidebarHashes": {
-    ".claude/skills/caronte-panel/hooks/view.js": "38426ce777099f103e8abeaab0c18e1ffa2db79eea48658796697f079ae772b4"
+    ".claude/skills/caronte-panel/hooks/view.js": [
+      "38426ce777099f103e8abeaab0c18e1ffa2db79eea48658796697f079ae772b4",
+      "4df181c1af468e20343db2d9c7f584857bdeca451d7d4c46d20590391330aecb"
+    ],
+    ".claude/skills/caronte-panel/hooks/register.js": [
+      "ca356816bb00d31907246a659cc3ff2f2bd9e4f0e313c96718d9efb1a2d6b29a"
+    ]
   },
   "dashboardHashes": {
     ".claude/routing/telemetry-dashboard.html": "39d5854e02539e89d9fc9a833c5450779451f0738e939a73c69be8320de4402b"

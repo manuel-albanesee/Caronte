@@ -1,15 +1,38 @@
-const wordmark = [
-  " ___  /\\    ___   __  _   _ _____ ____",
-  "/    /   \\ |   \\ /  \\ |\\  |   |   |",
-  "|    |---| |___/ |  | | \\ |   |   |---",
-  "|    |   | |  \\  |  | |  \\|   |   |",
-  "\\___ |   | |   \\ \\__/ |   |   |   |___",
+// Terminal-size variants of the full ASCII artwork in README.md.
+const emblems = [
+  { width: 38, rows: [
+    "                     :+%@%+:",
+    "                  ::-*%@%++*:",
+    "               :+*%%%@@#.*%-  -=.",
+    "            .-#%**%@@@@@*#=:::%#.",
+    "    .-+***##%%=-#@@##@@@@@#++%-",
+    "   :====+####==##**:%@@@#++%@=   :=++:",
+    "      -+#%%@#:++*##+-===+:+#-    .:%@:",
+    " .:=*@@@@@@%:+%@@@@%---%#          #%",
+    " :::::=+*%%*%@@@@#==#@@@@*:      .*@%",
+    ".    :+#@@%@@@@*--*@@%%%%%#..:-+#@@@+",
+    "+%#######*##*--=*#####**###%%@@@@@@*",
+    " +@@@%%%@%+-.=%@@@@@@@@@@@@@@@@@@#-",
+    "  -==++=.   =#*+==+++++**####*+=:",
+    "     :==--:=+-....::--==--:..",
+  ] },
+  { width: 22, rows: [
+    "          ..=%#+.",
+    "       .-+#%@%*+.=-",
+    "  .-+*##+*#*@@#*#-..::",
+    " .-+#%%=*%%==*-::   #+",
+    ":.:=#%%%%**#%%#: :-*@-",
+    "=###%*+=*##%%%@@@@@%-",
+    " :-==::==--=++++=-:",
+  ] },
+  { width: 12, rows: [
+    "     :=%=.",
+    " .-==#@%*=..",
+    " -#%##+*- .*",
+    "-+####%%++#=",
+    "-++:=++***-",
+  ] },
 ];
-const wordmarkWidth = Math.max(...wordmark.map(row => row.length));
-const hull = '~~ ~    \\__________________/    ~ ~~';
-const compactHull = '.~ \\___________/ ~.';
-const amber = ['#FFF0C9', '#FFE4A8', '#FFCC88', '#FFB274', '#F79860'];
-const wake = '#79BCBA';
 const aqua = '#74E4D9';
 const ink = '#EFF7FC';
 const muted = '#9EB5C2';
@@ -67,20 +90,16 @@ export function agentCards(agents, calls, plans) {
   })).sort((a, b) => Number(isActive(b.status)) - Number(isActive(a.status)) || b.start - a.start);
 }
 
-export function drawPanel(Box, Text, columns, cards) {
+export function drawPanel(Box, Text, columns, cards, inline = false) {
   const width = Math.max(12, Math.min(46, (columns || 38) - 2));
   const line = (value, color = ink, bold = false) => Text({
     color, weight: bold ? 'bold' : 'regular', wrap: 'truncate-end', children: [value],
   });
   const rule = line('─'.repeat(width), dim);
   const gap = line(' ');
-  const centered = (value, color, bold = false, blockWidth = value.length) =>
-    line(' '.repeat(Math.floor((width - blockWidth) / 2)) + value, color, bold);
-  const branding = width >= wordmarkWidth
-    ? [...wordmark.map((row, index) => centered(row, amber[index], true, wordmarkWidth)),
-      centered(hull, wake)]
-    : [centered(width >= compactHull.length ? '.-- CARONTE --.' : 'CARONTE', warm, true),
-      width >= compactHull.length ? centered(compactHull, wake) : rule];
+  const emblemWidth = inline ? Math.min(width, 22) : width;
+  const emblem = emblems.find(art => art.width <= emblemWidth);
+  const indent = ' '.repeat(Math.floor((width - emblem.width) / 2));
   const count = cards.filter(card => isActive(card.status)).length;
   const number = new Intl.NumberFormat('it-IT');
   const checkLabels = {
@@ -91,7 +110,7 @@ export function drawPanel(Box, Text, columns, cards) {
   };
 
   const children = [
-    ...branding,
+    ...emblem.rows.map(row => line(indent + row, warm, true)),
     line(`SUBAGENT   ${count}/${cards.length} attivi`, aqua, true),
   ];
   if (!cards.length) children.push(gap, line('In attesa di una delega', muted));
