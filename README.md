@@ -37,6 +37,10 @@ See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
 
 ### Live subagent panel
 
+![CARONTE sidebar in Claude Code showing an active subagent, checkpoint progress and token usage](docs/images/caronte-subagent-panel.png)
+
+*Claude Code demo with a test subagent and simulated token usage.*
+
 Start `claude` from the root of a trusted worktree with Caronte installed.
 The panel loads with the project and opens automatically when the terminal has
 enough space. Use `/tui fullscreen` for the right-hand sidebar and
