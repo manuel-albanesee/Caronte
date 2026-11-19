@@ -15,6 +15,7 @@ const spec = {
   validate: folder => /^name\s*=\s*"headroom-ai"\s*$/m.test(fs.readFileSync(path.join(folder, 'pyproject.toml'), 'utf8')),
 };
 const pythonCheck = 'import sys; sys.exit(not ((3, 11) <= sys.version_info[:2] < (4, 0)))';
+const pythonEntry = ['-I', '-c', 'from headroom.cli import main; main()'];
 const runtimeCheck = [
   'import importlib.metadata as m',
   'm.version("fastapi")',
@@ -22,15 +23,33 @@ const runtimeCheck = [
   'print(m.version("headroom-ai"))',
 ].join('\n');
 
-function planHeadroom(root, explicitPath) {
-  if (explicitPath) {
-    const external = probeHeadroom(root, explicitPath);
+function resolveHeadroomPython(option) {
+  let python = option;
+  if (option === true) {
+    const windows = process.platform === 'win32';
+    const dataDir = windows
+      ? process.env.APPDATA || path.join(os.homedir(), 'AppData', 'Roaming')
+      : process.env.XDG_DATA_HOME || path.join(os.homedir(), '.local', 'share');
+    const toolsDir = process.env.UV_TOOL_DIR || path.join(dataDir, 'uv', 'tools');
+    python = path.resolve(toolsDir, 'headroom-ai', windows ? 'Scripts/python.exe' : 'bin/python');
+  }
+  if (!path.isAbsolute(python)) throw Error('Usa --headroom-python senza valore o indica un percorso assoluto.');
+  if (!fs.statSync(python, { throwIfNoEntry: false })?.isFile()) {
+    throw Error('Interprete Python di Headroom non trovato: ' + python + '. Se è altrove, usa --headroom-python=<percorso assoluto>.');
+  }
+  return python;
+}
+
+function planHeadroom(root, explicitPath, python) {
+  const executable = python ?? explicitPath;
+  if (executable) {
+    const external = probeHeadroom(root, executable, python ? pythonEntry : []);
     if (!external.version) {
-      const error = Error('Headroom (' + explicitPath + '): ' + external.error);
+      const error = Error('Headroom (' + executable + '): ' + external.error);
       error.code = external.code;
       throw error;
     }
-    return { report: { executable: explicitPath, version: external.version, status: 'external', runtime: 'present' } };
+    return { report: { executable, version: external.version, status: 'external', runtime: 'present', ...(python ? { launcher: 'python' } : {}) } };
   }
   const external = findExternalHeadroom(root);
   if (external?.version) return { report: { ...external, status: 'external', runtime: 'present' } };
@@ -87,12 +106,12 @@ function findExternalHeadroom(root) {
   return blocked;
 }
 
-function probeHeadroom(root, executable) {
-  const probe = execute(root, executable, ['--version'], 10000);
+function probeHeadroom(root, executable, entry = []) {
+  const probe = execute(root, executable, [...entry, '--version'], 10000);
   if (probe.status !== 0) return { error: commandError(probe), code: probe.error?.code };
   const version = /^headroom(?:,?\s+version)?\s+v?(\d+(?:\.\d+)+[^\s]*)\s*$/im.exec((probe.stdout ?? '') + '\n' + (probe.stderr ?? ''))?.[1];
   if (!version) return { error: 'versione Headroom non riconosciuta' };
-  const help = execute(root, executable, ['wrap', 'claude', '--help'], 10000);
+  const help = execute(root, executable, [...entry, 'wrap', 'claude', '--help'], 10000);
   if (help.status !== 0) return { error: commandError(help), code: help.error?.code };
   return { version };
 }
@@ -151,4 +170,4 @@ function commandError(result) {
   return result.error?.message || output?.slice(-3).join(' ').slice(0, 600) || 'codice ' + result.status;
 }
 
-module.exports = { location, locateHeadroom, planHeadroom, setupHeadroom };
+module.exports = { location, locateHeadroom, planHeadroom, pythonEntry, resolveHeadroomPython, setupHeadroom };

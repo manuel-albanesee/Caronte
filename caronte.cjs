@@ -2,6 +2,7 @@
 
 const usage = 'Usage: caronte install-project [--dry-run | --verify] [--ecc-full]\n' +
   '        [--headroom-path=<executable>] [--ecc-path=<directory>] [--rtk-path=<executable>]\n' +
+  '        [--headroom-python[=<absolute-path>]]\n' +
   '       caronte start [--headroom-python[=<absolute-path>]] [Claude Code options]\n' +
   'Installs Caronte, ECC, Headroom, and RTK for the current project.';
 const [command, ...flags] = process.argv.slice(2);
@@ -9,9 +10,9 @@ const [command, ...flags] = process.argv.slice(2);
 async function start(args) {
   const fs = require('node:fs');
   const path = require('node:path');
-  const { constants, homedir } = require('node:os');
+  const { constants } = require('node:os');
   const { spawn } = require('node:child_process');
-  const { locateHeadroom } = require('./headroom-setup.cjs');
+  const { locateHeadroom, pythonEntry, resolveHeadroomPython } = require('./headroom-setup.cjs');
   const { showLogo } = require('./terminal-ui.cjs');
   const root = process.cwd();
   const settingsFile = path.join(root, '.claude', 'settings.local.json');
@@ -22,20 +23,7 @@ async function start(args) {
   let python;
   if (pythonOptions.length) {
     if (pythonOptions.length > 1) throw Error('Usa --headroom-python una sola volta.');
-    if (pythonOptions[0] === '--headroom-python') {
-      const windows = process.platform === 'win32';
-      const dataDir = windows
-        ? process.env.APPDATA || path.join(homedir(), 'AppData', 'Roaming')
-        : process.env.XDG_DATA_HOME || path.join(homedir(), '.local', 'share');
-      const toolsDir = process.env.UV_TOOL_DIR || path.join(dataDir, 'uv', 'tools');
-      python = path.resolve(toolsDir, 'headroom-ai', windows ? 'Scripts/python.exe' : 'bin/python');
-    } else {
-      python = pythonOptions[0].slice('--headroom-python='.length);
-      if (!path.isAbsolute(python)) throw Error('Usa --headroom-python senza valore o indica un percorso assoluto.');
-    }
-    if (!fs.statSync(python, { throwIfNoEntry: false })?.isFile()) {
-      throw Error('Interprete Python di Headroom non trovato: ' + python + '. Se è altrove, usa --headroom-python=<percorso assoluto>.');
-    }
+    python = resolveHeadroomPython(pythonOptions[0] === '--headroom-python' || pythonOptions[0].slice('--headroom-python='.length));
     args = [...wrapOptions.filter(arg => arg !== pythonOptions[0]), ...(separator < 0 ? [] : args.slice(separator))];
   }
   const configured = settings.env?.CARONTE_HEADROOM_PATH ?? process.env.CARONTE_HEADROOM_PATH;
@@ -52,7 +40,7 @@ async function start(args) {
     const key = Object.keys(env).find(name => name.toLowerCase() === 'path') ?? 'PATH';
     env[key] = [path.dirname(rtk), env[key]].filter(Boolean).join(path.delimiter);
   }
-  const entry = python ? ['-I', '-c', 'from headroom.cli import main; main()'] : [];
+  const entry = python ? pythonEntry : [];
   const child = spawn(executable, [...entry, 'wrap', 'claude', ...args], { stdio: 'inherit', env });
   // The foreground child receives Ctrl+C directly from the shared terminal.
   const waitForHeadroom = () => {};

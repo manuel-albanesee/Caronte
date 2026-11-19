@@ -182,6 +182,17 @@ test('install-project skips the Headroom checkout when the CLI is already on PAT
   const { changed, headroom: report } = JSON.parse(result.stdout);
   assert.deepEqual(report, { executable: headroom, version: '0.45.0', status: 'external', runtime: 'present' });
   assert.ok(!changed.includes('.claude/vendor/headroom'));
+
+  const python = path.join(root, 'uv tools', 'headroom-ai', 'bin', 'python');
+  write(root, 'uv tools/headroom-ai/bin/python', '#!/bin/sh\ntest "$1 $2" = "-I -c" || exit 13\nshift 3\nexec ' + JSON.stringify(headroom) + ' "$@"\n');
+  fs.chmodSync(python, 0o755);
+  const viaPython = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run', '--headroom-python'], {
+    cwd: root, env: { ...env, UV_TOOL_DIR: path.join(root, 'uv tools') }, encoding: 'utf8',
+  });
+  assert.equal(viaPython.status, 0, viaPython.stderr);
+  const pythonPlan = JSON.parse(viaPython.stdout);
+  assert.deepEqual(pythonPlan.headroom, { ...report, executable: python, launcher: 'python' });
+  assert.ok(!pythonPlan.changed.includes('.claude/vendor/headroom'));
 });
 
 test('Headroom in the user bin is selected automatically, and a blocked copy does not trigger another download', {

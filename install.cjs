@@ -5,7 +5,7 @@ const { showLogo, installationProgress } = require('./terminal-ui.cjs');
 const { filePath } = require('./.claude/routing/icm.cjs');
 const { prepareRtk, removeStandaloneRtk } = require('./rtk-setup.cjs');
 const { location: eccLocation, planEcc } = require('./ecc-setup.cjs');
-const { location: headroomLocation, planHeadroom, setupHeadroom } = require('./headroom-setup.cjs');
+const { location: headroomLocation, planHeadroom, resolveHeadroomPython, setupHeadroom } = require('./headroom-setup.cjs');
 const { applyRepositories } = require('./repository-setup.cjs');
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
@@ -30,7 +30,7 @@ function atomicWrite(file, content, mode = 0o666) {
 }
 
 function install(target, dry = false, configureRtk = null, enableFullEcc = false, {
-  snapshot, installedFiles, automatic = false, manageEcc = false, progress, dependencyPaths = {},
+  snapshot, installedFiles, automatic = false, manageEcc = false, progress, dependencyPaths = {}, headroomPython,
 } = {}) {
   const root = fs.realpathSync(target), source = __dirname;
   if (root === fs.realpathSync(source)) throw Error('Scegli la root del progetto, non la cartella del kit.');
@@ -126,7 +126,8 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     }
   }
   const ecc = manageEcc ? planEcc(root, settings, project, configuredPaths.ecc) : null;
-  const headroom = manageEcc ? planHeadroom(root, configuredPaths.headroom) : null;
+  if (headroomPython) progress?.('Headroom: verifico il runtime tramite Python da ' + headroomPython + '.', undefined, 'Headroom', 0);
+  const headroom = manageEcc ? planHeadroom(root, configuredPaths.headroom, headroomPython) : null;
   const repositories = [ecc, headroom].filter(plan => plan?.spec);
   for (const repo of repositories) {
     if (repo.report.status === 'present') progress?.(repo.spec.name + ': repository già presente, riuso la copia locale.', undefined, repo.spec.name, repo.spec.name === 'ECC' ? 100 : 25);
@@ -204,6 +205,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
 async function cli(args) {
   const usage = 'Caronte — node install.cjs <project-root> [--dry-run | --verify] [--ecc-full] [--gate-rtk=<percorso-gateguard>]\n' +
     '         [--ecc-path=<directory>] [--headroom-path=<eseguibile>] [--rtk-path=<eseguibile>]\n' +
+    '         [--headroom-python[=<percorso assoluto>]]\n' +
     '         node install.cjs --enable-auto-update | --disable-auto-update';
   if (args.includes('--help') || args.includes('-h')) return console.log(usage);
   if (Number(process.versions.node.split('.')[0]) < 22) throw Error('Caronte requires Node.js 22 or later.');
@@ -215,7 +217,7 @@ async function cli(args) {
   const flags = [];
   const targets = [];
   for (const arg of args) {
-    const option = /^--(gate-rtk|ecc-path|headroom-path|rtk-path)=(.*)$/.exec(arg);
+    const option = /^--(gate-rtk|ecc-path|headroom-path|headroom-python|rtk-path)=(.*)$/.exec(arg);
     if (option) {
       const [, name, value] = option;
       if (!value.trim() || Object.hasOwn(named, name)) throw Error(usage);
@@ -224,8 +226,12 @@ async function cli(args) {
     else targets.push(arg);
   }
   if (targets.length !== 1 || new Set(flags).size !== flags.length ||
-      flags.some(flag => !['--dry-run', '--verify', '--ecc-full'].includes(flag)) ||
-      (flags.includes('--dry-run') && flags.includes('--verify'))) throw Error(usage);
+      flags.some(flag => !['--dry-run', '--verify', '--ecc-full', '--headroom-python'].includes(flag)) ||
+      (flags.includes('--dry-run') && flags.includes('--verify')) ||
+      (flags.includes('--headroom-python') && named['headroom-python'])) throw Error(usage);
+  const pythonOption = named['headroom-python'] ?? flags.includes('--headroom-python');
+  if (pythonOption && named['headroom-path']) throw Error('Scegli --headroom-path oppure --headroom-python.');
+  const headroomPython = pythonOption ? resolveHeadroomPython(pythonOption) : undefined;
   const dependencyPaths = { ecc: named['ecc-path'], headroom: named['headroom-path'], rtk: named['rtk-path'] };
   const dry = flags.includes('--dry-run'), verify = flags.includes('--verify');
   const progress = dry || verify ? undefined : installationProgress();
@@ -233,7 +239,7 @@ async function cli(args) {
   progress?.('Preparo l’installazione in ' + targets[0] + '.');
   const result = installFromCheckout(targets[0], dry || verify,
     config => prepareRtk({ ...config, gateGuard: named['gate-rtk'] }), flags.includes('--ecc-full'),
-    { manageEcc: true, progress, dependencyPaths });
+    { manageEcc: true, progress, dependencyPaths, headroomPython });
   if (verify) {
     result.verified = result.changed.length === 0 && result.headroom.runtime === 'present' &&
       result.rtk.hook === 'reused';

@@ -61,6 +61,8 @@ caronte start --headroom-python --verbose
 
 Per un interprete in un altro ambiente, puoi indicare il percorso assoluto con `--headroom-python=<percorso>`.
 
+Usa `caronte install-project --headroom-python` per riusare lo stesso ambiente durante l’installazione. Usa `caronte install-project --verify --headroom-python` per verificarlo in un progetto già installato.
+
 ## Aggiornamento automatico di Caronte
 
 Attiva l'hook una volta nel clone Git che userai come sorgente. Su Windows, per
