@@ -4,7 +4,17 @@ Aggiornato il 18 novembre 2026. Brief preparati dal coordinatore, ricerca e svil
 
 ## Installazione
 
-Servono Git per le deleghe che scrivono file, Node.js 22 o successivo e Claude Code almeno 2.1.296 per le opzioni usate. Non serve installare dipendenze npm. Estrai lo ZIP in una cartella separata dal progetto. Nel terminale della cartella estratta:
+Servono Git per le deleghe che scrivono file, Node.js 22 o successivo e Claude Code almeno 2.1.296 per le opzioni usate.
+
+Nel clone permanente di Caronte esegui `npm link` una volta per registrare il comando `caronte` nel terminale. Apri poi la root del progetto e lancia:
+
+```powershell
+caronte install-project
+```
+
+Il comando installa nella cartella corrente. Puoi aggiungere `--dry-run` per vedere le modifiche previste, `--verify` per verificare l’installazione oppure `--ecc-full` se usi il plugin ECC completo.
+
+Puoi anche avviare lo script direttamente dal clone o da uno ZIP estratto in una cartella separata dal progetto:
 
 ```powershell
 node --test tests/routing.test.cjs

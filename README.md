@@ -10,6 +10,24 @@ Caronte combines model routing, selected ECC specialists, focused test plans, an
 
 **Requirements:** Git, Node.js 22+, and Claude Code 2.1.296+. Use the root of the Git worktree you want to configure. RTK is reused when detected, or installed through a supported package manager.
 
+### Install with the Caronte CLI
+
+Register the `caronte` command once from a permanent Caronte clone. On Windows, for example:
+
+```powershell
+git clone https://github.com/manuel-albanesee/Caronte.git C:\git\Caronte
+Set-Location C:\git\Caronte
+npm link
+```
+
+If you already have a clone, update it and run `npm link` there. Then open a terminal in the root of each project you want to configure and run:
+
+```powershell
+caronte install-project
+```
+
+The command uses the current directory. Run `caronte install-project --dry-run` to preview changes or `caronte install-project --verify` to check an installation. After a successful install, start a fresh Claude Code session in that directory. The command uses the linked clone, so `git pull --ff-only` there updates its source for future installations.
+
 ### Install from Claude Code
 
 Open Claude Code in the target project, then copy the [self-install prompt](INSTALL_PROMPT.md) into that session. The agent clones and inspects Caronte in a temporary directory, previews the project changes, installs, and verifies the resulting files. Start a fresh Claude Code session afterward.
@@ -30,8 +48,8 @@ node install.cjs "<project-root>" --verify
 
 Start Claude Code from the target worktree. Use `/agents` and `/hooks` to see what the new session loaded. Your normal Claude Code permissions still apply.
 
-If the project uses the full native ECC plugin, run the installer with
-`--ecc-full`. Caronte scopes its delegation protocol to its own profiles
+If the project uses the full native ECC plugin, run `caronte install-project --ecc-full`
+or pass `--ecc-full` to the installer. Caronte scopes its delegation protocol to its own profiles
 and explicit Caronte plans while the ECC plugin runs its full workflows.
 See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
 
