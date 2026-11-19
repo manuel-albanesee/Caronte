@@ -1,38 +1,5 @@
-// Terminal-size variants of the full ASCII artwork in README.md.
-const emblems = [
-  { width: 38, rows: [
-    "                     :+%@%+:",
-    "                  ::-*%@%++*:",
-    "               :+*%%%@@#.*%-  -=.",
-    "            .-#%**%@@@@@*#=:::%#.",
-    "    .-+***##%%=-#@@##@@@@@#++%-",
-    "   :====+####==##**:%@@@#++%@=   :=++:",
-    "      -+#%%@#:++*##+-===+:+#-    .:%@:",
-    " .:=*@@@@@@%:+%@@@@%---%#          #%",
-    " :::::=+*%%*%@@@@#==#@@@@*:      .*@%",
-    ".    :+#@@%@@@@*--*@@%%%%%#..:-+#@@@+",
-    "+%#######*##*--=*#####**###%%@@@@@@*",
-    " +@@@%%%@%+-.=%@@@@@@@@@@@@@@@@@@#-",
-    "  -==++=.   =#*+==+++++**####*+=:",
-    "     :==--:=+-....::--==--:..",
-  ] },
-  { width: 22, rows: [
-    "          ..=%#+.",
-    "       .-+#%@%*+.=-",
-    "  .-+*##+*#*@@#*#-..::",
-    " .-+#%%=*%%==*-::   #+",
-    ":.:=#%%%%**#%%#: :-*@-",
-    "=###%*+=*##%%%@@@@@%-",
-    " :-==::==--=++++=-:",
-  ] },
-  { width: 12, rows: [
-    "     :=%=.",
-    " .-==#@%*=..",
-    " -#%##+*- .*",
-    "-+####%%++#=",
-    "-++:=++***-",
-  ] },
-];
+import { ferryman, ferrymanWidth } from './ferryman.js';
+
 const aqua = '#74E4D9';
 const ink = '#EFF7FC';
 const muted = '#9EB5C2';
@@ -90,16 +57,13 @@ export function agentCards(agents, calls, plans) {
   })).sort((a, b) => Number(isActive(b.status)) - Number(isActive(a.status)) || b.start - a.start);
 }
 
-export function drawPanel(Box, Text, columns, cards, inline = false) {
+export function drawPanel(Box, Text, columns, cards, artwork) {
   const width = Math.max(12, Math.min(46, (columns || 38) - 2));
   const line = (value, color = ink, bold = false) => Text({
     color, weight: bold ? 'bold' : 'regular', wrap: 'truncate-end', children: [value],
   });
   const rule = line('─'.repeat(width), dim);
   const gap = line(' ');
-  const emblemWidth = inline ? Math.min(width, 22) : width;
-  const emblem = emblems.find(art => art.width <= emblemWidth);
-  const indent = ' '.repeat(Math.floor((width - emblem.width) / 2));
   const count = cards.filter(card => isActive(card.status)).length;
   const number = new Intl.NumberFormat('it-IT');
   const checkLabels = {
@@ -110,7 +74,7 @@ export function drawPanel(Box, Text, columns, cards, inline = false) {
   };
 
   const children = [
-    ...emblem.rows.map(row => line(indent + row, warm, true)),
+    artwork,
     line(`SUBAGENT   ${count}/${cards.length} attivi`, aqua, true),
   ];
   if (!cards.length) children.push(gap, line('In attesa di una delega', muted));
@@ -143,5 +107,40 @@ export function drawPanel(Box, Text, columns, cards, inline = false) {
     children.push(rule);
   }
 
+  return Box({ flexDirection: 'column', paddingX: 1, children });
+}
+
+export function artworkWindow(columns, offset) {
+  const width = Math.min(ferrymanWidth, Math.max(1, (columns || 40) - 2));
+  const last = ferrymanWidth - width;
+  const start = Math.min(last, Math.max(0, offset));
+  const step = Math.max(1, width - 4);
+  return {
+    start, end: start + width, width, last,
+    left: Math.max(0, start - step), right: Math.min(last, start + step),
+  };
+}
+
+export function drawArtwork({ Box, Text, Button }, columns, offset, changeView) {
+  const { start, end, width, last, left, right } = artworkWindow(columns, offset);
+  const children = [
+    Button({ key: 'close-art', label: 'Subagent', onPress: () => changeView(null) }),
+  ];
+  if (last) {
+    children.push(Box({ flexDirection: 'row', gap: 1, children: [
+      Button({
+        key: 'art-left', label: '←', dimColor: start === 0,
+        onPress: () => changeView(left),
+      }),
+      Button({
+        key: 'art-right', label: '→', dimColor: start === last,
+        onPress: () => changeView(right),
+      }),
+      Text({ color: muted, wrap: 'truncate-end', children: [`${start + 1}–${end}/${ferrymanWidth}`] }),
+    ] }));
+  }
+  for (const row of ferryman) {
+    children.push(Text({ color: warm, wrap: 'truncate-end', children: [row.slice(start, end).padEnd(width)] }));
+  }
   return Box({ flexDirection: 'column', paddingX: 1, children });
 }

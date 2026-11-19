@@ -1,6 +1,8 @@
-import { agentCards, combineUsage, drawPanel, isActive } from './view.js';
+import { ferrymanWidth } from './ferryman.js';
+import { agentCards, artworkWindow, combineUsage, drawArtwork, drawPanel, isActive } from './view.js';
 
 const pane = 'caronte-panel';
+const initialArtOffset = Math.floor(ferrymanWidth / 2);
 const reviewId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const checkCommand = /^node \.claude\/routing\/delivery\.cjs check [0-9a-f-]+$/;
 const finishedLimit = 20;
@@ -113,13 +115,14 @@ async function refresh($, board, justFinished = false) {
 
 export function register(on) {
   const board = {
-    open: false, refreshing: false, cards: [],
+    open: false, refreshing: false, cards: [], artOffset: null,
     plans: new Map(), calls: new Map(), roster: new Map(), finished: new Map(),
   };
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: pane, immediate: true, description: 'Mostra o chiudi la sidebar Caronte con attività, verifiche e token',
+      argumentHint: '[ascii|left|right]',
     });
     $.clock.every(900, () => refresh($, board));
     if (e.isInteractive && e.surface === 'terminal') {
@@ -135,25 +138,39 @@ export function register(on) {
     board.roster = new Map();
     board.finished = new Map();
     board.cards = [];
+    board.artOffset = null;
     if (board.open) $.ui.invalidate('ui.render');
     return next(e);
   });
 
-  on('command.run', { command: 'caronte-panel' }, async ($) => {
-    if ((await $.ui.panes()).some(item => item.id === pane && item.isPlaced)) {
+  on('command.run', { command: 'caronte-panel' }, async ($, e) => {
+    const action = e.args.trim();
+    if (action && !['ascii', 'left', 'right'].includes(action)) {
+      return { text: 'Usa /caronte-panel [ascii|left|right].' };
+    }
+    const placed = (await $.ui.panes()).some(item => item.id === pane && item.isPlaced);
+    if (!action && placed) {
       await $.ui.close({ id: pane });
       board.open = false;
+      board.artOffset = null;
       return {};
     }
-    const result = await openPane($);
-    board.open = result.isPlaced;
+    board.open = placed || (await openPane($)).isPlaced;
     if (!board.open) return { text: 'Apri /caronte-panel in una sessione terminale interattiva.' };
+    if (action === 'ascii') {
+      board.artOffset = board.artOffset === null ? initialArtOffset : null;
+    } else if (action) {
+      const { left, right } = artworkWindow(board.columns, board.artOffset ?? initialArtOffset);
+      board.artOffset = action === 'left' ? left : right;
+    }
+    if (action) $.ui.invalidate('ui.render');
     return {};
   });
 
   on('ui.close', { id: 'caronte-panel' }, async ($, e, next) => {
     const result = await next(e);
     board.open = (await $.ui.panes()).some(item => item.id === pane && item.isPlaced);
+    if (!board.open) board.artOffset = null;
     return result;
   });
 
@@ -201,7 +218,20 @@ export function register(on) {
     if (e.requestId !== pane) return next(e);
     // Claude Code can place the pane after the user widens their terminal.
     board.open = true;
-    const { Box, Text } = $.ui.resolve(e);
-    return drawPanel(Box, Text, e.props.bodyColumns, board.cards, e.props.placement === 'inline');
+    const { Box, Text, Button } = $.ui.resolve(e);
+    const changeView = offset => {
+      if (board.artOffset === offset) return;
+      board.artOffset = offset;
+      $.ui.invalidate('ui.render');
+    };
+    const { bodyColumns } = e.props;
+    board.columns = bodyColumns;
+    if (board.artOffset !== null) {
+      return drawArtwork({ Box, Text, Button }, bodyColumns, board.artOffset, changeView);
+    }
+    const artwork = Button({
+      key: 'open-art', label: 'Disegno ASCII', onPress: () => changeView(initialArtOffset),
+    });
+    return drawPanel(Box, Text, bodyColumns, board.cards, artwork);
   });
 }

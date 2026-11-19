@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const { readFileSync } = require('node:fs');
+const path = require('node:path');
 const test = require('node:test');
 
 const view = import('../.claude/skills/caronte-panel/hooks/view.js');
@@ -6,6 +8,7 @@ const mod = import('../.claude/skills/caronte-panel/hooks/register.js');
 
 const box = props => ({ children: props.children });
 const text = props => ({ children: props.children });
+const button = props => ({ ...props, children: [props.label] });
 function lines(node) {
   return typeof node === 'string' ? [node] : node.children.flatMap(lines);
 }
@@ -28,17 +31,37 @@ test('the panel displays live activity, cumulative token categories and missing 
   ], new Map([['live', new Map([['call', 'Lettura']])]]), new Map());
   assert.deepEqual(cards.map(card => card.id), ['live', 'done']);
   assert.deepEqual(cards[0].usage, [12, 23, 34, 45]);
-  const wide = lines(drawPanel(box, text, 40, cards)).join('\n');
-  assert.match(wide, /\+%@%\+:\n/);
+  const wide = lines(drawPanel(box, text, 40, cards, button({ label: 'Disegno ASCII' }))).join('\n');
+  assert.match(wide, /Disegno ASCII/);
   assert.match(wide, /› Lettura/);
   assert.match(wide, /Cache ↓ 34 +↑ 45/);
   assert.match(wide, /Token —/);
   assert.doesNotMatch(wide, /[\u001b\u202E]|\b100%/);
-  for (const [columns, inline, height] of [[40, false, 14], [82, true, 7], [24, false, 7], [14, false, 5]]) {
-    const rendered = lines(drawPanel(box, text, columns, [], inline));
-    const emblem = rendered.slice(0, rendered.findIndex(row => row.startsWith('SUBAGENT')));
-    assert.equal(emblem.length, height);
-    assert.ok(emblem.every(row => /^[ .:=+*#%@-]+$/.test(row) && row.length <= Math.min(46, columns - 2)));
+});
+
+test('the ASCII view preserves every column and row of the README artwork at any panel width', async () => {
+  const { drawArtwork } = await view;
+  const { ferryman, ferrymanWidth } = await import('../.claude/skills/caronte-panel/hooks/ferryman.js');
+  const readme = readFileSync(path.join(__dirname, '../README.md'), 'utf8');
+  const [, artwork] = readme.match(/<summary>Caronte ASCII artwork<\/summary>\s*```text\n([\s\S]*?)\n```/);
+  assert.equal(artwork, ferryman.join('\n'));
+  assert.equal(ferryman.findIndex(Boolean), 9);
+  assert.equal(ferryman.length, 51);
+
+  for (const columns of [14, 40, 82, 102, 130]) {
+    const assembled = ferryman.map(() => '');
+    let offset = 0;
+    let covered = 0;
+    while (covered < ferrymanWidth) {
+      const tree = drawArtwork({ Box: box, Text: text, Button: button }, columns, offset, value => { offset = value; });
+      const viewport = lines(tree).slice(-ferryman.length);
+      const overlap = covered - offset;
+      for (const [index, row] of viewport.entries()) assembled[index] += row.slice(overlap);
+      assert.ok(offset + viewport[0].length > covered);
+      covered = offset + viewport[0].length;
+      if (covered < ferrymanWidth) tree.children[1].children.find(node => node.key === 'art-right').onPress();
+    }
+    assert.deepEqual(assembled, ferryman.map(row => row.padEnd(ferrymanWidth)));
   }
 });
 
@@ -89,27 +112,42 @@ test('checkpoint completion follows the session, agent and review evidence in a 
         paneOpen = false;
       },
       panes: async () => paneOpen ? [paneOpen] : [],
-      resolve: () => ({ Box: box, Text: text }),
+      resolve: () => ({ Box: box, Text: text, Button: button }),
       invalidate: () => { redraws++; },
     },
   };
   const result = {};
   const next = async () => result;
-  const render = async () => lines(await hooks.get('ui.render')(api, {
+  const command = (args = '') => hooks.get('command.run')(api, { args });
+  const tree = () => hooks.get('ui.render')(api, {
     requestId: 'caronte-panel', props: { bodyColumns: 40 },
-  }, next)).join('\n');
+  }, next);
+  const render = async () => lines(await tree()).join('\n');
 
   assert.equal(await hooks.get('session.start')(api, { isInteractive: true, surface: 'terminal' }, next), result);
   assert.equal(opens, 1);
   assert.equal(paneOpen.isPlaced, false);
   await tick();
   assert.equal(redraws, 0);
-  await hooks.get('command.run')(api);
+  await command();
   assert.equal(paneOpen.isPlaced, true);
   await tick();
   assert.match(await render(), /Avanzamento —/);
   files.set(active, JSON.stringify({ id, agent: 'worker', session }));
   await tick();
+  assert.match(await render(), /33% · 1\/3/);
+  (await tree()).children[0].onPress();
+  assert.match(await render(), /=\*\*=:/);
+  assert.doesNotMatch(await render(), /33% · 1\/3/);
+  (await tree()).children[0].onPress();
+  assert.match(await render(), /33% · 1\/3/);
+  await command('ascii');
+  assert.match(await render(), /51–88\/100/);
+  await command('left');
+  assert.match(await render(), /17–54\/100/);
+  await command('right');
+  assert.match(await render(), /51–88\/100/);
+  await command('ascii');
   assert.match(await render(), /33% · 1\/3/);
 
   const call = { agentId: 'worker', tool_use_id: 'call', tool: 'Read' };
@@ -138,9 +176,9 @@ test('checkpoint completion follows the session, agent and review evidence in a 
   await tick();
   assert.match(await render(), /Concluso/);
   assert.match(await render(), /In 20 +Out 30/);
-  await hooks.get('command.run')(api);
+  await command();
   assert.equal(paneOpen, false);
-  await hooks.get('command.run')(api);
+  await command();
   assert.equal(paneOpen.isPlaced, true);
 
   session = 'new';

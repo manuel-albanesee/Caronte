@@ -88,6 +88,12 @@ si apre automaticamente se Claude Code ha spazio. Usa `/tui fullscreen` per
 vederlo sulla destra. In un terminale stretto, `/caronte-panel` lo apre sopra il
 prompt. Lo stesso comando lo chiude anche durante una risposta.
 
+Seleziona **Disegno ASCII** nel pannello per aprire l'illustrazione. Usa le
+frecce del pannello per spostarti tra le colonne e scorri in verticale per
+vedere tutte le righe. Seleziona **Subagent** per tornare alle metriche.
+Dal prompt puoi usare `/caronte-panel ascii` per cambiare vista e
+`/caronte-panel left` o `/caronte-panel right` per spostarti tra le colonne.
+
 Per disattivarlo nei prossimi avvii di quel progetto, esegui dalla root
 `claude plugin disable caronte-panel@skills-dir --scope local`. Per riattivarlo
 usa `claude plugin enable caronte-panel@skills-dir --scope local`.

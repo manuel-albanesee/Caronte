@@ -61,10 +61,12 @@
   "sidebarHashes": {
     ".claude/skills/caronte-panel/hooks/view.js": [
       "38426ce777099f103e8abeaab0c18e1ffa2db79eea48658796697f079ae772b4",
-      "4df181c1af468e20343db2d9c7f584857bdeca451d7d4c46d20590391330aecb"
+      "4df181c1af468e20343db2d9c7f584857bdeca451d7d4c46d20590391330aecb",
+      "4c8e0b8f261e3d0f472e89bf7514ddda86de5fa9231f178856239cbef1fb4b00"
     ],
     ".claude/skills/caronte-panel/hooks/register.js": [
-      "ca356816bb00d31907246a659cc3ff2f2bd9e4f0e313c96718d9efb1a2d6b29a"
+      "ca356816bb00d31907246a659cc3ff2f2bd9e4f0e313c96718d9efb1a2d6b29a",
+      "1bba9dbc2c82b0abc48b3c44ee2eb8ad31e1b845f0aa0f65667b273892588951"
     ]
   },
   "dashboardHashes": {
