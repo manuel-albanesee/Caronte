@@ -225,7 +225,7 @@ test('caronte start launches Headroom directly and forwards Claude options', {
   fs.chmodSync(executable, 0o755);
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: executable } }));
   const options = ['--verbose', '--resume', 'session id'];
-  function start(args, selected = executable, status = 23) {
+  function start(args, selected = executable, status = 23, expectedArgs = ['wrap', 'claude', ...args]) {
     const invocationsFile = path.join(root, 'headroom-invocations');
     fs.rmSync(invocationsFile, { force: true });
     const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'start', ...args], {
@@ -235,9 +235,9 @@ test('caronte start launches Headroom directly and forwards Claude options', {
       },
     });
     assert.equal(result.status, status, result.stderr);
-    assert.ok(result.stderr.includes('Avvio Headroom da ' + selected), result.stderr);
+    assert.ok(result.stderr.includes('da ' + selected), result.stderr);
     if (status === 23) {
-      assert.equal(fs.readFileSync(invocationsFile, 'utf8'), JSON.stringify(['wrap', 'claude', ...args]) + '\n');
+      assert.equal(fs.readFileSync(invocationsFile, 'utf8'), JSON.stringify(expectedArgs) + '\n');
     } else {
       assert.equal(fs.existsSync(invocationsFile), false);
     }
@@ -252,6 +252,10 @@ test('caronte start launches Headroom directly and forwards Claude options', {
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: blocked } }));
   const failed = start(options, blocked, 1);
   assert.match(failed.stderr, /Avvio di Headroom fallito: .*EACCES/);
+  const pythonArgs = ['-I', '-c', 'from headroom.cli import main; main()', 'wrap', 'claude', ...options];
+  const python = start([`--headroom-python=${executable}`, ...options], executable, 23, pythonArgs);
+  assert.match(python.stderr, /Avvio Headroom tramite Python/);
+  assert.deepEqual(JSON.parse(python.stdout), { args: pythonArgs, memory: 'none' });
   fs.rmSync(blocked);
   const fallback = start(options);
   assert.deepEqual(JSON.parse(fallback.stdout), { args: ['wrap', 'claude', ...options], memory: 'none' });
