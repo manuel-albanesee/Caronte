@@ -37,7 +37,7 @@ See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
 
 ### Live subagent panel
 
-![Caronte’s live subagent progress and token usage in Claude Code](docs/images/caronte-subagent-panel.png)
+![Caronte’s ASCII logo above live subagent progress and token usage in Claude Code](docs/images/caronte-subagent-panel.png)
 
 *Claude Code demo with a test subagent and simulated token usage.*
 
@@ -104,11 +104,12 @@ Start `claude` from the root of a trusted worktree with Caronte installed.
 The panel loads with the project and opens automatically when the terminal has
 enough space. Use `/tui fullscreen` for the right-hand sidebar and
 `/caronte-panel` to toggle the pane, including in narrow terminals.
-It shows subagent activity, model, tokens and verified Caronte checkpoints.
-Select **Disegno ASCII** to open the artwork above. Use the arrow buttons to pan
-across its columns, scroll vertically for the full height and select **Subagent**
-to return to the live metrics. From the prompt, use `/caronte-panel ascii`
-to switch views and `/caronte-panel left` or `/caronte-panel right` to pan.
+The logo fits in the top 30% of the pane. The lower 70% shows subagent activity,
+model, tokens and verified Caronte checkpoints. Use **↑** and **↓** or
+`/caronte-panel prev` and `/caronte-panel next` to page through the metrics.
+Select **ASCII** or use `/caronte-panel ascii` to open the original artwork.
+Use **←** and **→** to pan across it, scroll vertically for its full height,
+and select **Subagent** to return to the panel.
 Tested with Claude Code 2.1.327. See the [panel guide](GUIDA.md#pannello-subagent-in-claude-code).
 
 ## How it works

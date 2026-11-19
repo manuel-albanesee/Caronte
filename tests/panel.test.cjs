@@ -6,11 +6,15 @@ const test = require('node:test');
 const view = import('../.claude/skills/caronte-panel/hooks/view.js');
 const mod = import('../.claude/skills/caronte-panel/hooks/register.js');
 
-const box = props => ({ children: props.children });
+const box = props => props;
 const text = props => ({ children: props.children });
 const button = props => ({ ...props, children: [props.label] });
 function lines(node) {
   return typeof node === 'string' ? [node] : node.children.flatMap(lines);
+}
+
+function control(node, key) {
+  return node.key === key ? node : node.children?.map(child => control(child, key)).find(Boolean);
 }
 
 test('the panel displays live activity, cumulative token categories and missing data', async () => {
@@ -31,12 +35,36 @@ test('the panel displays live activity, cumulative token categories and missing 
   ], new Map([['live', new Map([['call', 'Lettura']])]]), new Map());
   assert.deepEqual(cards.map(card => card.id), ['live', 'done']);
   assert.deepEqual(cards[0].usage, [12, 23, 34, 45]);
-  const wide = lines(drawPanel(box, text, 40, cards, button({ label: 'Disegno ASCII' }))).join('\n');
-  assert.match(wide, /Disegno ASCII/);
+  const draw = (columns, rows, page = 0, changePage = () => {}) =>
+    drawPanel({ Box: box, Text: text, Button: button }, { columns, rows, cards, page, changePage });
+  const wide = lines(draw(40, 36).tree).join('\n');
+  assert.match(wide, /ASCII/);
   assert.match(wide, /› Lettura/);
   assert.match(wide, /Cache ↓ 34 +↑ 45/);
   assert.match(wide, /Token —/);
   assert.doesNotMatch(wide, /[\u001b\u202E]|\b100%/);
+
+  for (const [columns, rows] of [[24, 16], [40, 36], [80, 45]]) {
+    const { tree } = draw(columns, rows);
+    const [logo, metrics] = tree.children;
+    assert.equal(logo.height, Math.round(rows * 0.3));
+    assert.equal(logo.height + metrics.height, rows);
+    const artwork = lines(logo).slice(0, -1);
+    assert.equal(artwork.length, logo.height - 1);
+    assert.ok(artwork.every(row => /^[ .:=+*#%@-]+$/.test(row) && row.length <= columns - 2));
+    assert.ok(artwork[0].trim() && artwork.at(-1).trim());
+    assert.match(lines(metrics).join('\n'), /SUBAGENT 1\/2/);
+  }
+
+  let page = 0;
+  const first = draw(40, 16, page, value => { page = value; });
+  assert.equal(first.pageCount, 2);
+  control(first.tree, 'stats-next').onPress();
+  const second = draw(40, 16, page);
+  assert.equal(second.page, 1);
+  assert.deepEqual(lines(first.tree.children[0]), lines(second.tree.children[0]));
+  assert.match(lines(second.tree.children[1]).join('\n'), /Token —/);
+  assert.equal(draw(40, 36, page).page, 0);
 });
 
 test('the ASCII view preserves every column and row of the README artwork at any panel width', async () => {
@@ -136,7 +164,7 @@ test('checkpoint completion follows the session, agent and review evidence in a 
   files.set(active, JSON.stringify({ id, agent: 'worker', session }));
   await tick();
   assert.match(await render(), /33% · 1\/3/);
-  (await tree()).children[0].onPress();
+  control(await tree(), 'open-art').onPress();
   assert.match(await render(), /=\*\*=:/);
   assert.doesNotMatch(await render(), /33% · 1\/3/);
   (await tree()).children[0].onPress();

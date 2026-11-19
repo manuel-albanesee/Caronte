@@ -29,6 +29,14 @@ async function openPane($) {
   });
 }
 
+function selectPage($, board, page) {
+  const clamped = Math.max(0, Math.min(board.pageCount - 1, page));
+  if (clamped === board.page && board.artOffset === null) return;
+  board.page = clamped;
+  board.artOffset = null;
+  $.ui.invalidate('ui.render');
+}
+
 async function workState($, root) {
   try {
     const gitFile = root + '/.git';
@@ -115,14 +123,14 @@ async function refresh($, board, justFinished = false) {
 
 export function register(on) {
   const board = {
-    open: false, refreshing: false, cards: [], artOffset: null,
+    open: false, refreshing: false, cards: [], artOffset: null, page: 0, pageCount: 1,
     plans: new Map(), calls: new Map(), roster: new Map(), finished: new Map(),
   };
 
   on('session.start', async ($, e, next) => {
     await $.command.register({
       name: pane, immediate: true, description: 'Mostra o chiudi la sidebar Caronte con attività, verifiche e token',
-      argumentHint: '[ascii|left|right]',
+      argumentHint: '[ascii|left|right|prev|next]',
     });
     $.clock.every(900, () => refresh($, board));
     if (e.isInteractive && e.surface === 'terminal') {
@@ -139,14 +147,16 @@ export function register(on) {
     board.finished = new Map();
     board.cards = [];
     board.artOffset = null;
+    board.page = 0;
+    board.pageCount = 1;
     if (board.open) $.ui.invalidate('ui.render');
     return next(e);
   });
 
   on('command.run', { command: 'caronte-panel' }, async ($, e) => {
     const action = e.args.trim();
-    if (action && !['ascii', 'left', 'right'].includes(action)) {
-      return { text: 'Usa /caronte-panel [ascii|left|right].' };
+    if (action && !['ascii', 'left', 'right', 'prev', 'next'].includes(action)) {
+      return { text: 'Usa /caronte-panel [ascii|left|right|prev|next].' };
     }
     const placed = (await $.ui.panes()).some(item => item.id === pane && item.isPlaced);
     if (!action && placed) {
@@ -157,6 +167,10 @@ export function register(on) {
     }
     board.open = placed || (await openPane($)).isPlaced;
     if (!board.open) return { text: 'Apri /caronte-panel in una sessione terminale interattiva.' };
+    if (action === 'prev' || action === 'next') {
+      selectPage($, board, board.page + (action === 'next' ? 1 : -1));
+      return {};
+    }
     if (action === 'ascii') {
       board.artOffset = board.artOffset === null ? initialArtOffset : null;
     } else if (action) {
@@ -229,9 +243,13 @@ export function register(on) {
     if (board.artOffset !== null) {
       return drawArtwork({ Box, Text, Button }, bodyColumns, board.artOffset, changeView);
     }
-    const artwork = Button({
-      key: 'open-art', label: 'Disegno ASCII', onPress: () => changeView(initialArtOffset),
+    const { tree, page, pageCount } = drawPanel({ Box, Text, Button }, {
+      columns: bodyColumns, rows: e.props.scroll?.bodyRows, cards: board.cards, page: board.page,
+      openArtwork: () => changeView(initialArtOffset),
+      changePage: index => selectPage($, board, index),
     });
-    return drawPanel(Box, Text, bodyColumns, board.cards, artwork);
+    board.page = page;
+    board.pageCount = pageCount;
+    return tree;
   });
 }
