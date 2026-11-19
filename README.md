@@ -28,6 +28,8 @@ caronte install-project
 
 The command uses the current directory and installs Caronte, ECC, Headroom, and RTK. Run `caronte install-project --dry-run` to preview the setup or `caronte install-project --verify` to check it. The command uses the linked clone, so `git pull --ff-only` there updates its source for future installations.
 
+Use `caronte start` from the project root to launch Claude Code through the selected Headroom executable. Interactive installs and launches show the Caronte ASCII logo. Installs also show the current phase and native downloader progress.
+
 ### Install from Claude Code
 
 Open Claude Code in the target project, then copy the [self-install prompt](INSTALL_PROMPT.md) into that session. The agent clones and inspects Caronte in a temporary directory, previews the project changes, installs, and verifies the resulting files. Start a fresh Claude Code session afterward.

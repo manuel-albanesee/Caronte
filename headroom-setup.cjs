@@ -21,7 +21,12 @@ const runtimeCheck = [
   'print(m.version("headroom-ai"))',
 ].join('\n');
 
-function planHeadroom(root) {
+function planHeadroom(root, explicitPath) {
+  if (explicitPath) {
+    const external = probeHeadroom(root, explicitPath);
+    if (!external.version) throw Error('Headroom (' + explicitPath + '): ' + external.error);
+    return { report: { executable: explicitPath, version: external.version, status: 'external', runtime: 'present' } };
+  }
   const plan = { report: { version, runtime: 'planned' } };
   setupHeadroom(root, plan, true);
   if (plan.report.runtime !== 'present') {
@@ -32,9 +37,10 @@ function planHeadroom(root) {
   return { ...repository, report: { ...repository.report, ...plan.report } };
 }
 
-function execute(root, exe, args, timeout) {
+function execute(root, exe, args, timeout, live = false) {
   return spawnSync(exe, args, {
     cwd: root, encoding: 'utf8', windowsHide: true, timeout, maxBuffer: 8 * 1024 * 1024,
+    stdio: live ? ['ignore', 2, 2] : 'pipe',
     env: { ...process.env, HEADROOM_UPDATE_CHECK: 'off', PYTHONDONTWRITEBYTECODE: '1' },
   });
 }
@@ -46,13 +52,21 @@ function findExternalHeadroom(root) {
     if (!path.isAbsolute(directory)) continue;
     const executable = path.join(directory, name);
     if (!fs.existsSync(executable)) continue;
-    const probe = execute(root, executable, ['--version'], 5000);
-    const version = /^headroom(?:, version)?\s+(\d+(?:\.\d+)+[^\s]*)\s*$/im.exec(probe.stdout ?? '')?.[1];
-    if (probe.status !== 0 || !version) continue;
-    const help = execute(root, executable, ['wrap', 'claude', '--help'], 5000);
-    if (help.status === 0 && /Usage:.*\bwrap\s+claude\b/i.test(help.stdout ?? '')) return { executable, version };
+    const probe = probeHeadroom(root, executable);
+    if (probe.version) return { executable, version: probe.version };
   }
   return null;
+}
+
+function probeHeadroom(root, executable) {
+  const probe = execute(root, executable, ['--version'], 10000);
+  if (probe.status !== 0) return { error: commandError(probe) };
+  const version = /^headroom(?:, version)?\s+(\d+(?:\.\d+)+[^\s]*)\s*$/im.exec(probe.stdout ?? '')?.[1];
+  if (!version) return { error: 'versione Headroom non riconosciuta' };
+  const help = execute(root, executable, ['wrap', 'claude', '--help'], 10000);
+  if (help.status !== 0) return { error: commandError(help) };
+  if (!/Usage:.*\bwrap\s+claude\b/i.test(help.stdout ?? '')) return { error: 'il comando wrap claude non è disponibile' };
+  return { version };
 }
 
 function setupHeadroom(root, plan, dry, progress) {
@@ -83,7 +97,7 @@ function setupHeadroom(root, plan, dry, progress) {
   if (dry) return;
 
   if (run(python, ['-I', '-B', '-c', pythonCheck], 5000).status !== 0) {
-    progress?.('Headroom: creo l’ambiente Python del progetto.');
+    progress?.('Headroom: creo l’ambiente Python del progetto.', 5, 'Headroom', 25);
     const interpreters = win ? [['py', '-3.13'], ['py', '-3'], ['python']] : [['python3'], ['python']];
     const found = interpreters.find(([exe, ...args]) => run(exe, [...args, '-I', '-B', '-c', pythonCheck], 5000).status === 0);
     if (!found) return error('Serve Python 3.11 o successivo per installare Headroom.');
@@ -91,15 +105,17 @@ function setupHeadroom(root, plan, dry, progress) {
     const made = run(exe, [...args, '-I', '-m', 'venv', environment], 90000);
     if (made.status !== 0) return error('Creazione dell’ambiente Python Headroom fallita: ' + commandError(made));
   }
-  progress?.('Headroom: installo la CLI e il proxy. Questa fase può richiedere alcuni minuti.');
-  const pip = run(python, ['-I', '-m', 'pip', '--disable-pip-version-check', 'install', '--no-input',
-    '--only-binary=headroom-ai', 'headroom-ai[proxy]==' + version], 600000);
+  progress?.('Headroom: installo la CLI e il proxy. Questa fase può richiedere alcuni minuti.', 6, 'Headroom', 50);
+  const live = progress?.interactive;
+  const pip = execute(root, python, ['-I', '-m', 'pip', '--disable-pip-version-check', 'install', '--no-input',
+    '--progress-bar', live ? 'on' : 'off', '--only-binary=headroom-ai', 'headroom-ai[proxy]==' + version], 600000, live);
   if (pip.status !== 0) return error('Installazione Headroom fallita: ' + commandError(pip));
+  progress?.('Headroom: verifico la CLI appena installata.', undefined, 'Headroom', 90);
   const installed = installedRuntime();
   if (!installed) return error('Il runtime Headroom installato risulta incompleto.');
   if (installed.error) return error('Avvio di Headroom fallito: ' + installed.error);
   Object.assign(plan.report, { runtime: 'installed', version: installed.version });
-  progress?.('Headroom ' + installed.version + ': installazione verificata.');
+  progress?.('Headroom ' + installed.version + ': installazione verificata.', undefined, 'Headroom', 100);
 }
 
 function commandError(result) {

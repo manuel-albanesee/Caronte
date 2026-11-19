@@ -11,15 +11,15 @@ const releaseAssets = {
   'darwin-arm64': ['aarch64-apple-darwin', 'a2c411ffa49a8595b408c151ea47c9a812268924a76eaeecbc3a5065b02207ff'],
 };
 
-function installRelease(asset, curl, tar, dir, env, run) {
+function installRelease(asset, curl, tar, dir, env, run, live) {
   fs.mkdirSync(dir, { recursive: true });
   const scratch = fs.mkdtempSync(path.join(dir, '.caronte-rtk-'));
   try {
     const [target, digest] = asset;
     const archive = path.join(scratch, 'rtk.tar.gz');
-    const download = run(curl, ['-fsSL', '--proto', '=https', '--max-time', '120', '--output', archive,
+    const download = run(curl, [live ? '-fL' : '-fsSL', ...(live ? ['--progress-bar'] : []), '--proto', '=https', '--max-time', '120', '--output', archive,
       'https://github.com/rtk-ai/rtk/releases/download/v1.2.0/rtk-' + target + '.tar.gz'],
-    { env, cwd: scratch, encoding: 'utf8', timeout: 125000 });
+    { env, cwd: scratch, encoding: 'utf8', timeout: 125000, stdio: ['ignore', 'pipe', live ? 2 : 'pipe'] });
     if (download.status !== 0) throw Error(download.error?.message || download.stderr?.trim() || 'download non riuscito');
     if (createHash('sha256').update(fs.readFileSync(archive)).digest('hex') !== digest) throw Error('checksum SHA-256 inatteso');
     const unpack = run(tar, ['-xzf', archive, 'rtk'], { env, cwd: scratch, encoding: 'utf8', timeout: 15000 });
@@ -94,7 +94,7 @@ function removeStandaloneRtk(settings) {
   })).filter(group => group.hooks.length);
 }
 
-function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progress }, {
+function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progress, rtkPath }, {
   platform = process.platform,
   arch = process.arch,
   env = process.env,
@@ -129,13 +129,14 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
     : [path.join(env.CARGO_HOME || path.join(home, '.cargo'), 'bin'), path.join(home, '.local', 'bin')];
   const findOnPath = name => lookup(name, directories, platform);
   const findRtk = () => findOnPath('rtk') || lookup('rtk', extraDirectories, platform);
-  const execute = (command, args, timeout) => run(command, args, {
+  const execute = (command, args, timeout, live = false) => run(command, args, {
     cwd: home,
     env,
     encoding: 'utf8',
     shell: false,
     windowsHide: true,
     timeout,
+    stdio: live ? ['ignore', 2, 2] : 'pipe',
   });
 
   const winget = platform === 'win32' && findOnPath('winget');
@@ -149,7 +150,7 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
         ? { command: cargo, name: 'Cargo', args: ['install', '--locked', '--git', 'https://github.com/rtk-ai/rtk', '--tag', 'v1.2.0', 'rtk'] }
         : null;
 
-  let executable = findRtk();
+  let executable = rtkPath || findRtk();
   let binary = 'existing';
   let packageManager = installer?.name;
   if (!executable) {
@@ -165,12 +166,12 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
     };
     packageManager ??= 'GitHub Releases';
     if (dry) return { binary: 'missing', packageManager, hook: 'planned' };
-    progress?.('RTK: installazione tramite ' + packageManager + '.');
+    progress?.('RTK: installazione tramite ' + packageManager + '.', undefined, 'RTK', 25);
     let result;
-    if (installer) result = execute(installer.command, installer.args, 600000);
+    if (installer) result = execute(installer.command, installer.args, 600000, progress?.interactive);
     else {
       try {
-        installRelease(asset, curl, tar, path.join(home, '.local', 'bin'), env, run);
+        installRelease(asset, curl, tar, path.join(home, '.local', 'bin'), env, run, progress?.interactive);
         result = { status: 0 };
       } catch (error) {
         return { binary: 'missing', packageManager, hook: 'unavailable', error: 'Installazione RTK fallita: ' + error.message };
@@ -188,27 +189,31 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
     binary = 'installed';
   }
 
+  progress?.('RTK: verifico il binario e il supporto per Claude Code.', undefined, 'RTK', 75);
   const version = execute(executable, ['--version'], 5000);
   const gain = execute(executable, ['gain', '--help'], 5000);
   if (version.status !== 0 || gain.status !== 0) return {
     binary: 'unrecognized',
     hook: 'unavailable',
-    error: 'È presente un eseguibile rtk che non risponde come RTK (Rust Token Killer). Controlla il PATH.',
+    error: 'Il binario RTK non risponde (' + executable + '): ' + (version.error?.message || gain.error?.message || 'verifica --version e gain --help'),
   };
 
   const status = {
-    binary,
+    binary, executable,
     version: version.stdout.trim(),
     ...(binary === 'installed' ? { packageManager } : {}),
   };
-  if (!findOnPath('rtk')) status.pathNote = 'Apri un terminale nuovo e verifica che rtk --version funzioni. Il comando riscritto richiede rtk nel PATH.';
+  const onPath = findOnPath('rtk');
+  if (!onPath || (rtkPath && fs.realpathSync(onPath) !== fs.realpathSync(executable))) {
+    status.pathNote = 'Metti il binario RTK selezionato nel PATH prima di avviare Claude Code. Il comando Bash riscritto cerca rtk nel PATH.';
+  }
 
   const native = execute(executable, ['hook', 'claude', '--help'], 5000);
   if (native.status !== 0) return {
     ...status, hook: 'unavailable',
     error: 'RTK è presente ma manca il suo hook nativo per Claude Code. Aggiorna RTK con il gestore con cui lo hai installato.',
   };
-  progress?.('RTK ' + status.version.replace(/^rtk\s+/i, '') + (binary === 'existing' ? ': binario già disponibile.' : ': installato.'));
+  progress?.('RTK ' + status.version.replace(/^rtk\s+/i, '') + (binary === 'existing' ? ': binario già disponibile.' : ': installato.'), undefined, 'RTK', 100);
 
   const args = ['${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs', gateGuard, executable];
   if (coordinator && JSON.stringify(coordinator.args) === JSON.stringify(args)) {

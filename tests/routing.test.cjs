@@ -181,13 +181,36 @@ test('install-project skips the Headroom checkout when the CLI is already on PAT
   assert.ok(!changed.includes('.claude/vendor/headroom'));
 });
 
+test('caronte start uses the Headroom path saved by the installer and forwards Claude options', {
+  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
+}, t => {
+  const root = temporary(t);
+  const executable = path.join(root, 'tools with spaces', 'headroom');
+  write(root, 'tools with spaces/headroom', [
+    '#!/usr/bin/env node',
+    'const args = process.argv.slice(2);',
+    'if (args[0] === "--version") console.log("headroom, version 0.45.0");',
+    'else if (args.includes("--help")) console.log("Usage: headroom wrap claude");',
+    'else { console.log(JSON.stringify(args)); process.exitCode = 23; }',
+    '',
+  ].join('\n'));
+  fs.chmodSync(executable, 0o755);
+  write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: executable } }));
+  const options = ['--resume', 'session id'];
+  const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'start', ...options], {
+    cwd: root, encoding: 'utf8',
+  });
+  assert.equal(result.status, 23, result.stderr);
+  assert.deepEqual(JSON.parse(result.stdout), ['wrap', 'claude', ...options]);
+});
+
 test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
   const source = temporary(t);
   const target = temporary(t);
   const settingsFile = '.claude/settings.local.json';
   for (const file of [
     '.claude', 'CLAUDE.md', 'install.cjs', 'previous-files.json', 'rtk-setup.cjs',
-    'ecc-setup.cjs', 'headroom-setup.cjs', 'repository-setup.cjs',
+    'ecc-setup.cjs', 'headroom-setup.cjs', 'repository-setup.cjs', 'terminal-ui.cjs',
   ]) {
     fs.cpSync(path.join(kit, file), path.join(source, file), { recursive: true });
   }

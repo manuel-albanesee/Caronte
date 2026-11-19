@@ -25,9 +25,18 @@ function enabledPlugin(settings, project) {
     .find(([id, enabled]) => /^ecc@/.test(id) && id !== plugin && enabled === true)?.[0] ?? plugin;
 }
 
-function planEcc(root, settings, project) {
-  const plan = planRepository(root, spec);
+function planEcc(root, settings, project, explicitPath) {
   const active = enabledPlugin(settings, project);
+  if (explicitPath) {
+    if (active === plugin) throw Error('Per usare --ecc-path, abilita prima il plugin ECC esterno in Claude Code.');
+    if (!spec.validate(explicitPath)) throw Error('Copia ECC priva di manifest o GateGuard: ' + explicitPath);
+    settings.enabledPlugins = { ...settings.enabledPlugins, [plugin]: false };
+    return {
+      gateGuard: path.join(explicitPath, gateFile),
+      report: { status: 'external', path: explicitPath, plugin: active },
+    };
+  }
+  const plan = planRepository(root, spec);
   settings.enabledPlugins = { ...settings.enabledPlugins, [plugin]: active === plugin };
   return { ...plan, gateGuard: path.join(plan.folder, gateFile), report: { ...plan.report, plugin: active } };
 }

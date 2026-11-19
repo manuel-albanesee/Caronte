@@ -108,7 +108,7 @@ function statsLines(cards, line, rule) {
   return children;
 }
 
-function fitArtwork(columns, rows) {
+export function fitArtwork(columns, rows) {
   const scale = Math.min(1, columns / ferrymanWidth, rows / drawing.length);
   const width = Math.max(1, Math.round(scale * ferrymanWidth));
   const height = Math.max(1, Math.round(scale * drawing.length));

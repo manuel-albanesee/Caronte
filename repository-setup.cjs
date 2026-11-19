@@ -3,10 +3,10 @@ const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { filePath } = require('./.claude/routing/icm.cjs');
 
-function git(cwd, args, timeout = 5000) {
+function git(cwd, args, timeout = 5000, live = false) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^GIT_/i.test(key)));
   env.GIT_TERMINAL_PROMPT = '0';
-  return spawnSync('git', args, { cwd, env, encoding: 'utf8', windowsHide: true, timeout });
+  return spawnSync('git', args, { cwd, env, encoding: 'utf8', windowsHide: true, timeout, stdio: ['ignore', 'pipe', live ? 2 : 'pipe'] });
 }
 
 function inspect(folder, spec) {
@@ -50,12 +50,13 @@ function applyRepositories(root, plans, atomicWrite, progress) {
       const { spec } = plan;
       const checkout = path.join(staging, String(index));
       const platformOptions = process.platform === 'win32' ? ['-c', 'core.longpaths=true'] : [];
-      progress?.(spec.name + ': scarico il repository ' + spec.release + ' da GitHub.');
-      const result = git(root, ['-c', 'advice.detachedHead=false', 'clone', '--quiet', ...platformOptions,
-        '--depth=1', '--branch', spec.release, '--', spec.repository, checkout], 180000);
+      progress?.(spec.name + ': scarico il repository ' + spec.release + ' da GitHub.', spec.name === 'ECC' ? 3 : 4, spec.name, 0);
+      const live = progress?.interactive;
+      const result = git(root, ['-c', 'advice.detachedHead=false', 'clone', live ? '--progress' : '--quiet', ...platformOptions,
+        '--depth=1', '--branch', spec.release, '--', spec.repository, checkout], 180000, live);
       if (result.status !== 0) throw Error('Download ' + spec.name + ' non riuscito: ' + (result.error?.message || result.stderr?.trim()));
       if (inspect(checkout, spec) !== spec.revision) throw Error('Revisione inattesa per la release ' + spec.name + '.');
-      progress?.(spec.name + ': download verificato.');
+      progress?.(spec.name + ': download verificato.', undefined, spec.name, spec.name === 'ECC' ? 75 : 25);
       return { plan, checkout };
     });
     for (const { plan, checkout } of checkouts) {
@@ -71,7 +72,10 @@ function applyRepositories(root, plans, atomicWrite, progress) {
       exclusions.set(plan.exclude, entries);
     }
     for (const [file, entries] of exclusions) ignoreCheckouts(file, entries, atomicWrite);
-    for (const plan of moved) plan.report.status = 'installed';
+    for (const plan of moved) {
+      plan.report.status = 'installed';
+      if (plan.spec.name === 'ECC') progress?.('ECC: repository installato nel progetto.', undefined, 'ECC', 100);
+    }
   } catch (error) {
     for (const plan of moved.reverse()) fs.rmSync(plan.folder, { recursive: true, force: true });
     throw error;
