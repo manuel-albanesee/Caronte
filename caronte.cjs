@@ -23,7 +23,13 @@ async function start(args) {
   }
   const headroom = path.resolve(root, report.executable);
   await showLogo();
-  const child = spawn(headroom, ['wrap', 'claude', ...args], { stdio: 'inherit' });
+  const env = { ...process.env };
+  const rtk = settings.env?.CARONTE_RTK_EXECUTABLE;
+  if (rtk && path.isAbsolute(rtk) && fs.existsSync(rtk)) {
+    const key = Object.keys(env).find(name => name.toLowerCase() === 'path') ?? 'PATH';
+    env[key] = [path.dirname(rtk), env[key]].filter(Boolean).join(path.delimiter);
+  }
+  const child = spawn(headroom, ['wrap', 'claude', ...args], { stdio: 'inherit', env });
   // The foreground child receives Ctrl+C directly from the shared terminal.
   const waitForHeadroom = () => {};
   if (process.stdin.isTTY) process.on('SIGINT', waitForHeadroom);

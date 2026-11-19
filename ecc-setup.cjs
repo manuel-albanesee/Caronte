@@ -17,23 +17,48 @@ const spec = {
   },
 };
 
-function enabledPlugin(settings, project) {
-  const userFile = path.join(process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude'), 'settings.json');
+function enabledPlugin(configDir, settings, project) {
+  const userFile = path.join(configDir, 'settings.json');
   let user = {};
   if (fs.existsSync(userFile)) user = JSON.parse(fs.readFileSync(userFile, 'utf8').replace(/^\uFEFF/, ''));
   return Object.entries({ ...user?.enabledPlugins, ...project.enabledPlugins, ...settings.enabledPlugins })
     .find(([id, enabled]) => /^ecc@/.test(id) && id !== plugin && enabled === true)?.[0] ?? plugin;
 }
 
+function registeredEcc(configDir, root, active) {
+  if (active === plugin) return null;
+  try {
+    const registry = JSON.parse(fs.readFileSync(path.join(configDir, 'plugins', 'installed_plugins.json'), 'utf8').replace(/^\uFEFF/, ''));
+    const entries = registry.plugins?.[active];
+    if (!Array.isArray(entries)) return null;
+    for (const scope of ['local', 'project', 'user']) {
+      for (const entry of entries) {
+        if (entry?.scope !== scope || typeof entry.installPath !== 'string' || !path.isAbsolute(entry.installPath)) continue;
+        try {
+          if (scope !== 'user' && (typeof entry.projectPath !== 'string' || fs.realpathSync(entry.projectPath) !== root)) continue;
+          if (spec.validate(entry.installPath)) return fs.realpathSync(entry.installPath);
+        } catch {
+          // Claude Code's registry can retain paths from removed checkouts.
+        }
+      }
+    }
+  } catch {
+    // A missing or unreadable registry leaves the project checkout available.
+  }
+  return null;
+}
+
 function planEcc(root, settings, project, explicitPath) {
-  const active = enabledPlugin(settings, project);
-  if (explicitPath) {
+  const configDir = process.env.CLAUDE_CONFIG_DIR || path.join(os.homedir(), '.claude');
+  const active = enabledPlugin(configDir, settings, project);
+  const existingPath = explicitPath || registeredEcc(configDir, root, active);
+  if (existingPath) {
     if (active === plugin) throw Error('Per usare --ecc-path, abilita prima il plugin ECC esterno in Claude Code.');
-    if (!spec.validate(explicitPath)) throw Error('Copia ECC priva di manifest o GateGuard: ' + explicitPath);
+    if (explicitPath && !spec.validate(explicitPath)) throw Error('Copia ECC priva di manifest o GateGuard: ' + explicitPath);
     settings.enabledPlugins = { ...settings.enabledPlugins, [plugin]: false };
     return {
-      gateGuard: path.join(explicitPath, gateFile),
-      report: { status: 'external', path: explicitPath, plugin: active },
+      gateGuard: path.join(existingPath, gateFile),
+      report: { status: 'external', path: existingPath, plugin: active },
     };
   }
   const plan = planRepository(root, spec);

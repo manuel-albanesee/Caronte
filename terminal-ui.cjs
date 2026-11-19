@@ -2,9 +2,10 @@ const phases = 7;
 
 async function showLogo() {
   if (!process.stderr.isTTY) return;
-  const { fitArtwork } = await import('./.claude/skills/caronte-panel/hooks/view.js');
+  const { fitArtwork, githubProfile } = await import('./.claude/skills/caronte-panel/hooks/view.js');
   const columns = Math.min(44, process.stderr.columns || 44);
-  process.stderr.write('\n' + fitArtwork(columns, 11).map(row => '  ' + row.trimEnd()).join('\n') + '\n  CARONTE\n\n');
+  const profile = '\x1b]8;;' + githubProfile + '\x1b\\' + githubProfile + '\x1b]8;;\x1b\\';
+  process.stderr.write('\n' + fitArtwork(columns, 11).map(row => '  ' + row.trimEnd()).join('\n') + '\n  CARONTE\n  ' + profile + '\n\n');
 }
 
 function installationProgress() {

@@ -106,7 +106,10 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
   const groups = settings.hooks?.PreToolUse || [];
   const coordinator = groups.flatMap(group => group.hooks).find(hook =>
     hook.args?.[0] === '${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs');
-  gateGuard ??= env.CARONTE_ECC_GATEGUARD || coordinator?.args[1] || bundledGateGuard;
+  const savedGate = coordinator?.args[1];
+  const wasBundled = /[\/]\.claude[\/]skills[\/]ecc[\/]scripts[\/]hooks[\/]gateguard-fact-force\.js$/i
+    .test(savedGate?.replaceAll('\\', '/') ?? '');
+  gateGuard ??= env.CARONTE_ECC_GATEGUARD || (wasBundled ? bundledGateGuard : savedGate) || bundledGateGuard;
   removeStandaloneRtk(settings);
   if ([project, userSettings, settings].some(hasBashHook)) {
     throw Error('Sequenza GateGuard → RTK impossibile: controlla gli hook RTK autonomi nei settings utente e di progetto.');
@@ -124,11 +127,26 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
   if (gateStat) gateGuard = fs.realpathSync(gateGuard);
 
   const directories = (env.PATH || '').split(path.delimiter);
-  const extraDirectories = platform === 'win32'
-    ? (env.LOCALAPPDATA ? [path.join(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links')] : [])
-    : [path.join(env.CARGO_HOME || path.join(home, '.cargo'), 'bin'), path.join(home, '.local', 'bin')];
+  const extraDirectories = [
+    path.join(home, '.local', 'bin'),
+    path.join(env.CARGO_HOME || path.join(home, '.cargo'), 'bin'),
+  ];
+  if (platform === 'win32') {
+    extraDirectories.push(path.join(env.SCOOP || path.join(home, 'scoop'), 'apps', 'rtk', 'current'));
+    if (env.LOCALAPPDATA) {
+      const wingetRoot = path.join(env.LOCALAPPDATA, 'Microsoft', 'WinGet');
+      extraDirectories.push(path.join(wingetRoot, 'Links'));
+      const packages = path.join(wingetRoot, 'Packages');
+      try {
+        for (const entry of fs.readdirSync(packages)) {
+          if (/^rtk-ai\.rtk_/i.test(entry)) extraDirectories.push(path.join(packages, entry));
+        }
+      } catch (error) {
+        if (error.code !== 'ENOENT' && error.code !== 'EACCES') throw error;
+      }
+    }
+  }
   const findOnPath = name => lookup(name, directories, platform);
-  const findRtk = () => findOnPath('rtk') || lookup('rtk', extraDirectories, platform);
   const execute = (command, args, timeout, live = false) => run(command, args, {
     cwd: home,
     env,
@@ -138,6 +156,15 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
     timeout,
     stdio: live ? ['ignore', 2, 2] : 'pipe',
   });
+
+  function findRtk() {
+    const candidates = new Set([...directories, ...extraDirectories].map(directory => lookup('rtk', [directory], platform)).filter(Boolean));
+    for (const candidate of candidates) {
+      const checked = execute(candidate, ['--version'], 5000);
+      if (checked.status === 0 && /^rtk\s+v?\d+/i.test(checked.stdout?.trim() ?? '')) return candidate;
+    }
+    return candidates.values().next().value;
+  }
 
   const winget = platform === 'win32' && findOnPath('winget');
   const brew = ['darwin', 'linux'].includes(platform) && findOnPath('brew');
@@ -192,7 +219,7 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
   progress?.('RTK: verifico il binario e il supporto per Claude Code.', undefined, 'RTK', 75);
   const version = execute(executable, ['--version'], 5000);
   const gain = execute(executable, ['gain', '--help'], 5000);
-  if (version.status !== 0 || gain.status !== 0) return {
+  if (version.status !== 0 || !/^rtk\s+v?\d+/i.test(version.stdout?.trim() ?? '') || gain.status !== 0) return {
     binary: 'unrecognized',
     hook: 'unavailable',
     error: 'Il binario RTK non risponde (' + executable + '): ' + (version.error?.message || gain.error?.message || 'verifica --version e gain --help'),
@@ -204,8 +231,8 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
     ...(binary === 'installed' ? { packageManager } : {}),
   };
   const onPath = findOnPath('rtk');
-  if (!onPath || (rtkPath && fs.realpathSync(onPath) !== fs.realpathSync(executable))) {
-    status.pathNote = 'Metti il binario RTK selezionato nel PATH prima di avviare Claude Code. Il comando Bash riscritto cerca rtk nel PATH.';
+  if (onPath !== executable) {
+    status.pathNote = 'Usa caronte start per includere il binario RTK selezionato nel PATH della sessione Claude Code.';
   }
 
   const native = execute(executable, ['hook', 'claude', '--help'], 5000);

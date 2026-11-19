@@ -18,6 +18,8 @@ Nel terminale interattivo Caronte mostra il logo ASCII, una percentuale per cias
 
 Caronte cerca Headroom nel PATH e nella cartella utente `.local/bin`. Una copia funzionante viene riutilizzata prima dell’ambiente del progetto. Se Windows nega l’avvio e manca un’altra copia funzionante, il riepilogo indica l’eseguibile bloccato.
 
+Caronte riusa ECC se il plugin è già abilitato, registrato per il progetto o l’utente, e il suo percorso contiene GateGuard. Cerca RTK anche nelle directory utente di Scoop, WinGet e Cargo. `caronte start` aggiunge il percorso RTK selezionato al PATH della sessione Claude Code.
+
 Per puntare direttamente all’eseguibile Headroom già installato, passa il suo percorso:
 
 ```powershell
@@ -45,7 +47,7 @@ Dopo l’installazione avvia Claude Code dalla root del progetto:
 caronte start
 ```
 
-Il comando mostra il logo e usa la copia Headroom selezionata dall’installer. Puoi passargli le opzioni di Claude Code, per esempio `caronte start --resume`.
+Il comando mostra il logo con il link GitHub e usa la copia Headroom selezionata dall’installer. Puoi passargli le opzioni di Claude Code, per esempio `caronte start --resume`.
 
 Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file, ECC, il runtime Headroom e l’hook RTK. Se un’installazione precedente aveva solo Caronte, riesegui `caronte install-project` per aggiungere le dipendenze.
 

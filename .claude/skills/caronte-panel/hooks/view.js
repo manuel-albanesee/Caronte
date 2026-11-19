@@ -9,7 +9,7 @@ const red = '#FF9B99';
 const good = '#A8EAA2';
 const warm = '#FFCA80';
 const background = '#000000';
-const github = 'https://github.com/manuel-albanesee';
+export const githubProfile = 'https://github.com/manuel-albanesee';
 const palette = ' .:-=+*#%@';
 const firstArtRow = ferryman.findIndex(row => /[^@]/.test(row));
 const drawing = ferryman.slice(firstArtRow, ferryman.findLastIndex(row => /[^@]/.test(row)) + 1);
@@ -155,7 +155,7 @@ export function drawPanel({ Box, Text, Button, Link }, {
       logo.push(Text({ color: warm, size: 'caption', wrap: 'truncate-end', children: [(' '.repeat(margin) + row).padEnd(width)] }));
     }
   }
-  if (logoRows) logo.push(Link({ href: github }));
+  if (logoRows) logo.push(Link({ href: githubProfile }));
   if (logoRows > 2) logo.push(rule);
   const children = [Box({ key: 'logo', flexDirection: 'column', height: logoRows, children: logo })];
 

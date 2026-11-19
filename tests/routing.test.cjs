@@ -324,6 +324,45 @@ test('comandi utente restano nel coordinatore',()=>{for(const n of ['indaga','de
 test('worker di sviluppo ha scrittura e test',()=>{for(const n of ['haiku','sonnet'])assert.match(fs.readFileSync(path.join(kit,'.claude/agents','implementazione-'+n+'.md'),'utf8'),/tools:.*Edit, Write, Bash/);});
 test('CAPABILITY citata in codice non cambia il tipo',t=>{const r=temporary(t);const e=event(brief.replace('VINCOLI: sola lettura','VINCOLI: sola lettura, cerca questa stringa\n```\nCAPABILITY: write\n```'));e.tool_input.subagent_type='ricerca-haiku';validate(e,r);});
 test('upgrade kit precedente e deduplica scope hook',t=>{const r=temporary(t);const previous=JSON.parse(fs.readFileSync(path.join(kit,'previous-files.json')));write(r,'CLAUDE.md','# Regole locali\n\n'+previous.claude);const old=fs.readFileSync(path.join(__dirname,'fixtures/previous-hook.cjs'),'utf8');write(r,'.claude/hooks/validate-agent-brief.cjs',old);write(r,'.claude/settings.json',JSON.stringify({permissions:{allow:['Read']},hooks:{PreToolUse:[{matcher:'Agent',hooks:[{type:'command',command:'node',args:['${CLAUDE_PROJECT_DIR}/.claude/hooks/validate-agent-brief.cjs']}]},{matcher:'Bash',hooks:[{type:'command',command:'ecc-check'}]}]}}));install(r);const project=JSON.parse(fs.readFileSync(path.join(r,'.claude/settings.json')));assert.equal(project.hooks.PreToolUse.length,1);assert.equal(project.hooks.PreToolUse[0].matcher,'Bash');assert.deepEqual(project.permissions.allow,['Read']);assert.match(fs.readFileSync(path.join(r,'CLAUDE.md'),'utf8'),/Regole locali/);assert.equal(install(r).changed.length,0);});
+test('an enabled ECC plugin registered for this project is reused without another checkout', t => {
+  const root = temporary(t);
+  const config = temporary(t);
+  const ecc = path.join(config, 'cached-ecc');
+  write(ecc, '.claude-plugin/plugin.json', '{"name":"ecc"}');
+  write(ecc, 'scripts/hooks/gateguard-fact-force.js', '');
+  write(config, 'settings.json', '{"enabledPlugins":{"ecc@ecc":true}}');
+  write(config, 'plugins/installed_plugins.json', JSON.stringify({ version: 2, plugins: {
+    'ecc@ecc': [{ scope: 'local', projectPath: root, installPath: ecc }],
+  } }));
+  const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run'],
+    { cwd: root, env: { ...process.env, CLAUDE_CONFIG_DIR: config }, encoding: 'utf8' });
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.ecc.status, 'external');
+  assert.equal(plan.ecc.path, fs.realpathSync(ecc));
+  assert.ok(!plan.changed.includes('.claude/skills/ecc'));
+});
+
+test('RTK outside PATH is reused from a known Windows install location', t => {
+  const { prepareRtk } = require('../rtk-setup.cjs');
+  const root = temporary(t);
+  const gate = path.join(root, 'gateguard-fact-force.js');
+  const location = path.join(root, 'scoop', 'apps', 'rtk', 'current');
+  const executable = path.join(location, 'rtk.exe');
+  write(root, 'gateguard-fact-force.js', '');
+  const result = prepareRtk({ dry: false, settings: { hooks: {} }, project: {}, gateGuard: gate }, {
+    platform: 'win32', home: root, env: { PATH: '' }, userSettings: {},
+    lookup: (name, directories) => name === 'rtk' && directories.includes(location) ? executable : null,
+    run: (name, args) => {
+      assert.equal(name, executable);
+      return { status: 0, stdout: 'rtk 1.2.0' };
+    },
+  });
+  assert.equal(result.binary, 'existing');
+  assert.equal(result.executable, executable);
+  assert.match(result.pathNote, /caronte start/);
+});
+
 test('installer migra i file gestiti della versione precedente', t => {
   const baseline = 'f4019ea';
   if (spawnSync('git', ['cat-file', '-e', baseline + '^{commit}'], { cwd: kit }).status !== 0) {

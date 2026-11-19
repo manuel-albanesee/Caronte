@@ -167,6 +167,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     const { entry, ...status } = configureRtk({ dry, settings, project, bundledGateGuard: ecc?.gateGuard, progress, rtkPath: configuredPaths.rtk });
     if (entry) settings.hooks.PreToolUse.unshift(entry);
     summary.rtk = status;
+    if (status.executable && !status.error) settings.env = { ...settings.env, CARONTE_RTK_EXECUTABLE: status.executable };
   } else if (automatic) {
     removeStandaloneRtk(settings);
   }
@@ -235,7 +236,7 @@ async function cli(args) {
     { manageEcc: true, progress, dependencyPaths });
   if (verify) {
     result.verified = result.changed.length === 0 && result.headroom.runtime === 'present' &&
-      result.rtk.hook === 'reused' && !result.rtk.pathNote;
+      result.rtk.hook === 'reused';
     if (!result.verified) process.exitCode = 1;
   } else if (!dry) {
     if (result.rtk.error || result.headroom.error) {
