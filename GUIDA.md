@@ -4,7 +4,7 @@ Aggiornato il 18 novembre 2026. Brief preparati dal coordinatore, ricerca e svil
 
 ## Installazione
 
-Servono Git per le deleghe che scrivono file, Node.js 22 o successivo e Claude Code almeno 2.1.296 per le opzioni usate.
+Servono Git per le deleghe che scrivono file, Node.js 22 o successivo e Claude Code almeno 2.1.327 per le opzioni usate.
 
 Nel clone permanente di Caronte esegui `npm link` una volta per registrare il comando `caronte` nel terminale. Apri poi la root del progetto e lancia:
 
@@ -12,7 +12,7 @@ Nel clone permanente di Caronte esegui `npm link` una volta per registrare il co
 caronte install-project
 ```
 
-Il comando installa nella cartella corrente. Puoi aggiungere `--dry-run` per vedere le modifiche previste, `--verify` per verificare l’installazione oppure `--ecc-full` se usi il plugin ECC completo.
+Il comando installa Caronte ed ECC nella cartella corrente. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
 
 Puoi anche avviare lo script direttamente dal clone o da uno ZIP estratto in una cartella separata dal progetto:
 
@@ -52,7 +52,7 @@ La versione del kit è il commit Git registrato in
 `.claude-routing-backups/caronte-install.json`. Caronte legge i file
 committati in `HEAD` dal clone locale e applica solo revisioni successive.
 Il controllo funziona senza rete. Il merge mantiene i permessi, gli hook
-estranei e la scelta `--ecc-full`. I conflitti nei file gestiti rimandano
+estranei e la configurazione di ECC. I conflitti nei file gestiti rimandano
 l'aggiornamento e producono un messaggio con il percorso da verificare.
 Gli aggiornamenti applicati conservano un backup. Le eventuali risorse già
 caricate da Claude Code all'inizio della sessione vengono rilette al riavvio.
@@ -114,17 +114,18 @@ Avvia Claude Code normalmente dopo l’installazione. Il controllo dei riferimen
 
 ### ECC completo e Caronte
 
-Mantieni il plugin nativo `ecc@ecc` abilitato nello scope del tuo progetto o
-utente. Se devi installarlo, usa la [procedura ufficiale di ECC](https://github.com/affaan-m/ECC#install-with-claude-code).
-Esegui l’installer di Caronte dalla sua copia locale.
+Esegui `caronte install-project` dalla root del progetto. Per un progetto che
+aveva già Caronte, riesegui il comando una volta per aggiungere ECC.
 
-```powershell
-node install.cjs "C:\percorso\mio-progetto" --ecc-full
-```
+L’installer scarica il repository completo della release ECC 2.2.3 in
+`.claude/skills/ecc/`, lo esclude dall'indice Git locale e lo rende disponibile
+come plugin `ecc@skills-dir`. Il primo download richiede accesso a GitHub.
+Se hai già una registrazione ECC attiva da un marketplace, Caronte la riusa
+per evitare di eseguire gli hook due volte.
 
 Apri una nuova sessione nella root del progetto. `/plugin`, `/agents` e
-`/hooks` mostrano i componenti caricati. L'opzione è salvata nei settings
-locali del worktree e rispetta l'impostazione dei fork già decisa per il progetto.
+`/hooks` mostrano i componenti caricati. La configurazione rispetta
+l'impostazione dei fork già decisa per il progetto.
 
 - Per i flussi ECC usa i suoi comandi, skill e subagent nativi. Anche le loro
   deleghe generiche conservano il flusso di ECC. Le normali approvazioni di
@@ -161,10 +162,19 @@ si apre automaticamente se Claude Code ha spazio. Usa `/tui fullscreen` per
 vederlo sulla destra. In un terminale stretto, `/caronte-panel` lo apre sopra il
 prompt. Lo stesso comando lo chiude anche durante una risposta.
 
-La parte alta del pannello occupa circa il 30% delle righe e adatta il logo
-allo spazio disponibile. Nel 70% inferiore trovi le statistiche. Se serve,
-cambia pagina con **↑** e **↓**, oppure con `/caronte-panel prev` e
-`/caronte-panel next`.
+La sidebar ha sfondo nero. Il primo 20% contiene il logo ASCII in miniatura
+e il link GitHub dell'autore. Il 60% centrale mostra le attività in corso,
+le deleghe concluse, gli strumenti usati e i checkpoint. Cambia pagina con
+**↑** e **↓**, oppure con `/caronte-panel prev` e `/caronte-panel next`.
+L’ultimo 20% mostra i totali del progetto per input, output, cache read, cache
+write e la stima del costo in USD riportata da Claude Code.
+
+Le schede delle deleghe e i contatori vengono salvati localmente a partire
+dalla prima sessione con questa versione della sidebar. Lo storico usa la
+directory `.git/caronte-sidebar/` del repository principale, condivisa dai
+worktree collegati. I riepiloghi delle deleghe conservano la descrizione
+mostrata in sidebar e i nomi degli strumenti. Il pannello usa uno storico
+locale distinto dalla telemetria del dashboard.
 
 Seleziona **ASCII** o usa `/caronte-panel ascii` per aprire l'originale.
 Usa **←** e **→** per vedere tutte le colonne, oppure digita

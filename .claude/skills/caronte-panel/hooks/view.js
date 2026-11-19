@@ -1,4 +1,5 @@
 import { ferryman, ferrymanWidth } from './ferryman.js';
+import { tokenFields, usageTotals } from './history.js';
 
 const aqua = '#74E4D9';
 const ink = '#EFF7FC';
@@ -7,10 +8,15 @@ const dim = '#54717C';
 const red = '#FF9B99';
 const good = '#A8EAA2';
 const warm = '#FFCA80';
+const background = '#000000';
+const github = 'https://github.com/manuel-albanesee';
 const palette = ' .:-=+*#%@';
-const drawing = ferryman.slice(ferryman.findIndex(Boolean));
-const density = drawing.map(row => [...row].map(character => palette.indexOf(character)));
+const firstArtRow = ferryman.findIndex(row => /[^@]/.test(row));
+const drawing = ferryman.slice(firstArtRow, ferryman.findLastIndex(row => /[^@]/.test(row)) + 1);
+const density = drawing.map(row => [...row].map(character => palette.length - 1 - palette.indexOf(character)));
 const number = new Intl.NumberFormat('it-IT');
+const dollars = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
+const date = new Intl.DateTimeFormat('it-IT', { dateStyle: 'short', timeStyle: 'short' });
 const checkLabels = {
   pass: 'Test mirati passati',
   fail: 'Test mirati da correggere',
@@ -29,19 +35,13 @@ const statuses = new Map([
 ]);
 
 export const isActive = status => ['pending', 'running', 'waiting'].includes(status);
-const tokenFields = ['input_tokens', 'output_tokens', 'cache_read_input_tokens', 'cache_creation_input_tokens'];
 
 function label(value) {
   return String(value ?? '').slice(0, 160).replace(/[\p{Cc}\p{Cf}\p{Cs}\p{Zl}\p{Zp}]/gu, ' ').trim();
 }
 
-function totals(usage) {
-  if (!usage?.length) return null;
-  return tokenFields.map(key => usage.reduce((sum, model) => sum + (model[key] ?? 0), 0));
-}
-
 export function combineUsage(previous = [], usage) {
-  const sum = totals([...previous, usage]);
+  const sum = usageTotals([...previous, usage]);
   return [Object.fromEntries(tokenFields.map((field, index) => [field, sum[index]]))];
 }
 
@@ -52,7 +52,7 @@ function checkpoints(plan) {
   return { done, total, percent: Math.floor(done * 100 / total), tests: plan.tests, checks: plan.checks };
 }
 
-export function agentCards(agents, calls, plans) {
+export function agentCards(agents, calls, plans, operations = new Map()) {
   return agents.map(agent => ({
     id: agent.id,
     status: agent.status,
@@ -62,7 +62,8 @@ export function agentCards(agents, calls, plans) {
     activity: label([...calls.get(agent.id)?.values() ?? []].at(-1) ||
       (agent.label !== agent.description ? agent.label : '')),
     model: label(agent.model).replace(/^claude-/, '').replace(/-\d{8}$/, ''),
-    usage: totals(agent.usage),
+    usage: usageTotals(agent.usage),
+    operations: [...operations.get(agent.id) ?? []].map(label),
     progress: checkpoints(plans.get(agent.id)),
   })).sort((a, b) => Number(isActive(b.status)) - Number(isActive(a.status)) || b.start - a.start);
 }
@@ -74,10 +75,14 @@ function statsLines(cards, line, rule) {
 
   for (const card of cards) {
     const [status, color] = statuses.get(card.status) || ['○ Stato in aggiornamento', muted];
-    children.push(gap, line(status, color, true));
+    const when = card.recordedAt ? ' · ' + date.format(card.recordedAt) : '';
+    children.push(gap, line(status + when, color, true));
     children.push(line(card.profile + (card.model ? ' · ' + card.model : ''), aqua, true));
     if (card.task) children.push(line(card.task));
     if (card.activity && isActive(card.status)) children.push(line('› ' + card.activity, muted));
+    if (card.recordedAt) {
+      for (const operation of card.operations ?? []) children.push(line('› ' + operation, muted));
+    }
     if (card.progress) {
       const { done, total, percent, tests, checks } = card.progress;
       const filled = Math.floor(done * 10 / total);
@@ -104,7 +109,6 @@ function statsLines(cards, line, rule) {
 }
 
 function fitArtwork(columns, rows) {
-  if (columns >= ferrymanWidth && rows >= ferryman.length) return ferryman;
   const scale = Math.min(1, columns / ferrymanWidth, rows / drawing.length);
   const width = Math.max(1, Math.round(scale * ferrymanWidth));
   const height = Math.max(1, Math.round(scale * drawing.length));
@@ -128,43 +132,45 @@ function fitArtwork(columns, rows) {
   }).join(''));
 }
 
-export function drawPanel({ Box, Text, Button }, { columns, rows, cards, page, openArtwork, changePage }) {
+export function drawPanel({ Box, Text, Button, Link }, {
+  columns, rows, cards, page, openArtwork, changePage, projectTotals = { tokens: [0, 0, 0, 0], usd: null },
+}) {
   const width = Math.max(1, (columns || 40) - 2);
   const bodyRows = Math.max(1, rows || 16);
-  const logoRows = Math.round(bodyRows * 0.3);
-  const statsRows = bodyRows - logoRows;
-  const artRows = logoRows - Number(logoRows > 1);
+  const logoRows = Math.round(bodyRows * 0.2);
+  const footerRows = Math.round(bodyRows * 0.2);
+  const statsRows = bodyRows - logoRows - footerRows;
+  const artRows = Math.max(0, logoRows - 1 - Number(logoRows > 2));
   const line = (value, color = ink, bold = false) => Text({
     color, weight: bold ? 'bold' : 'regular', wrap: 'truncate-end', children: [value],
   });
   const rule = line('─'.repeat(width), dim);
-  const children = [];
+  const logo = [];
   if (artRows) {
     const art = fitArtwork(width, artRows);
     const top = Math.floor((artRows - art.length) / 2);
-    const logo = Array.from({ length: artRows }, (_, index) => {
+    for (let index = 0; index < artRows; index++) {
       const row = art[index - top] ?? '';
       const margin = Math.floor((width - row.length) / 2);
-      return line((' '.repeat(margin) + row).padEnd(width), warm);
-    });
-    if (logoRows > 1) logo.push(rule);
-    children.push(Box({ key: 'logo', flexDirection: 'column', height: logoRows, children: logo }));
+      logo.push(Text({ color: warm, size: 'caption', wrap: 'truncate-end', children: [(' '.repeat(margin) + row).padEnd(width)] }));
+    }
   }
+  if (logoRows) logo.push(Link({ href: github }));
+  if (logoRows > 2) logo.push(rule);
+  const children = [Box({ key: 'logo', flexDirection: 'column', height: logoRows, children: logo })];
 
   const count = cards.filter(card => isActive(card.status)).length;
-  const header = `SUBAGENT ${count}/${cards.length}` + (width >= 30 ? ' attivi' : '');
+  const header = `SUBAGENT ${count}/${cards.length}` + (width >= 31 ? ' attivi' : '');
   const details = statsLines(cards, line, line('─'.repeat(Math.min(46, width)), dim));
   const paginate = statsRows > 2 && details.length > statsRows - 1;
   const pageSize = statsRows - (paginate ? 2 : 1);
   const pageCount = paginate ? Math.ceil(details.length / pageSize) : 1;
   const currentPage = Math.min(page, pageCount - 1);
   const visibleDetails = details.slice(currentPage * pageSize, (currentPage + 1) * pageSize);
-  const metrics = [
-    Box({ flexDirection: 'row', justifyContent: 'space-between', children: [
-      line(header, aqua, true),
-      ...(width >= 23 ? [Button({ key: 'open-art', label: 'ASCII', onPress: openArtwork })] : []),
-    ] }),
-  ];
+  const metrics = [Box({ flexDirection: 'row', justifyContent: 'space-between', children: [
+    line(header, aqua, true),
+    ...(width >= 23 ? [Button({ key: 'open-art', label: 'ASCII', onPress: openArtwork })] : []),
+  ] })];
   if (paginate) {
     metrics.push(
       Box({ flexDirection: 'column', height: pageSize, children: visibleDetails }),
@@ -178,7 +184,19 @@ export function drawPanel({ Box, Text, Button }, { columns, rows, cards, page, o
     metrics.push(...visibleDetails);
   }
   children.push(Box({ key: 'metrics', flexDirection: 'column', height: statsRows, children: metrics }));
-  const tree = Box({ flexDirection: 'column', paddingX: 1, children });
+  const [input, output, read, write] = projectTotals.tokens.map(value => number.format(value));
+  const amount = projectTotals.usd === null ? '—' : '$' + dollars.format(projectTotals.usd);
+  const cost = line(width >= 30 ? `Progetto · costo stim. ${amount}` : `Costo stim. ${amount}`, warm, true);
+  const inOut = line(`In ${input}  Out ${output}`);
+  const cache = line(`Cache ↓ ${read}  ↑ ${write}`);
+  const footer = footerRows >= 6 ? [
+    rule, cost, line(`Input        ${input}`), line(`Output       ${output}`),
+    line(`Cache read   ${read}`), line(`Cache write  ${write}`),
+  ] : footerRows >= 3 ? [
+    ...(footerRows > 3 ? [rule] : []), cost, inOut, cache,
+  ] : [cost, line(`In ${input} Out ${output} ↓ ${read} ↑ ${write}`)].slice(0, footerRows);
+  children.push(Box({ key: 'totals', flexDirection: 'column', justifyContent: 'flex-end', height: footerRows, children: footer }));
+  const tree = Box({ flexDirection: 'column', paddingX: 1, backgroundColor: background, children });
   return { tree, page: currentPage, pageCount };
 }
 
@@ -214,5 +232,5 @@ export function drawArtwork({ Box, Text, Button }, columns, offset, changeView) 
   for (const row of ferryman) {
     children.push(Text({ color: warm, wrap: 'truncate-end', children: [row.slice(start, end).padEnd(width)] }));
   }
-  return Box({ flexDirection: 'column', paddingX: 1, children });
+  return Box({ flexDirection: 'column', paddingX: 1, backgroundColor: background, children });
 }

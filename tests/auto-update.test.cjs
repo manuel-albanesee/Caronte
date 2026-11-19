@@ -53,7 +53,7 @@ function fixture(t) {
       path.join(source, 'install.cjs'), root], { env });
   }
   function enable() {
-    const updaterFiles = ['install.cjs', 'auto-update.cjs', 'rtk-setup.cjs'];
+    const updaterFiles = ['install.cjs', 'auto-update.cjs', 'rtk-setup.cjs', 'ecc-setup.cjs'];
     for (const name of updaterFiles) fs.copyFileSync(path.join(kit, name), path.join(remote, name));
     const revision = commit(...updaterFiles);
     git(source, 'pull', '-q', '--ff-only');

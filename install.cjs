@@ -3,6 +3,7 @@ const path = require('node:path');
 const crypto = require('node:crypto');
 const { filePath } = require('./.claude/routing/icm.cjs');
 const { prepareRtk, removeStandaloneRtk } = require('./rtk-setup.cjs');
+const { location: eccLocation, planEcc, applyEcc } = require('./ecc-setup.cjs');
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
 const localSettingsFile = '.claude/settings.local.json';
@@ -10,6 +11,7 @@ const installationFile = '.claude-routing-backups/caronte-install.json';
 function kitAsset(rel) {
   return rel.startsWith('.claude/') &&
     !['.claude/settings.json', localSettingsFile].includes(rel.toLowerCase()) &&
+    rel.toLowerCase() !== eccLocation && !rel.toLowerCase().startsWith(eccLocation + '/') &&
     !rel.startsWith('.claude/skills/caronte-panel/.claude-plugin/types/') &&
     rel !== '.claude/skills/caronte-panel/tsconfig.json';
 }
@@ -25,7 +27,7 @@ function atomicWrite(file, content, mode = 0o666) {
 }
 
 function install(target, dry = false, configureRtk = null, enableFullEcc = false, {
-  snapshot, installedFiles, automatic = false,
+  snapshot, installedFiles, automatic = false, manageEcc = false,
 } = {}) {
   const root = fs.realpathSync(target), source = __dirname;
   if (root === fs.realpathSync(source)) throw Error('Scegli la root del progetto, non la cartella del kit.');
@@ -111,7 +113,8 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
       if (model && Object.hasOwn(model, 'autoCompactWindow')) model.autoCompactWindow = sample.autoCompactWindow;
     }
   }
-  if (enableFullEcc) settings.env = { ...settings.env, CARONTE_ECC_FULL: '1' };
+  const ecc = manageEcc ? planEcc(root, settings, project) : null;
+  if (enableFullEcc || ecc) settings.env = { ...settings.env, CARONTE_ECC_FULL: '1' };
   const fullEcc = (settings.env?.CARONTE_ECC_FULL ?? project.env?.CARONTE_ECC_FULL) === '1';
   settings.env = fullEcc ? { ...settings.env } : automatic
     ? { ...sample.env, ...settings.env } : { ...settings.env, ...sample.env };
@@ -119,6 +122,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     .filter(key => [process.env, settings.env, project.env].some(env => env?.[key]));
   const summary = { model: settings.model, autoCompactWindow: settings.autoCompactWindow };
   if (fullEcc) summary.eccFull = true;
+  if (ecc) summary.ecc = ecc.report;
   if (overrides.length) summary.checkEnvironmentOverrides = overrides;
   settings.hooks ??= {};
   if (Array.isArray(settings.hooks) || typeof settings.hooks !== 'object') throw Error('hooks non valido.');
@@ -139,7 +143,8 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   plan(localSettingsFile, Buffer.from(JSON.stringify(settings, null, 2) + '\n'));
   if (snapshot) plan(installationFile, Buffer.from(JSON.stringify({ revision: snapshot.revision }) + '\n'));
   summary.changed = changes.map(x => x.rel);
-  if (dry || !changes.length) return { dryRun: dry, ...summary };
+  if (ecc?.report.status === 'planned' || ecc?.exclude) summary.changed.push(eccLocation);
+  if (dry || !summary.changed.length) return { dryRun: dry, ...summary };
   const backupName = '.claude-routing-backups/' + new Date().toISOString().replace(/[:.]/g, '-') + '-' + process.pid;
   const backup = filePath(root, backupName); fs.mkdirSync(backup, { recursive: true });
   fs.writeFileSync(path.join(backup, 'manifest.json'), JSON.stringify(changes.map(x => ({ path: x.rel, existed: !!x.before })), null, 2));
@@ -151,6 +156,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
       atomicWrite(c.p, c.content, c.mode);
       applied.push(c);
     }
+    if (ecc) applyEcc(root, ecc, atomicWrite);
   } catch (e) {
     for (const c of applied.reverse()) {
       if (c.before) atomicWrite(c.p, c.before, c.mode);
@@ -177,7 +183,8 @@ function cli(args) {
       flags.some(flag => !['--dry-run', '--verify', '--ecc-full'].includes(flag)) ||
       (flags.includes('--dry-run') && flags.includes('--verify'))) throw Error(usage);
   const dry = flags.includes('--dry-run'), verify = flags.includes('--verify');
-  const result = installFromCheckout(targets[0], dry || verify, config => prepareRtk({ ...config, gateGuard }), flags.includes('--ecc-full'));
+  const result = installFromCheckout(targets[0], dry || verify,
+    config => prepareRtk({ ...config, gateGuard }), flags.includes('--ecc-full'), true);
   if (verify) {
     result.verified = result.changed.length === 0 && ['reused', 'disabled'].includes(result.rtk.hook) && !result.rtk.pathNote;
     if (!result.verified) process.exitCode = 1;

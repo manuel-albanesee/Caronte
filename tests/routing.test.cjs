@@ -116,11 +116,32 @@ test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie EC
   assert.deepEqual(install(root).changed, []);
 });
 
+test('install-project includes the full ECC checkout in a dry run and preserves an existing registration', t => {
+  const root = temporary(t);
+  const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(root, 'claude-user') };
+  assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
+  function dryRun() {
+    const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run'],
+      { cwd: root, env, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  }
+  const planned = dryRun();
+  const checkout = '.claude/skills/ecc';
+  assert.equal(planned.ecc.status, 'planned');
+  assert.equal(planned.ecc.plugin, 'ecc@skills-dir');
+  assert.ok(planned.changed.includes(checkout));
+  assert.deepEqual(fs.readdirSync(root), ['.git']);
+  write(root, '.claude/settings.json', JSON.stringify({ enabledPlugins: { 'ecc@ecc': true } }));
+  assert.equal(dryRun().ecc.plugin, 'ecc@ecc');
+  assert.equal(fs.existsSync(path.join(root, checkout)), false);
+});
+
 test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
   const source = temporary(t);
   const target = temporary(t);
   const settingsFile = '.claude/settings.local.json';
-  for (const file of ['.claude', 'CLAUDE.md', 'install.cjs', 'previous-files.json', 'rtk-setup.cjs']) {
+  for (const file of ['.claude', 'CLAUDE.md', 'install.cjs', 'previous-files.json', 'rtk-setup.cjs', 'ecc-setup.cjs']) {
     fs.cpSync(path.join(kit, file), path.join(source, file), { recursive: true });
   }
   const sourceSettings = JSON.stringify({ model: 'source-model', env: { SOURCE_ONLY: '1' } });
