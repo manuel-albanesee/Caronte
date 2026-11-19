@@ -77,7 +77,8 @@ test('the ASCII view preserves every column and row of the README artwork at any
   const [, artwork] = readme.match(/<summary>Caronte ASCII artwork<\/summary>\s*```text\n([\s\S]*?)\n```/);
   assert.equal(artwork, ferryman.join('\n'));
   assert.equal(ferrymanWidth, 200);
-  assert.equal(ferryman.length, 110);
+  assert.equal(ferryman.length, 100);
+  assert.ok(ferryman.every(row => row.length === ferrymanWidth));
 
   for (const columns of [14, 40, 82, 102, 130]) {
     const assembled = ferryman.map(() => '');
