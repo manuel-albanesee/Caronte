@@ -1,7 +1,37 @@
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
+const { createHash } = require('node:crypto');
 const { spawnSync } = require('node:child_process');
+
+const releaseAssets = {
+  'linux-x64': ['x86_64-unknown-linux-musl', '70fee7b4a548c43dde94c77e2335550981b0bc2fb013691d8c8109b5bd0eda37'],
+  'linux-arm64': ['aarch64-unknown-linux-musl', 'f91a06e94e5fad7dfa87946c811a4bcbc500e6da119fd47033f2a8940bf64f93'],
+  'darwin-x64': ['x86_64-apple-darwin', '1484ae6fffd0da180d65434eeca32e014a86a6e21dcfc7a0004fe82b7bb0a9b9'],
+  'darwin-arm64': ['aarch64-apple-darwin', 'a2c411ffa49a8595b408c151ea47c9a812268924a76eaeecbc3a5065b02207ff'],
+};
+
+function installRelease(asset, curl, tar, dir, env, run) {
+  fs.mkdirSync(dir, { recursive: true });
+  const scratch = fs.mkdtempSync(path.join(dir, '.caronte-rtk-'));
+  try {
+    const [target, digest] = asset;
+    const archive = path.join(scratch, 'rtk.tar.gz');
+    const download = run(curl, ['-fsSL', '--proto', '=https', '--max-time', '120', '--output', archive,
+      'https://github.com/rtk-ai/rtk/releases/download/v1.2.0/rtk-' + target + '.tar.gz'],
+    { env, cwd: scratch, encoding: 'utf8', timeout: 125000 });
+    if (download.status !== 0) throw Error(download.error?.message || download.stderr?.trim() || 'download non riuscito');
+    if (createHash('sha256').update(fs.readFileSync(archive)).digest('hex') !== digest) throw Error('checksum SHA-256 inatteso');
+    const unpack = run(tar, ['-xzf', archive, 'rtk'], { env, cwd: scratch, encoding: 'utf8', timeout: 15000 });
+    if (unpack.status !== 0) throw Error(unpack.error?.message || unpack.stderr?.trim() || 'estrazione non riuscita');
+    const binary = path.join(scratch, 'rtk');
+    fs.chmodSync(binary, 0o755);
+    try { fs.linkSync(binary, path.join(dir, 'rtk')); }
+    catch (error) { if (error.code !== 'EEXIST') throw error; }
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
 
 function findExecutable(name, directories, platform) {
   const filename = platform === 'win32' ? name + '.exe' : name;
@@ -64,8 +94,9 @@ function removeStandaloneRtk(settings) {
   })).filter(group => group.hooks.length);
 }
 
-function prepareRtk({ dry, settings, project, gateGuard }, {
+function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard }, {
   platform = process.platform,
+  arch = process.arch,
   env = process.env,
   home = os.homedir(),
   run = spawnSync,
@@ -75,7 +106,7 @@ function prepareRtk({ dry, settings, project, gateGuard }, {
   const groups = settings.hooks?.PreToolUse || [];
   const coordinator = groups.flatMap(group => group.hooks).find(hook =>
     hook.args?.[0] === '${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs');
-  gateGuard ??= env.CARONTE_ECC_GATEGUARD || coordinator?.args[1];
+  gateGuard ??= env.CARONTE_ECC_GATEGUARD || coordinator?.args[1] || bundledGateGuard;
   removeStandaloneRtk(settings);
   if ([project, userSettings, settings].some(hasBashHook)) {
     throw Error('Sequenza GateGuard → RTK impossibile: controlla gli hook RTK autonomi nei settings utente e di progetto.');
@@ -85,10 +116,12 @@ function prepareRtk({ dry, settings, project, gateGuard }, {
   }
   if (!gateGuard) return { hook: 'disabled', reason: 'GateGuard ECC non configurato' };
 
-  gateGuard = fs.realpathSync(gateGuard);
-  if (!fs.statSync(gateGuard).isFile() || path.basename(gateGuard) !== 'gateguard-fact-force.js') {
+  const gateStat = fs.statSync(gateGuard, { throwIfNoEntry: false });
+  if (path.basename(gateGuard) !== 'gateguard-fact-force.js' ||
+      (gateStat ? !gateStat.isFile() : gateGuard !== bundledGateGuard)) {
     throw Error('Indica il file ECC scripts/hooks/gateguard-fact-force.js.');
   }
+  if (gateStat) gateGuard = fs.realpathSync(gateGuard);
 
   const directories = (env.PATH || '').split(path.delimiter);
   const extraDirectories = platform === 'win32'
@@ -118,18 +151,34 @@ function prepareRtk({ dry, settings, project, gateGuard }, {
 
   let executable = findRtk();
   let binary = 'existing';
+  let packageManager = installer?.name;
   if (!executable) {
-    if (!installer) return {
+    const curl = !installer && findOnPath('curl');
+    const tar = !installer && findOnPath('tar');
+    const asset = releaseAssets[platform + '-' + arch];
+    const release = curl && tar && asset;
+    if (!installer && !release) return {
       binary: 'missing',
       hook: 'unavailable',
-      error: platform === 'win32' ? 'WinGet non trovato. Serve App Installer con winget.exe disponibile.' : 'Per installare automaticamente RTK serve Homebrew o Cargo.',
+      error: platform === 'win32' ? 'WinGet non trovato. Serve App Installer con winget.exe disponibile.' :
+        'Per installare automaticamente RTK serve Homebrew, Cargo oppure curl e tar su una piattaforma supportata.',
     };
-    if (dry) return { binary: 'missing', packageManager: installer.name, hook: 'planned' };
-    const result = execute(installer.command, installer.args, 600000);
+    packageManager ??= 'GitHub Releases';
+    if (dry) return { binary: 'missing', packageManager, hook: 'planned' };
+    let result;
+    if (installer) result = execute(installer.command, installer.args, 600000);
+    else {
+      try {
+        installRelease(asset, curl, tar, path.join(home, '.local', 'bin'), env, run);
+        result = { status: 0 };
+      } catch (error) {
+        return { binary: 'missing', packageManager, hook: 'unavailable', error: 'Installazione RTK fallita: ' + error.message };
+      }
+    }
     executable = findRtk();
     if (!executable) return {
       binary: result.status === 0 ? 'restart-or-path-required' : 'missing',
-      packageManager: installer.name,
+      packageManager,
       hook: 'unavailable',
       error: result.status === 0
         ? 'Il gestore ha completato l’installazione ma rtk non è ancora raggiungibile. Riapri il terminale e rilancia l’installer.'
@@ -149,7 +198,7 @@ function prepareRtk({ dry, settings, project, gateGuard }, {
   const status = {
     binary,
     version: version.stdout.trim(),
-    ...(binary === 'installed' ? { packageManager: installer.name } : {}),
+    ...(binary === 'installed' ? { packageManager } : {}),
   };
   if (!findOnPath('rtk')) status.pathNote = 'Apri un terminale nuovo e verifica che rtk --version funzioni. Il comando riscritto richiede rtk nel PATH.';
 

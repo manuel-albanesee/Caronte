@@ -8,7 +8,7 @@ Caronte combines model routing, selected ECC specialists, focused test plans, an
 
 ## Quick start
 
-**Requirements:** Git, Node.js 22+, and Claude Code 2.1.327+. Use the root of the Git worktree you want to configure. Automatic RTK rewriting runs through ECC GateGuard. Set `CARONTE_ECC_GATEGUARD` to the path of the ECC GateGuard module before installing. Without that path or a saved configuration, automatic rewriting stays off.
+**Requirements** include Git, Node.js 22+, Python 3.11+, and Claude Code 2.1.327+. The first install fetches dependencies from GitHub and the Python package index. On Windows, RTK uses WinGet if it is missing.
 
 ### Install with the Caronte CLI
 
@@ -26,7 +26,7 @@ If you already have a clone, update it and run `npm link` there. Then open a ter
 caronte install-project
 ```
 
-The command uses the current directory. Run `caronte install-project --dry-run` to preview changes or `caronte install-project --verify` to check an installation. After a successful install, start a fresh Claude Code session in that directory. The command uses the linked clone, so `git pull --ff-only` there updates its source for future installations.
+The command uses the current directory and installs Caronte, ECC, Headroom, and RTK. Run `caronte install-project --dry-run` to preview the setup or `caronte install-project --verify` to check it. The command uses the linked clone, so `git pull --ff-only` there updates its source for future installations.
 
 ### Install from Claude Code
 
@@ -44,14 +44,16 @@ node install.cjs "<project-root>"
 node install.cjs "<project-root>" --verify
 ```
 
-`--dry-run` previews the changes and RTK plan. `--verify` checks whether the installed files match the kit and the installed GateGuard/RTK configuration. The installer writes a backup when changing an existing setup. Keep `.claude/settings.local.json` and `.claude-routing-backups/` out of version control in your project.
+`--dry-run` previews the checkout and runtime setup. `--verify` checks the kit, the ECC checkout, the Headroom runtime, and the GateGuard/RTK hook. Keep `.claude/settings.local.json` and `.claude-routing-backups/` out of version control in your project.
 
 Start Claude Code from the target worktree. Use `/agents` and `/hooks` to see what the new session loaded. Your normal Claude Code permissions still apply.
 
 The installer downloads the full ECC release into `.claude/skills/ecc/` and
 enables its native Claude Code plugin. If the project already enables ECC from
-a marketplace, Caronte preserves that registration. See [ECC completo e
-Caronte](GUIDA.md#ecc-completo-e-caronte).
+a marketplace, Caronte preserves that registration. The full Headroom checkout
+is in `.claude/vendor/headroom/` and its proxy CLI is installed in `.venv`
+inside that checkout. RTK uses the GateGuard module from the ECC checkout by
+default. See the [installation guide](GUIDA.md#installazione).
 
 ### Update installed projects from one checkout
 

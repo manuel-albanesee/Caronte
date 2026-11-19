@@ -4,7 +4,7 @@ Aggiornato il 18 novembre 2026. Brief preparati dal coordinatore, ricerca e svil
 
 ## Installazione
 
-Servono Git per le deleghe che scrivono file, Node.js 22 o successivo e Claude Code almeno 2.1.327 per le opzioni usate.
+Servono Git, Node.js 22+, Python 3.11+ e Claude Code 2.1.327+. Per installare RTK su Windows serve WinGet se il binario manca.
 
 Nel clone permanente di Caronte esegui `npm link` una volta per registrare il comando `caronte` nel terminale. Apri poi la root del progetto e lancia:
 
@@ -12,7 +12,7 @@ Nel clone permanente di Caronte esegui `npm link` una volta per registrare il co
 caronte install-project
 ```
 
-Il comando installa Caronte ed ECC nella cartella corrente. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
+Il comando installa Caronte, ECC, Headroom e RTK nella cartella corrente. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
 
 Puoi anche avviare lo script direttamente dal clone o da uno ZIP estratto in una cartella separata dal progetto:
 
@@ -27,9 +27,15 @@ L'installer copia i componenti `.claude`, inserisce un blocco aggiornabile in CL
 
 È ripetibile: una seconda installazione identica non cambia file. Prima di scrivere verifica conflitti sui file del kit; accetta automaticamente i file originali dei kit da 1 a 2.2. Se hai personalizzato un file che collide, si ferma prima delle modifiche, così Claude può integrare il diff preservando le personalizzazioni. I settings devono essere JSON valido; per JSON con commenti serve un merge consapevole. Il backup delle modifiche è in `.claude-routing-backups/<data>/`, con manifest dei file preesistenti. Non includere backup con configurazioni locali nel repository pubblico.
 
-Dopo l'installazione avvia una sessione nuova nella root, con `headroom wrap claude` se usi il wrapper, oppure il tuo comando abituale. Controlla `/model`, `/agents`, `/hooks` e `/autocompact` senza argomenti. Continua a usare il tuo avvio Headroom abituale. Il setup di RTK è descritto qui sotto.
+Dopo l’installazione puoi usare il tuo comando di avvio abituale oppure la nuova CLI locale di Headroom. Esempio PowerShell dalla root del progetto:
 
-Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file e l’hook RTK sul disco. Dopo aver riavviato Claude Code, `/agents` e `/hooks` mostrano cosa ha caricato la sessione.
+```powershell
+& ".\.claude\vendor\headroom\.venv\Scripts\headroom.exe" wrap claude
+```
+
+Su Linux e macOS usa `./.claude/vendor/headroom/.venv/bin/headroom wrap claude`. Il wrapper avvia il proxy quando lo lanci. In una nuova sessione, controlla `/model`, `/agents`, `/hooks` e `/autocompact`.
+
+Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file, ECC, il runtime Headroom e l’hook RTK. Se un’installazione precedente aveva solo Caronte, riesegui `caronte install-project` per aggiungere le dipendenze.
 
 ## Aggiornamento automatico di Caronte
 
@@ -58,7 +64,7 @@ Gli aggiornamenti applicati conservano un backup. Le eventuali risorse già
 caricate da Claude Code all'inizio della sessione vengono rilette al riavvio.
 
 L'aggiornamento del kit funziona anche senza RTK o WinGet. L'installer manuale
-continua a gestire il setup RTK e il controllo delle dipendenze segue
+continua a gestire ECC, Headroom e RTK. Il controllo delle dipendenze segue
 [la propria procedura](DIPENDENZE.md).
 
 Se sposti il clone, esegui di nuovo `--enable-auto-update` dalla nuova posizione.
@@ -68,9 +74,9 @@ rimuovilo solo dopo aver verificato che nessuna installazione sia in corso.
 
 ## RTK per Git, build e test
 
-Quando GateGuard è configurato, `node install.cjs` cerca RTK (Rust Token Killer) nel PATH e nelle posizioni utente più comuni e verifica binario e comandi. Se manca lo installa con WinGet (`rtk-ai.rtk`, scope utente) su Windows. Su macOS e Linux usa Homebrew quando disponibile, altrimenti Cargo dal repository ufficiale al tag `v1.2.0`. Il dry-run mostra la decisione senza installare il binario o cambiare i file.
+`node install.cjs` cerca RTK (Rust Token Killer) nel PATH e nelle posizioni utente più comuni e verifica binario e comandi. Se manca lo installa con WinGet (`rtk-ai.rtk`, scope utente) su Windows. Su macOS e Linux usa Homebrew o Cargo, oppure una release ufficiale verificata in `~/.local/bin` se trova `curl` e `tar`. Il dry-run mostra il metodo previsto.
 
-Il kit registra un solo hook Bash in `.claude/settings.local.json` e invoca RTK dopo il via libera di GateGuard. Senza un percorso GateGuard configurato, il setup lascia inattiva la riscrittura automatica. Headroom può continuare a gestire il traffico verso il modello. Caveman resta indipendente.
+Il kit registra un hook Bash in `.claude/settings.local.json` e invoca RTK dopo il via libera di GateGuard. Per impostazione predefinita usa il GateGuard incluso nella copia di ECC del progetto.
 
 In PowerShell puoi eseguire direttamente i comandi compatibili, per esempio `rtk git status`. Dopo l'installazione riapri il terminale se WinGet ha appena aggiornato il PATH. Controlla `rtk --version` nel terminale e `/hooks` in Claude Code. Fai eseguire `git status` tramite Bash e controlla le attività RTK con `rtk gain --history`.
 
@@ -80,7 +86,7 @@ Se l'installer trova un altro programma con nome `rtk`, ti segnala la collisione
 
 ### GateGuard ECC prima di RTK
 
-La sequenza è il comportamento predefinito della riscrittura automatica su Bash. Imposta `CARONTE_ECC_GATEGUARD` oppure passa `--gate-rtk` con il percorso al file
+La sequenza è il comportamento predefinito della riscrittura automatica su Bash. Per usare un altro GateGuard, imposta `CARONTE_ECC_GATEGUARD` oppure passa `--gate-rtk` con il percorso al file
 `scripts/hooks/gateguard-fact-force.js` di una copia di ECC che amministri
 e consideri attendibile.
 
@@ -114,8 +120,7 @@ Avvia Claude Code normalmente dopo l’installazione. Il controllo dei riferimen
 
 ### ECC completo e Caronte
 
-Esegui `caronte install-project` dalla root del progetto. Per un progetto che
-aveva già Caronte, riesegui il comando una volta per aggiungere ECC.
+Esegui `caronte install-project` dalla root del progetto.
 
 L’installer scarica il repository completo della release ECC 2.2.3 in
 `.claude/skills/ecc/`, lo esclude dall'indice Git locale e lo rende disponibile

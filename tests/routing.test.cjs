@@ -116,7 +116,7 @@ test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie EC
   assert.deepEqual(install(root).changed, []);
 });
 
-test('install-project includes the full ECC checkout in a dry run and preserves an existing registration', t => {
+test('install-project plans the full ECC and Headroom checkouts and preserves an existing ECC registration', t => {
   const root = temporary(t);
   const env = { ...process.env, CLAUDE_CONFIG_DIR: path.join(root, 'claude-user') };
   assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
@@ -131,6 +131,9 @@ test('install-project includes the full ECC checkout in a dry run and preserves 
   assert.equal(planned.ecc.status, 'planned');
   assert.equal(planned.ecc.plugin, 'ecc@skills-dir');
   assert.ok(planned.changed.includes(checkout));
+  assert.equal(planned.headroom.status, 'planned');
+  assert.equal(planned.headroom.runtime, 'planned');
+  assert.ok(planned.changed.includes('.claude/vendor/headroom'));
   assert.deepEqual(fs.readdirSync(root), ['.git']);
   write(root, '.claude/settings.json', JSON.stringify({ enabledPlugins: { 'ecc@ecc': true } }));
   assert.equal(dryRun().ecc.plugin, 'ecc@ecc');
@@ -141,7 +144,10 @@ test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
   const source = temporary(t);
   const target = temporary(t);
   const settingsFile = '.claude/settings.local.json';
-  for (const file of ['.claude', 'CLAUDE.md', 'install.cjs', 'previous-files.json', 'rtk-setup.cjs', 'ecc-setup.cjs']) {
+  for (const file of [
+    '.claude', 'CLAUDE.md', 'install.cjs', 'previous-files.json', 'rtk-setup.cjs',
+    'ecc-setup.cjs', 'headroom-setup.cjs', 'repository-setup.cjs',
+  ]) {
     fs.cpSync(path.join(kit, file), path.join(source, file), { recursive: true });
   }
   const sourceSettings = JSON.stringify({ model: 'source-model', env: { SOURCE_ONLY: '1' } });

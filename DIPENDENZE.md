@@ -7,9 +7,10 @@ Dopo aver installato il kit nel progetto, avvia Claude Code come al solito, anch
 | ECC | Il kit include sette profili adattati da ECC 2.2.3, i sorgenti di riferimento e la licenza MIT. All’avvio recupera le nuove revisioni compatibili degli stessi riferimenti. Verifica commit, hash dei blob e formato, poi attiva il gruppo completo. Le regole, i modelli e i tool del kit restano definiti nei profili locali. |
 | RTK | L’installer lo rileva e lo installa se manca. All’avvio, se c’è una release compatibile più recente, tenta l’aggiornamento tramite WinGet, Homebrew o Cargo dove l’installazione è riconosciuta. Una copia installata manualmente resta utilizzabile. |
 | Claude Code | L’installazione nativa ha il proprio canale di aggiornamento. Le installazioni tramite gestore pacchetti seguono il relativo gestore. |
-| Node e Git | Prerequisiti dell’ambiente. Node 22 o successivo interpreta il kit. Git deve essere disponibile e le deleghe di scrittura partono dalla root di un worktree. |
+| Node, Git e Python | Node 22+ esegue il kit, Git scarica i repository delle dipendenze e Python 3.11+ crea l’ambiente di Headroom. |
 | ICM | I template e la metodologia sono inclusi nel kit, con licenza e riferimenti propri. Il loro aggiornamento segue le versioni del kit perché deve restare compatibile con manifest e ricevute già creati. |
-| Headroom e Caveman | Configurazione e aggiornamento rimangono indipendenti. |
+| Headroom | L’installer scarica il repository della release 0.44.0 e installa la CLI con il proxy in `.claude/vendor/headroom/.venv/`. Le sessioni avviate tramite il wrapper eseguono il proxy. |
+| Caveman | Configurazione e aggiornamento indipendenti. |
 
 Il controllo degli aggiornamenti usa HTTPS verso GitHub. In assenza di rete, con API limitata, su cambio di major o se una release ECC rimuove o cambia in modo incompatibile un profilo, rimane in uso la copia valida precedente. Il risultato è registrato nello stato locale. Gli aggiornamenti di RTK dipendono anche dalla disponibilità del pacchetto presso il gestore. Nessuna credenziale GitHub è necessaria per consultare le release pubbliche.
 
