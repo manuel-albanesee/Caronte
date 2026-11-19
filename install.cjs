@@ -5,6 +5,7 @@ const { filePath } = require('./.claude/routing/icm.cjs');
 const { prepareRtk } = require('./rtk-setup.cjs');
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
+const localSettingsFile = '.claude/settings.local.json';
 function install(target, dry = false, configureRtk = null, enableFullEcc = false) {
   const root = fs.realpathSync(target), source = __dirname;
   if (root === fs.realpathSync(source)) throw Error('Scegli la root del progetto, non la cartella del kit.');
@@ -18,7 +19,9 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   function walk(folder) {
     for (const entry of fs.readdirSync(path.join(source, folder), { withFileTypes: true })) {
       const rel = folder + '/' + entry.name;
-      if (rel === '.claude/skills/caronte-panel/.claude-plugin/types' || rel === '.claude/skills/caronte-panel/tsconfig.json') continue;
+      if (rel.toLowerCase() === localSettingsFile ||
+          rel === '.claude/skills/caronte-panel/.claude-plugin/types' ||
+          rel === '.claude/skills/caronte-panel/tsconfig.json') continue;
       if (entry.isDirectory()) walk(rel);
       else if (entry.isFile()) {
         const content = fs.readFileSync(path.join(source, rel)), p = filePath(root, rel);
@@ -48,7 +51,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     text = text.trimEnd() + (text.trim() ? '\n\n' : '') + block + '\n';
   }
   plan('CLAUDE.md', Buffer.from(text));
-  const settingsPath = filePath(root, '.claude/settings.local.json');
+  const settingsPath = filePath(root, localSettingsFile);
   const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, 'utf8').replace(/^\uFEFF/, '')) : {};
   if (!settings || Array.isArray(settings) || typeof settings !== 'object') throw Error('settings.local.json deve essere un oggetto JSON.');
   const sample = JSON.parse(fs.readFileSync(path.join(source, '.claude/settings.routing.example.json'), 'utf8'));
@@ -95,7 +98,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     if (entry) settings.hooks.PreToolUse.unshift(entry);
     summary.rtk = status;
   }
-  plan('.claude/settings.local.json', Buffer.from(JSON.stringify(settings, null, 2) + '\n'));
+  plan(localSettingsFile, Buffer.from(JSON.stringify(settings, null, 2) + '\n'));
   summary.changed = changes.map(x => x.rel);
   if (dry || !changes.length) return { dryRun: dry, ...summary };
   const backupName = '.claude-routing-backups/' + new Date().toISOString().replace(/[:.]/g, '-') + '-' + process.pid;

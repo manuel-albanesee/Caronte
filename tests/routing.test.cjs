@@ -115,6 +115,41 @@ test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie EC
   assert.deepEqual(install(root).changed, []);
 });
 
+test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
+  const source = temporary(t);
+  const target = temporary(t);
+  const settingsFile = '.claude/settings.local.json';
+  for (const file of ['.claude', 'CLAUDE.md', 'install.cjs', 'previous-files.json', 'rtk-setup.cjs']) {
+    fs.cpSync(path.join(kit, file), path.join(source, file), { recursive: true });
+  }
+  const sourceSettings = JSON.stringify({ model: 'source-model', env: { SOURCE_ONLY: '1' } });
+  const projectSettings = {
+    model: 'project-model',
+    enabledPlugins: { 'ecc@ecc': true },
+    env: { ANTHROPIC_BASE_URL: 'http://localhost:8787' },
+    permissions: { allow: ['Read'] },
+  };
+  const targetSettings = JSON.stringify(projectSettings);
+  write(source, settingsFile, sourceSettings);
+  write(target, settingsFile, targetSettings);
+  const update = require(path.join(source, 'install.cjs')).install;
+
+  const preview = update(target, true, null, true);
+  assert.equal(preview.eccFull, true);
+  assert.equal(preview.changed.filter(file => file === settingsFile).length, 1);
+  assert.equal(fs.readFileSync(path.join(target, settingsFile), 'utf8'), targetSettings);
+
+  const result = update(target, false, null, true);
+  const settings = JSON.parse(fs.readFileSync(path.join(target, settingsFile), 'utf8'));
+  assert.equal(settings.model, projectSettings.model);
+  assert.deepEqual(settings.permissions, projectSettings.permissions);
+  assert.deepEqual(settings.enabledPlugins, projectSettings.enabledPlugins);
+  assert.deepEqual(settings.env, { ...projectSettings.env, CARONTE_ECC_FULL: '1' });
+  assert.equal(fs.readFileSync(path.join(target, result.backup, settingsFile), 'utf8'), targetSettings);
+  assert.equal(fs.readFileSync(path.join(source, settingsFile), 'utf8'), sourceSettings);
+  assert.deepEqual(update(target, true, null, true).changed, []);
+});
+
 test('fase successiva bloccata prima del check',t=>{const f=fixture(t);assert.throws(()=>gate(f.run(),'b'));});
 test('due fasi e ripresa in nuovo processo',t=>{const f=fixture(t);check(f.run(),'a');gate(f.run(),'b');check(f.run(),'b');const p=spawnSync(process.execPath,[path.join(kit,'.claude/routing/icm.cjs'),'status','.icm/task/run.json'],{cwd:f.root,env:{...process.env,CLAUDE_PROJECT_DIR:f.root},encoding:'utf8'});assert.equal(p.status,0);assert.equal(JSON.parse(p.stdout).next,null);});
 for(const file of ['input.txt','contract-a.md','out-a.txt','verify.cjs'])test('invalida input/contratto/output '+file,t=>{const f=fixture(t);check(f.run(),'a');check(f.run(),'b');write(f.root,file,'changed');assert.equal(valid(f.run(),'a').ok,false);assert.equal(valid(f.run(),'b').ok,false);assert.throws(()=>gate(f.run(),'b'));});
