@@ -53,11 +53,13 @@ L’avvio salta per impostazione predefinita la preparazione di Serena gestita d
 
 Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file, ECC, il runtime Headroom e l’hook RTK. Se un’installazione precedente aveva solo Caronte, riesegui `caronte install-project` per aggiungere le dipendenze.
 
-Per avviare Headroom con il Python di un ambiente in cui è già installato, passa `--headroom-python` con il percorso assoluto dell’interprete. Su Windows, se hai installato Headroom con `uv` nella posizione standard:
+Per avviare Headroom con il Python dell’installazione `uv` esistente, usa questo comando. Caronte cerca nella directory standard degli strumenti `uv` o in `UV_TOOL_DIR`, se impostata.
 
 ```powershell
-caronte start "--headroom-python=$env:APPDATA\uv\tools\headroom-ai\Scripts\python.exe" --verbose
+caronte start --headroom-python --verbose
 ```
+
+Per un interprete in un altro ambiente, puoi indicare il percorso assoluto con `--headroom-python=<percorso>`.
 
 ## Aggiornamento automatico di Caronte
 

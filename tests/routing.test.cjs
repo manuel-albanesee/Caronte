@@ -232,6 +232,7 @@ test('caronte start launches Headroom directly and forwards Claude options', {
       cwd: root, encoding: 'utf8', env: {
         ...process.env, HEADROOM_CODE_MEMORY: 'serena',
         PATH: path.dirname(executable) + path.delimiter + process.env.PATH,
+        UV_TOOL_DIR: path.join(root, 'uv tools'),
       },
     });
     assert.equal(result.status, status, result.stderr);
@@ -256,6 +257,11 @@ test('caronte start launches Headroom directly and forwards Claude options', {
   const python = start([`--headroom-python=${executable}`, ...options], executable, 23, pythonArgs);
   assert.match(python.stderr, /Avvio Headroom tramite Python/);
   assert.deepEqual(JSON.parse(python.stdout), { args: pythonArgs, memory: 'none' });
+  const uvPython = path.join(root, 'uv tools', 'headroom-ai', 'bin', 'python');
+  fs.mkdirSync(path.dirname(uvPython), { recursive: true });
+  fs.copyFileSync(executable, uvPython);
+  const detected = start(['--headroom-python', ...options], uvPython, 23, pythonArgs);
+  assert.deepEqual(JSON.parse(detected.stdout), { args: pythonArgs, memory: 'none' });
   fs.rmSync(blocked);
   const fallback = start(options);
   assert.deepEqual(JSON.parse(fallback.stdout), { args: ['wrap', 'claude', ...options], memory: 'none' });

@@ -2,14 +2,14 @@
 
 const usage = 'Usage: caronte install-project [--dry-run | --verify] [--ecc-full]\n' +
   '        [--headroom-path=<executable>] [--ecc-path=<directory>] [--rtk-path=<executable>]\n' +
-  '       caronte start [--headroom-python=<absolute-path>] [Claude Code options]\n' +
+  '       caronte start [--headroom-python[=<absolute-path>]] [Claude Code options]\n' +
   'Installs Caronte, ECC, Headroom, and RTK for the current project.';
 const [command, ...flags] = process.argv.slice(2);
 
 async function start(args) {
   const fs = require('node:fs');
   const path = require('node:path');
-  const { constants } = require('node:os');
+  const { constants, homedir } = require('node:os');
   const { spawn } = require('node:child_process');
   const { locateHeadroom } = require('./headroom-setup.cjs');
   const { showLogo } = require('./terminal-ui.cjs');
@@ -21,12 +21,20 @@ async function start(args) {
   const pythonOptions = wrapOptions.filter(arg => arg === '--headroom-python' || arg.startsWith('--headroom-python='));
   let python;
   if (pythonOptions.length) {
-    python = pythonOptions[0].slice('--headroom-python='.length);
-    if (pythonOptions.length !== 1 || !path.isAbsolute(python)) {
-      throw Error('Usa --headroom-python=<percorso assoluto di Python> una sola volta.');
+    if (pythonOptions.length > 1) throw Error('Usa --headroom-python una sola volta.');
+    if (pythonOptions[0] === '--headroom-python') {
+      const windows = process.platform === 'win32';
+      const dataDir = windows
+        ? process.env.APPDATA || path.join(homedir(), 'AppData', 'Roaming')
+        : process.env.XDG_DATA_HOME || path.join(homedir(), '.local', 'share');
+      const toolsDir = process.env.UV_TOOL_DIR || path.join(dataDir, 'uv', 'tools');
+      python = path.resolve(toolsDir, 'headroom-ai', windows ? 'Scripts/python.exe' : 'bin/python');
+    } else {
+      python = pythonOptions[0].slice('--headroom-python='.length);
+      if (!path.isAbsolute(python)) throw Error('Usa --headroom-python senza valore o indica un percorso assoluto.');
     }
     if (!fs.statSync(python, { throwIfNoEntry: false })?.isFile()) {
-      throw Error('Interprete Python di Headroom non trovato: ' + python);
+      throw Error('Interprete Python di Headroom non trovato: ' + python + '. Se è altrove, usa --headroom-python=<percorso assoluto>.');
     }
     args = [...wrapOptions.filter(arg => arg !== pythonOptions[0]), ...(separator < 0 ? [] : args.slice(separator))];
   }
