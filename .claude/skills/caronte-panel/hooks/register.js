@@ -1,5 +1,6 @@
 import { ferrymanWidth } from './ferryman.js';
 import { agentCards, artworkWindow, combineUsage, drawArtwork, drawPanel, isActive } from './view.js';
+import { createHistory, historyDirectory, readHistory, saveRecord, sessionCost, usageTotals } from './history.js';
 
 const pane = 'caronte-panel';
 const initialArtOffset = Math.floor(ferrymanWidth / 2);
@@ -25,7 +26,7 @@ async function readJson($, path) {
 
 async function openPane($) {
   return $.ui.open({
-    id: pane, title: 'CARONTE', columns: 40, rows: 16, backgroundColor: '#101920',
+    id: pane, title: 'CARONTE', columns: 40, rows: 16, backgroundColor: '#000000',
   });
 }
 
@@ -82,49 +83,106 @@ async function refreshPlans($, state, session, agents, plans) {
   }));
 }
 
-async function refresh($, board, justFinished = false) {
-  if (!board.open || board.refreshing) return;
-  board.refreshing = true;
-  const { plans, calls } = board;
+async function scope($, board) {
+  const [session, root] = await Promise.all([$.session.id(), $.session.root()]);
+  if (board.session !== session || board.root !== root) {
+    board.session = session;
+    board.root = root;
+    board.state = undefined;
+    board.history = historyDirectory($, root).then(directory => createHistory(directory, session)).catch(() => null);
+    board.project = null;
+  }
+  return board.history;
+}
+
+async function saveCost($, history, estimate) {
+  const usd = sessionCost(estimate);
+  if (!history || usd === null || (history.cost !== null && usd <= history.cost)) return;
+  const previous = history.cost;
+  history.cost = usd;
   try {
-    const [identity, roster] = await Promise.all([$.session.id(), $.agent.list()]);
-    if (!board.open || board.plans !== plans) return;
-    if (identity !== board.session) {
-      plans.clear();
-      board.state = undefined;
-      board.session = identity;
-    }
-    board.roster = new Map(roster.map(agent => [agent.id, agent]));
-    const current = new Map(board.finished);
-    for (const agent of roster) {
-      const finished = board.finished.get(agent.id);
-      current.set(agent.id, finished && !isActive(agent.status) ? { ...agent, usage: finished.usage } : agent);
-    }
-    const agents = [...current.values()];
-    if (justFinished || roster.length || [...plans.values()].some(plan => !plan.closed)) {
-      const root = await $.session.root();
-      if (root !== board.root) {
-        plans.clear();
-        board.state = undefined;
-        board.root = root;
-      }
-      if (board.state === undefined) board.state = await workState($, root);
-      if (board.state) await refreshPlans($, board.state, identity, agents, plans);
-    }
-    const cards = agentCards(agents, calls, plans);
-    if (board.open && board.plans === plans && JSON.stringify(cards) !== JSON.stringify(board.cards)) {
-      board.cards = cards;
-      $.ui.invalidate('ui.render');
-    }
+    await saveRecord($, history, 'cost', history.session, { session: history.session, usd });
+  } catch (error) {
+    if (history.cost === usd) history.cost = previous;
+    throw error;
+  }
+}
+
+async function refresh($, board, force = false) {
+  if (board.refreshing) {
+    if (!force) return;
+    await board.refreshing.catch(() => {});
+    return refresh($, board, force);
+  }
+  const pendingReview = [...board.plans.values()].some(plan => !plan.closed);
+  if (!board.open && !force && !pendingReview) return;
+  board.refreshing = updateBoard($, board, force);
+  try {
+    await board.refreshing;
   } finally {
-    board.refreshing = false;
+    board.refreshing = null;
+  }
+}
+
+async function updateBoard($, board, force) {
+  const { plans, calls, finished, operations } = board;
+  const [history, roster] = await Promise.all([scope($, board), $.agent.list()]);
+  if (board.plans !== plans) return;
+  const identity = board.session;
+  board.roster = new Map(roster.map(agent => [agent.id, agent]));
+  const current = new Map(finished);
+  for (const agent of roster) {
+    const done = finished.get(agent.id);
+    current.set(agent.id, done && !isActive(agent.status) ? { ...agent, ...done } : agent);
+  }
+  const agents = [...current.values()];
+  if (agents.length) {
+    if (board.state === undefined) board.state = await workState($, board.root);
+    if (board.state) await refreshPlans($, board.state, identity, agents, plans);
+  }
+  if (board.plans !== plans || board.session !== identity) return;
+  const cards = agentCards(agents, calls, plans, operations);
+  let changed = false;
+  for (const card of cards) {
+    const done = finished.get(card.id);
+    if (!done) continue;
+    const saved = { ...card, status: done.status, usage: usageTotals(done.usage), activity: '',
+      recordedAt: done.recordedAt, session: identity };
+    card.recordedAt = !isActive(card.status) ? saved.recordedAt : undefined;
+    if (history) {
+      const previous = history.saved.get('card-' + identity + '-' + card.id + '.json');
+      const record = { session: identity, card: saved };
+      if (JSON.stringify(record) !== previous) {
+        await saveRecord($, history, 'card', card.id, record).catch(() => {});
+        changed = true;
+      }
+    }
+  }
+  if (!board.project || changed || force || (history && Date.now() - history.readAt >= 5000)) {
+    board.project = await readHistory($, history);
+    if (history) {
+      history.readAt = Date.now();
+      if (board.project.liveCost !== null) history.cost = Math.max(history.cost ?? 0, board.project.liveCost);
+    }
+  }
+  const historical = board.project.cards.filter(card => card.session !== identity || !current.has(card.id));
+  const visible = [...cards, ...historical].sort((a, b) =>
+    Number(isActive(b.status)) - Number(isActive(a.status)) ||
+    (b.recordedAt ?? b.start ?? 0) - (a.recordedAt ?? a.start ?? 0));
+  const summary = { cards: visible, tokens: board.project.tokens, usd: board.project.usd };
+  if (board.open && board.plans === plans && JSON.stringify(summary) !== board.rendered) {
+    board.rendered = JSON.stringify(summary);
+    board.cards = visible;
+    board.totals = summary;
+    $.ui.invalidate('ui.render');
   }
 }
 
 export function register(on) {
   const board = {
     open: false, refreshing: false, cards: [], artOffset: null, page: 0, pageCount: 1,
-    plans: new Map(), calls: new Map(), roster: new Map(), finished: new Map(),
+    plans: new Map(), calls: new Map(), roster: new Map(), finished: new Map(), operations: new Map(),
+    completedTurns: new Set(),
   };
 
   on('session.start', async ($, e, next) => {
@@ -132,20 +190,30 @@ export function register(on) {
       name: pane, immediate: true, description: 'Mostra o chiudi la sidebar Caronte con attività, verifiche e token',
       argumentHint: '[ascii|left|right|prev|next]',
     });
-    $.clock.every(900, () => refresh($, board));
+    $.clock.every(900, () => refresh($, board).catch(() => {}));
     if (e.isInteractive && e.surface === 'terminal') {
       const placement = await openPane($).catch(() => null);
       board.open = placement?.isPlaced === true;
     }
+    await refresh($, board).catch(() => {});
     return next(e);
   });
 
   on('session.end', async ($, e, next) => {
+    await (async () => {
+      const history = await scope($, board);
+      const usage = await $.session.usage();
+      await saveCost($, history, usage?.cost);
+      await refresh($, board, true);
+    })().catch(() => {});
     board.calls = new Map();
     board.plans = new Map();
     board.roster = new Map();
     board.finished = new Map();
+    board.operations = new Map();
+    board.completedTurns = new Set();
     board.cards = [];
+    board.rendered = null;
     board.artOffset = null;
     board.page = 0;
     board.pageCount = 1;
@@ -167,6 +235,7 @@ export function register(on) {
     }
     board.open = placed || (await openPane($)).isPlaced;
     if (!board.open) return { text: 'Apri /caronte-panel in una sessione terminale interattiva.' };
+    await refresh($, board).catch(() => {});
     if (action === 'prev' || action === 'next') {
       selectPage($, board, board.page + (action === 'next' ? 1 : -1));
       return {};
@@ -188,29 +257,52 @@ export function register(on) {
     return result;
   });
 
+  on('session.measure', async ($, e, next) => {
+    try {
+      const history = await scope($, board);
+      await saveCost($, history, e.cost);
+      await refresh($, board, true);
+    } catch {}
+    return next(e);
+  });
+
   on('turn.complete', async ($, e, next) => {
+    try {
+      const history = await scope($, board);
+      if (history && e.usage) {
+        const snapshot = await $.session.usage().catch(() => null);
+        await saveRecord($, history, 'turn', e.turnId, {
+          session: history.session, tokens: usageTotals([e.usage]), usd: sessionCost(snapshot?.cost),
+        });
+      }
+    } catch {}
     if (e.agentId) {
       const { finished, roster } = board;
       const agents = await $.agent.list().catch(() => []);
       const agent = agents.find(item => item.id === e.agentId) || roster.get(e.agentId);
-      if (agent && board.finished === finished) {
+      if (agent && board.finished === finished && (!e.turnId || !board.completedTurns.has(e.turnId))) {
+        if (e.turnId) board.completedTurns.add(e.turnId);
         const previous = finished.get(e.agentId);
         const usage = e.usage ? combineUsage(previous?.usage, e.usage) : previous?.usage ?? agent.usage;
         finished.delete(e.agentId);
-        finished.set(e.agentId, { ...agent, status: finalStatuses[e.reason] || agent.status, usage });
+        finished.set(e.agentId, { ...agent, status: finalStatuses[e.reason] || agent.status, usage,
+          recordedAt: Date.now() });
+        await refresh($, board, true).catch(() => {});
         if (finished.size > finishedLimit) {
           const oldest = finished.keys().next().value;
           finished.delete(oldest);
           board.plans.delete(oldest);
+          board.operations.delete(oldest);
         }
-        await refresh($, board, true).catch(() => {});
       }
+    } else {
+      await refresh($, board, true).catch(() => {});
     }
     return next(e);
   });
 
   on('tool.run', async ($, e, next) => {
-    if (!board.open || !e.agentId) return next(e);
+    if (!e.agentId) return next(e);
     const { calls } = board;
     let running = calls.get(e.agentId);
     if (!running) {
@@ -219,7 +311,11 @@ export function register(on) {
     }
     const targeted = ['Bash', 'PowerShell'].includes(e.tool) && checkCommand.test(e.command);
     const operation = tools.get(e.tool) || (e.tool.startsWith('mcp__') ? 'Strumento MCP' : e.tool);
-    running.set(e.tool_use_id, targeted ? 'Verifica mirata' : operation);
+    const activity = targeted ? 'Verifica mirata' : operation;
+    const operations = board.operations.get(e.agentId) ?? new Set();
+    operations.add(activity);
+    board.operations.set(e.agentId, operations);
+    running.set(e.tool_use_id, activity);
     try {
       return await next(e);
     } finally {
@@ -232,7 +328,7 @@ export function register(on) {
     if (e.requestId !== pane) return next(e);
     // Claude Code can place the pane after the user widens their terminal.
     board.open = true;
-    const { Box, Text, Button } = $.ui.resolve(e);
+    const { Box, Text, Button, Link } = $.ui.resolve(e);
     const changeView = offset => {
       if (board.artOffset === offset) return;
       board.artOffset = offset;
@@ -243,8 +339,9 @@ export function register(on) {
     if (board.artOffset !== null) {
       return drawArtwork({ Box, Text, Button }, bodyColumns, board.artOffset, changeView);
     }
-    const { tree, page, pageCount } = drawPanel({ Box, Text, Button }, {
+    const { tree, page, pageCount } = drawPanel({ Box, Text, Button, Link }, {
       columns: bodyColumns, rows: e.props.scroll?.bodyRows, cards: board.cards, page: board.page,
+      projectTotals: board.totals,
       openArtwork: () => changeView(initialArtOffset),
       changePage: index => selectPage($, board, index),
     });

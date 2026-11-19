@@ -17,4 +17,4 @@ The original material is distributed under the [Caronte Source-Available License
 
 ## Runtime integrations
 
-Caronte integrates with [Claude Code](https://code.claude.com/docs), [RTK](https://github.com/rtk-ai/rtk), and optionally Headroom. Those programs are installed or used separately and retain their own terms. Caronte is an independent project.
+Caronte integrates with [Claude Code](https://code.claude.com/docs). Its installer can fetch [ECC](https://github.com/affaan-m/ECC), [Headroom](https://github.com/headroomlabs-ai/headroom), and [RTK](https://github.com/rtk-ai/rtk) from their upstream distributions. Each distribution retains its own terms. Caronte is an independent project.

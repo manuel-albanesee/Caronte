@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 const usage = 'Usage: caronte install-project [--dry-run | --verify] [--ecc-full]\n' +
-  'Installs Caronte in the current directory.';
+  'Installs Caronte, ECC, Headroom, and RTK for the current project.';
 const [command, ...flags] = process.argv.slice(2);
 
 if (!command || command === '--help' || command === '-h' ||
