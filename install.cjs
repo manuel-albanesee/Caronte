@@ -2,7 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const { filePath } = require('./.claude/routing/icm.cjs');
-const { prepareRtk } = require('./rtk-setup.cjs');
+const { prepareRtk, removeStandaloneRtk } = require('./rtk-setup.cjs');
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
 const localSettingsFile = '.claude/settings.local.json';
@@ -47,7 +47,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     if (before && !before.equals(content)) {
       const known = [previous.hashes[rel], previous.v2Hashes[rel], previous.v21Hashes[rel],
         previous.v232Hashes?.[rel], previous.v24Hashes?.[rel], previous.outputFilterHashes?.[rel],
-        previous.dashboardHashes?.[rel], previous.preEccFullHashes?.[rel], ...(previous.sidebarHashes?.[rel] ?? [])];
+        previous.dashboardHashes?.[rel], previous.v25Hashes?.[rel], previous.preEccFullHashes?.[rel], ...(previous.sidebarHashes?.[rel] ?? [])];
       const installed = installedFiles?.get(rel);
       if (installed) known.push(hash(installed), hash(installed.toString('utf8').replace(/\r\n/g, '\n')));
       const digest = hash(before);
@@ -133,6 +133,8 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     const { entry, ...status } = configureRtk({ dry, settings, project });
     if (entry) settings.hooks.PreToolUse.unshift(entry);
     summary.rtk = status;
+  } else if (automatic) {
+    removeStandaloneRtk(settings);
   }
   plan(localSettingsFile, Buffer.from(JSON.stringify(settings, null, 2) + '\n'));
   if (snapshot) plan(installationFile, Buffer.from(JSON.stringify({ revision: snapshot.revision }) + '\n'));
@@ -159,7 +161,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   return { ...summary, backup: backupName };
 }
 function cli(args) {
-  const usage = 'Caronte — node install.cjs <project-root> [--dry-run | --verify] [--ecc-full]\n' +
+  const usage = 'Caronte — node install.cjs <project-root> [--dry-run | --verify] [--ecc-full] [--gate-rtk=<percorso-gateguard>]\n' +
     '         node install.cjs --enable-auto-update | --disable-auto-update';
   if (args.includes('--help') || args.includes('-h')) return console.log(usage);
   if (Number(process.versions.node.split('.')[0]) < 22) throw Error('Caronte requires Node.js 22 or later.');
@@ -167,15 +169,17 @@ function cli(args) {
   if (args.length === 1 && ['--enable-auto-update', '--disable-auto-update'].includes(args[0])) {
     return console.log(JSON.stringify(configureAutoUpdate(args[0] === '--enable-auto-update'), null, 2));
   }
-  const flags = args.filter(arg => arg.startsWith('--'));
+  const gateFlags = args.filter(arg => arg.startsWith('--gate-rtk='));
+  const gateGuard = gateFlags[0]?.slice('--gate-rtk='.length);
+  const flags = args.filter(arg => arg.startsWith('--') && !arg.startsWith('--gate-rtk='));
   const targets = args.filter(arg => !arg.startsWith('--'));
-  if (targets.length !== 1 || new Set(flags).size !== flags.length ||
+  if (gateFlags.length > 1 || (gateFlags.length && !gateGuard) || targets.length !== 1 || new Set(flags).size !== flags.length ||
       flags.some(flag => !['--dry-run', '--verify', '--ecc-full'].includes(flag)) ||
       (flags.includes('--dry-run') && flags.includes('--verify'))) throw Error(usage);
   const dry = flags.includes('--dry-run'), verify = flags.includes('--verify');
-  const result = installFromCheckout(targets[0], dry || verify, prepareRtk, flags.includes('--ecc-full'));
+  const result = installFromCheckout(targets[0], dry || verify, config => prepareRtk({ ...config, gateGuard }), flags.includes('--ecc-full'));
   if (verify) {
-    result.verified = result.changed.length === 0 && result.rtk.hook === 'reused' && !result.rtk.pathNote;
+    result.verified = result.changed.length === 0 && ['reused', 'disabled'].includes(result.rtk.hook) && !result.rtk.pathNote;
     if (!result.verified) process.exitCode = 1;
   } else if (!dry && result.rtk.error) process.exitCode = 1;
   console.log(JSON.stringify(result, null, 2));

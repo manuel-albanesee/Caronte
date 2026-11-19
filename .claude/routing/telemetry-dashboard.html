@@ -45,6 +45,11 @@ td:first-child { font-weight:650; }
 strong,td { font-variant-numeric:tabular-nums; }
 .info { border-left:2px solid var(--blue); padding-left:10px; margin-top:13px; }
 footer { margin-top:14px; }
+.trend { display:flex; align-items:end; gap:3px; height:82px; margin-top:12px; border-bottom:1px solid var(--line); }
+.trend i { flex:1; min-width:0; background:var(--blue); border-radius:2px 2px 0 0; }
+.trend i[data-missing] { height:3px; background:var(--line); }
+details { margin-top:8px; }
+summary { color:var(--muted); cursor:pointer; }
 @media(max-width:740px) { .cards { grid-template-columns:1fr 1fr; } .split { grid-template-columns:minmax(0,1fr); gap:0; } }
 @media(max-width:460px) { main { padding:23px 15px; } .panel { padding:14px; } .card { padding:9px; } }
 </style>
@@ -100,9 +105,21 @@ function render(days) {
   const table = (label, columns, rows) => '<div class="table-scroll" role="region" aria-label="' + label +
     '" tabindex="0"><table aria-label="' + label + '"><thead><tr>' + columns.map(name => '<th scope="col">' + name +
     '</th>').join('') + '</tr></thead><tbody>' + rows + '</tbody></table></div>';
-  const volume = row('Avvisi di modifica', n(file.notices), '—',
+  const daily = data.usageDaily || [];
+  const maxDailyCalls = Math.max(0, ...daily.map(day => day.calls ?? 0));
+  const trend = maxDailyCalls > 0
+    ? '<div role="img" aria-label="Andamento giornaliero delle richieste API registrate" class="trend">' +
+      daily.map(item => item.calls === null ? '<i data-missing></i>' :
+        '<i style="height:' + Math.max(4, Math.round(item.calls * 100 / maxDailyCalls)) + '%"></i>').join('') +
+      '</div><p class="note">Da sinistra a destra, in UTC. Le tacche grigie indicano giorni senza campioni API.</p>' +
+      '<details><summary>Valori giornalieri</summary>' +
+      table('Richieste API per giorno', ['Giorno UTC', 'Richieste registrate'],
+        daily.map(item => row(item.day, item.calls === null ? '—' : n(item.calls))).join('')) + '</details>'
+    : '';
+  const hasReadCoverage = file.scansWithTextReads > 0;
+  const volume = row('Avvisi di modifica', file.scans ? n(file.notices) : '—', '—',
     file.measuredNotices ? bytes(file.noticeSnippetBytes) + ' · ' + n(file.measuredNotices) + ' estratti' : '—') +
-    row('Risultati delle riletture', n(file.rereads), n(file.rereadLines),
+    row('Risultati delle riletture', hasReadCoverage ? n(file.rereads) : '—', hasReadCoverage ? n(file.rereadLines) : '—',
       file.measuredRereads ? bytes(file.rereadBytes) + ' · ' + n(file.measuredRereads) + ' risultati' : '—');
   const modelRows = Object.entries(usage.byModel).map(([name, value]) => row(safeModel(name), n(value.calls),
     n(value.input), n(value.output), n(value.cache_read), n(value.cache_write))).join('');
@@ -112,21 +129,23 @@ function render(days) {
   target.innerHTML =
     '<section class="panel" aria-labelledby="reread-title"><h2 id="reread-title">Riletture dopo modifiche su disco</h2>' +
     '<p class="note">' + fileCoverage + '</p><div class="cards">' +
-    card('Episodi rilevati', n(file.changeEpisodes), n(file.changesDetectedByComparison) + ' da confronto tra letture') +
-    card('Avvisi di Claude', n(file.notices), 'Avvisi visibili nel transcript') +
-    card('Riletture', n(file.rereads), 'Dopo una modifica rilevata') +
-    card('File intero / intervallo', n(file.fullReads) + ' / ' + n(file.partialReads), 'Estensione effettiva della lettura') +
+    card('Episodi rilevati', file.scans ? n(file.changeEpisodes) : '—', file.scans ? n(file.changesDetectedByComparison) + ' da confronto tra letture' : 'Copertura assente') +
+    card('Avvisi di Claude', file.scans ? n(file.notices) : '—', 'Avvisi visibili nel transcript') +
+    card('Riletture', hasReadCoverage ? n(file.rereads) : '—', 'Dopo una modifica rilevata') +
+    card('File intero / intervallo', hasReadCoverage ? n(file.fullReads) + ' / ' + n(file.partialReads) : '—', 'Estensione effettiva della lettura') +
     '</div>' + table('Volume di avvisi e riletture', ['Origine', 'Campioni', 'Righe', 'Volume misurato'], volume) +
     '<p class="info">Il confronto rileva il cambiamento del testo senza attribuirlo a una persona. I volumi sono byte UTF-8 del transcript.</p></section>' +
     '<div class="split"><section class="panel"><h2>Utilizzo API</h2><p class="note">' + n(usage.calls) + ' richieste · ' +
     n(usage.sessions) + ' di ' + n(data.sessions) + ' sessioni con token registrati.</p>' +
     (modelRows ? table('Utilizzo per modello', ['Modello', 'Richieste', 'Input', 'Output', 'Cache letta', 'Cache scritta'], modelRows)
-      : '<p class="info">In attesa di conteggi API compatibili.</p>') +
-    '</section><section class="panel"><h2>Filtro dei log</h2><div class="cards">' +
+      : '<p class="info">Nessun conteggio API compatibile nel periodo.</p>') +
+    '<p class="info">I conteggi API indicano i token registrati per input, output e cache.</p>' +
+    trend + '</section><section class="panel"><h2>Filtro dei log</h2><div class="cards">' +
     card('Chiamate', n(filter.calls), 'Test e build') +
     card('Prima', bytes(filter.stdoutBytesBefore), 'Stdout originale') +
     card('Dopo', bytes(filter.stdoutBytesAfter), 'Stdout restituito') +
-    card('Righe omesse', n(filter.linesOmitted), bytes(filter.stdoutBytesRemoved) + ' rimossi') + '</div></section></div>' +
+    card('Righe omesse', n(filter.linesOmitted), bytes(filter.stdoutBytesRemoved) + ' rimossi') + '</div>' +
+    '<p class="info">I byte misurano stdout rimosso dal risultato dello strumento; non equivalgono a token risparmiati.</p></section></div>' +
     '<div class="split"><section class="panel"><h2>Blocchi e retry</h2><p class="note">' + n(total(data.blocks)) +
     ' blocchi · ' + n(total(data.retries)) + ' retry candidati.</p>' +
     (blockRows ? table('Cause dei blocchi', ['Causa', 'Blocchi', 'Retry'], blockRows) : '') +

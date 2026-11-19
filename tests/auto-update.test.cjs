@@ -53,8 +53,9 @@ function fixture(t) {
       path.join(source, 'install.cjs'), root], { env });
   }
   function enable() {
-    for (const name of ['install.cjs', 'auto-update.cjs']) fs.copyFileSync(path.join(kit, name), path.join(remote, name));
-    const revision = commit('install.cjs', 'auto-update.cjs');
+    const updaterFiles = ['install.cjs', 'auto-update.cjs', 'rtk-setup.cjs'];
+    for (const name of updaterFiles) fs.copyFileSync(path.join(kit, name), path.join(remote, name));
+    const revision = commit(...updaterFiles);
     git(source, 'pull', '-q', '--ff-only');
     const cli = flag => JSON.parse(node([path.join(source, 'install.cjs'), flag], { env }));
     const enabled = cli('--enable-auto-update');

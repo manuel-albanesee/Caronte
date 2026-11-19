@@ -8,7 +8,7 @@ Caronte combines model routing, selected ECC specialists, focused test plans, an
 
 ## Quick start
 
-**Requirements:** Git, Node.js 22+, and Claude Code 2.1.296+. Use the root of the Git worktree you want to configure. RTK is reused when detected, or installed through a supported package manager.
+**Requirements:** Git, Node.js 22+, and Claude Code 2.1.296+. Use the root of the Git worktree you want to configure. Automatic RTK rewriting runs through ECC GateGuard. Set `CARONTE_ECC_GATEGUARD` to the path of the ECC GateGuard module before installing. Without that path or a saved configuration, automatic rewriting stays off.
 
 ### Install from Claude Code
 
@@ -26,7 +26,7 @@ node install.cjs "<project-root>"
 node install.cjs "<project-root>" --verify
 ```
 
-`--dry-run` previews the changes and RTK plan. `--verify` checks whether the installed files match the kit and whether the RTK hook is detected. The installer writes a backup when changing an existing setup. Keep `.claude/settings.local.json` and `.claude-routing-backups/` out of version control in your project.
+`--dry-run` previews the changes and RTK plan. `--verify` checks whether the installed files match the kit and the installed GateGuard/RTK configuration. The installer writes a backup when changing an existing setup. Keep `.claude/settings.local.json` and `.claude-routing-backups/` out of version control in your project.
 
 Start Claude Code from the target worktree. Use `/agents` and `/hooks` to see what the new session loaded. Your normal Claude Code permissions still apply.
 

@@ -31,6 +31,11 @@ metadata. Open it in a browser for the 7- and 30-day views. It includes only
 aggregates and works offline. Run the command again after new sessions finish
 to refresh the snapshot.
 
+The dashboard uses tables for exact counts and a chart of recorded API requests
+by UTC day. A dash marks unavailable measurements, including days without
+compatible API samples. A displayed zero is an observed count. Filtered bytes
+measure how much tool output was omitted.
+
 ## What we collect
 
 | Source | Fields retained |
@@ -56,7 +61,11 @@ compatible PowerShell responses. It considers stdout of at least 8 KiB and
 returns a replacement only when it removes at least 2 KiB. It keeps the
 beginning and end of the log, recognized warnings and summaries with
 surrounding lines, stderr, and the tool's status fields. Each omitted block
-has a visible marker. Failed runs, structured reports such as TAP or JSON,
+has a visible marker. When Claude Code supplies a `persistedOutputPath`, the
+filter leaves that result untouched and the path is the recovery route. For a
+filtered result without a saved log path, rerun the same command with
+`rtk proxy <command>` if RTK is available, or redirect output to a log file and
+inspect that file. Failed runs, structured reports such as TAP or JSON,
 background tasks, and results already saved to a file keep their original
 output. The filter runs after RTK and also works when telemetry is off.
 

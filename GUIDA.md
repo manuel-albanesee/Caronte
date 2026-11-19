@@ -58,15 +58,43 @@ rimuovilo solo dopo aver verificato che nessuna installazione sia in corso.
 
 ## RTK per Git, build e test
 
-Il comando `node install.cjs` cerca RTK (Rust Token Killer) nel PATH e nelle posizioni utente più comuni e verifica binario e comandi. Se manca lo installa con WinGet (`rtk-ai.rtk`, scope utente) su Windows. Su macOS e Linux usa Homebrew quando disponibile, altrimenti Cargo dal repository ufficiale al tag `v1.2.0`. Il dry-run mostra la decisione senza installare il binario o cambiare i file.
+Quando GateGuard è configurato, `node install.cjs` cerca RTK (Rust Token Killer) nel PATH e nelle posizioni utente più comuni e verifica binario e comandi. Se manca lo installa con WinGet (`rtk-ai.rtk`, scope utente) su Windows. Su macOS e Linux usa Homebrew quando disponibile, altrimenti Cargo dal repository ufficiale al tag `v1.2.0`. Il dry-run mostra la decisione senza installare il binario o cambiare i file.
 
-Il kit registra `rtk hook claude` in `.claude/settings.local.json` per `PreToolUse` di Bash. Se riconosce già un hook RTK nativo o legacy adatto a Bash nei settings standard del progetto o dell'utente, lo riusa. Il processo locale e le policy di Claude Code determinano quali hook sono effettivamente abilitati. Il kit usa la compressione dell'output CLI. Headroom può continuare a gestire il traffico verso il modello. Caveman resta indipendente.
+Il kit registra un solo hook Bash in `.claude/settings.local.json` e invoca RTK dopo il via libera di GateGuard. Senza un percorso GateGuard configurato, il setup lascia inattiva la riscrittura automatica. Headroom può continuare a gestire il traffico verso il modello. Caveman resta indipendente.
 
 In PowerShell puoi eseguire direttamente i comandi compatibili, per esempio `rtk git status`. Dopo l'installazione riapri il terminale se WinGet ha appena aggiornato il PATH. Controlla `rtk --version` nel terminale e `/hooks` in Claude Code. Fai eseguire `git status` tramite Bash e controlla le attività RTK con `rtk gain --history`.
 
 Se l'installer trova un altro programma con nome `rtk`, ti segnala la collisione. Con una versione vecchia priva di hook nativo riusa un hook legacy già configurato o indica di aggiornare RTK. Se RTK resta indisponibile, il routing viene comunque installato e il comando termina con codice 1 e un motivo nel campo `rtk.error`. Risolto il problema, puoi rieseguire lo stesso comando.
 
 [Riferimento RTK per installazione e hook](https://github.com/rtk-ai/rtk/blob/develop/INSTALL.md).
+
+### GateGuard ECC prima di RTK
+
+La sequenza è il comportamento predefinito della riscrittura automatica su Bash. Imposta `CARONTE_ECC_GATEGUARD` oppure passa `--gate-rtk` con il percorso al file
+`scripts/hooks/gateguard-fact-force.js` di una copia di ECC che amministri
+e consideri attendibile.
+
+```powershell
+node install.cjs "C:\progetto" "--gate-rtk=C:\ECC\scripts\hooks\gateguard-fact-force.js" --dry-run
+node install.cjs "C:\progetto" "--gate-rtk=C:\ECC\scripts\hooks\gateguard-fact-force.js"
+node install.cjs "C:\progetto" --verify
+```
+
+Il nuovo hook Bash chiama il modulo GateGuard con il payload originale.
+Invoca RTK solo quando il modulo restituisce il payload come via libera.
+In caso di riscrittura mantiene gli altri argomenti e lascia il controllo
+dei permessi a Claude Code. La sequenza resta configurata agli aggiornamenti.
+
+L'installer sostituisce la registrazione locale RTK standard di Caronte.
+Gli hook RTK autonomi riconoscibili nei settings utente o di progetto
+devono essere rimossi prima della migrazione. Usa `/hooks` in una nuova
+sessione per controllare anche gli hook caricati da plugin e policy.
+Se usi il plugin ECC completo, disattiva la sua registrazione Bash autonoma
+`pre:bash:gateguard-fact-force` per questa configurazione, così GateGuard
+viene eseguito una sola volta. Caronte richiama il modulo direttamente,
+quindi il filtro per profilo del runner ECC non si applica a questa
+registrazione. La configurazione riguarda Bash. Gli hook ECC per PowerShell
+e gli altri tool continuano a seguire la configurazione di ECC.
 
 ## ECC e accettazione del lavoro
 

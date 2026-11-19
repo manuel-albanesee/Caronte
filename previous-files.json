@@ -71,6 +71,17 @@
       "026634f35c838261cca419912c497331ff3dc1b0b748337beaab413e2237b88e"
     ]
   },
+  "v25Hashes": {
+    ".claude/routing/telemetry.cjs": "aa67e234f798cda872a1bad79a4665d8e03388390bb9be67f266c213fdea47ff",
+    ".claude/routing/telemetry-dashboard.html": "bb82fec601e06441c44268db7a747198a4f3a6b6cc27bcc69fdca28db9158b08",
+    ".claude/routing/build-output.cjs": "d87f95abc15b2cb73ecc4acd062430fcd17abbe96a97d85871ffbbc91dd6adbb",
+    ".claude/hooks/gateguard-rtk.cjs": "a5d824945b834dd4348a59e0dead64a00b97fee6a714df9b64b589be0acfadb1",
+    ".claude/hooks/sync-dependencies.cjs": "7e50e52df407816379bb9100ecb975c9d0c809f89a5a5bfb39f5905d1d680d93",
+    ".claude/routing/CONSEGNA.md": "105e3fb284e03b28dfdc3a80b7a5aae4dc5e1507beeef71965fa729445011689",
+    ".claude/routing/delivery.cjs": "95a3eda8a1ab07a267be339533116e540cc23d454a6e1eaf4afb1004bb88e5fb",
+    ".claude/routing/ICM.md": "75254d901563528672177d69c9c036f161847deb12252ce4b8ff6128b7268a04",
+    ".claude/routing/icm.cjs": "1dba3cc3a80046ad4587791a54cc5c725f4902fc25ffddfba142d4bd4b108ca1"
+  },
   "dashboardHashes": {
     ".claude/routing/telemetry-dashboard.html": "39d5854e02539e89d9fc9a833c5450779451f0738e939a73c69be8320de4402b"
   },

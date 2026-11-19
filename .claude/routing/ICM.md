@@ -39,10 +39,11 @@ node .claude/routing/icm.cjs gate .icm/mapping/run.json 01_analisi
 node .claude/routing/icm.cjs check .icm/mapping/run.json 01_analisi
 ```
 
-- `status` mostra ogni fase e la prima non valida, senza eseguire modelli o test.
+- `status` mostra obiettivo (se presente nel manifest), ultima ricevuta valida, prima fase non valida, input cambiati quando la ricevuta conserva le impronte per file e il prossimo passo. L'attribuzione della modifica resta `unavailable`: gli hash non provano chi l'ha fatta. I manifest e le ricevute precedenti senza impronte per file mostrano il cambiamento come non disponibile.
 - `gate` richiede contratto/input presenti e tutte le dipendenze con ricevuta pass attuale. Non richiede l'output della fase da iniziare.
 - Dopo aver controllato il diff e la ricevuta dei test mirati del worker, l’orchestratore esegue `check`. Il comando invalida il vecchio pass, esegue il verificatore senza shell, registra log e hash degli input/output. Se fallisce, un vecchio pass non sopravvive. Rifiuta input cambiati durante il controllo e output mancanti. Una nuova esecuzione status, anche in un altro processo, ricostruisce la validità.
 - Le ricevute sono in `.state-<runId>/` accanto al manifest, insieme a `<fase>-check.md` e log. Questo è un adattamento esplicito della collocazione ICM originaria: una sola ricevuta canonica per fase/run. Gli handoff restano nelle cartelle output delle fasi.
+- Per un riepilogo più utile aggiungi `objective` al manifest e, facoltativamente, a ciascuna fase. `status` non inventa obiettivi assenti e distingue una fase mai verificata da un pass obsoleto o fallito.
 - Modifiche a contratto, input, output o configurazione della fase invalidano il risultato e le fasi dipendenti. Il contenuto dei file elencati viene letto per intero localmente: non viene inviato al modello. Elenca script di verifica, lockfile e revisioni esterne rilevanti tra gli input. Variabili d'ambiente, servizi remoti e file non dichiarati non sono osservati automaticamente.
 - Una sola verifica per run alla volta. Se il processo è terminato forzatamente può restare `.lock`: dopo aver verificato che nessun check sia attivo, rimuovilo e riesegui il controllo. I worker non devono condividere gli stessi output in scrittura.
 - Windows: `command` deve essere un eseguibile (`node`, `dotnet`, `python`), non una stringa con argomenti. Per uno script npm usa `node` con il percorso del relativo file JS oppure un wrapper di progetto esplicito. Non usare pipe o `&&` negli args.

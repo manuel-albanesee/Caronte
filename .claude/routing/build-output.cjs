@@ -68,7 +68,7 @@ function filterBuildOutput(event) {
   for (let index = 0; index < lines.length; index++) {
     if (keep[index]) compact.push(lines[index]);
     else {
-      if (keep[index - 1]) compact.push('[Caronte omitted verbose stdout lines]');
+      if (keep[index - 1]) compact.push('[Caronte omitted verbose stdout lines; rerun with rtk proxy or redirect to a log for full output]');
       omitted++;
     }
   }

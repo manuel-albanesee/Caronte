@@ -285,8 +285,11 @@ function summarize(root, days = 7, now = Date.now()) {
   const byModel = {};
   const tokens = { input: 0, output: 0, cache_read: 0, cache_write: 0 };
   const usageSessions = new Set();
+  const usageByDay = new Map();
   for (const row of usages.values()) {
     const key = model(row.model);
+    const day = date(row.occurred_at);
+    usageByDay.set(day, (usageByDay.get(day) || 0) + 1);
     const totals = byModel[key] ??= { input: 0, output: 0, cache_read: 0, cache_write: 0, calls: 0 };
     for (const field of Object.keys(tokens)) {
       if (!Number.isSafeInteger(row[field]) || row[field] < 0) continue;
@@ -301,6 +304,10 @@ function summarize(root, days = 7, now = Date.now()) {
     usage: { sessions: usageSessions.size, calls: usages.size, tokens: usages.size ? tokens : null, byModel,
       truncatedScans: [...coverage.values()].filter(row => row.transcript_truncated).length },
     blocks, retries, targetedChecks, reviews, outputFilter,
+    usageDaily: Array.from({ length: (Date.parse(to) - Date.parse(from)) / DAY + 1 }, (_, index) => {
+      const day = date(Date.parse(from) + index * DAY);
+      return { day, calls: usageByDay.get(day) ?? null };
+    }),
     fileContext: summarizeFileContext(fileSamples.values(), coverage.values()),
   };
 }

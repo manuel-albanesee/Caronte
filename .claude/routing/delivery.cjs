@@ -114,6 +114,12 @@ function plan(root, spec) {
     throw Error('Indica un motivo se la modifica non ha test applicativi pertinenti.');
   }
   if (spec.inputs !== undefined && !Array.isArray(spec.inputs)) throw Error('inputs deve essere un array di file.');
+  if (spec.criteria !== undefined && (!Array.isArray(spec.criteria) || spec.criteria.some(c =>
+    !c || typeof c.id !== 'string' || !/^[\w.-]{1,80}$/.test(c.id) ||
+    typeof c.description !== 'string' || !c.description.trim()) ||
+    new Set(spec.criteria.map(c => c.id)).size !== spec.criteria.length)) {
+    throw Error('criteria deve contenere ID univoci e descrizioni non vuote.');
+  }
   const files = [...new Set(spec.files)];
   const inputs = [...new Set([...files, ...spec.tests.map(t => t.file), ...(spec.inputs || [])])];
   const id = randomUUID();
@@ -122,6 +128,29 @@ function plan(root, spec) {
   fs.mkdirSync(path.join(repo.state, id), { recursive: true, mode: 0o700 });
   save(path.join(repo.state, id, 'plan.json'), { ...spec, id, files, inputs, baseline });
   return { id, files, tests: spec.tests, command: runner + ' check ' + id };
+}
+function handoff(root, id, report) {
+  const repo = locate(root), spec = load(repo, id);
+  if (!Array.isArray(spec.criteria) || !spec.criteria.length) throw Error('Il piano non dichiara criteri di accettazione.');
+  if (!report || !Array.isArray(report.criteria)) throw Error('Il resoconto deve contenere l’esito di ogni criterio.');
+  const expected = new Map(spec.criteria.map(item => [item.id, item]));
+  if (report.criteria.length !== expected.size) throw Error('Il resoconto deve coprire tutti i criteri, senza duplicati.');
+  const seen = new Set();
+  const criteria = report.criteria.map(item => {
+    if (!item || !expected.has(item.id) || seen.has(item.id)) throw Error('Criterio sconosciuto o duplicato: ' + item?.id);
+    seen.add(item.id);
+    if (!['soddisfatto', 'non soddisfatto', 'non verificato'].includes(item.outcome) ||
+        typeof item.evidence !== 'string' || !item.evidence.trim() ||
+        !(item.openConstraint === null || item.openConstraint === undefined ||
+          (typeof item.openConstraint === 'string' && item.openConstraint.trim()))) {
+      throw Error('Ogni criterio richiede outcome, prova e vincolo aperto (testo o null): ' + item.id);
+    }
+    return { id: item.id, description: expected.get(item.id).description, outcome: item.outcome,
+      evidence: item.evidence.trim(), openConstraint: item.openConstraint ?? null };
+  });
+  const file = path.join(repo.state, id, 'worker-handoff.json');
+  save(file, { criteria, reportedAt: new Date().toISOString() });
+  return { file, criteria };
 }
 function load(repo, id) {
   if (!idPattern.test(id || '')) throw Error('REVIEW_ID non valido.');
@@ -244,15 +273,48 @@ function review(root, id) {
   const current = tree(repo.root, spec.files);
   const patch = path.join(dir, 'review.diff');
   fs.writeFileSync(patch, git(repo.root, ['diff', '--no-ext-diff', '--no-textconv', '--binary', spec.baseline, current]), { mode: 0o600 });
-  let checks = 'not-run';
+  let checks = 'not-run', freshness = 'unverified', testEvidence = [];
   const receipt = path.join(dir, 'test.json');
   if (!spec.tests.length) checks = 'not-applicable';
   else if (fs.existsSync(receipt)) {
     const report = read(receipt);
-    checks = report.tree !== tree(repo.root, spec.inputs) ? 'stale' : report.ok ? 'pass' : 'fail';
+    freshness = report.tree === tree(repo.root, spec.inputs) ? 'current' : 'obsolete';
+    checks = freshness === 'obsolete' ? 'stale' : report.ok ? 'pass' : 'fail';
+    testEvidence = (report.results || []).map(result => ({
+      runner: result.runner, file: result.file, selector: result.selector || null,
+      outcome: result.exitCode === 0 && !result.error ? 'pass' : 'fail',
+      exitCode: Number.isInteger(result.exitCode) ? result.exitCode : null,
+      error: result.error || null,
+      log: result.log,
+    }));
   }
   const changed = git(repo.root, ['diff', '--name-only', '-z', spec.baseline, current]).split('\0').filter(Boolean);
-  const result = { patch, changed, checks, ...(fs.existsSync(receipt) ? { receipt } : {}), noTestsReason: spec.noTestsReason };
+  const result = {
+    patch, changed, diff: changed.length ? 'present' : 'empty', checks,
+    testEvidence,
+    suite: 'not-run',
+    freshness,
+    nextCheck: checks === 'pass' ? 'orchestratore: revisione del diff; poi suite completa se pertinente'
+      : checks === 'stale' ? 'ripetere i test mirati dopo le modifiche successive'
+        : checks === 'fail' ? 'risolvere il fallimento e ripetere i test mirati'
+          : spec.tests.length ? 'eseguire i test mirati dichiarati nel piano' : 'nessun test applicativo: ' + (spec.noTestsReason || 'motivo non disponibile'),
+    ...(fs.existsSync(receipt) ? { receipt } : {}), noTestsReason: spec.noTestsReason,
+  };
+  if (Array.isArray(spec.criteria) && spec.criteria.length) {
+    let report = null;
+    try { report = read(path.join(dir, 'worker-handoff.json')); } catch {}
+    const reported = new Map((Array.isArray(report?.criteria) ? report.criteria : [])
+      .filter(item => item && typeof item.id === 'string').map(item => [item.id, item]));
+    result.criteria = spec.criteria.map(item => reported.get(item.id) || {
+      ...item, outcome: 'non verificato', evidence: null, openConstraint: 'handoff del worker non registrato',
+    });
+    result.acceptance = result.criteria.every(item => item.outcome === 'soddisfatto' && item.evidence && !item.openConstraint)
+      ? 'worker-reported-met-pending-coordinator-review' : 'blocked';
+    if (result.acceptance === 'blocked' && ['pass', 'not-applicable'].includes(checks)) {
+      result.nextCheck = 'chiarire o verificare i criteri di accettazione aperti prima di accettare il lavoro';
+    }
+    result.workerHandoff = report ? path.join(dir, 'worker-handoff.json') : null;
+  }
   save(path.join(dir, 'review.json'), result);
   const grant = active(repo);
   if (grant?.id === id) {
@@ -263,18 +325,22 @@ function review(root, id) {
 }
 if (require.main === module) {
   try {
-    const [action, value] = process.argv.slice(2), root = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+    const [action, value, reportPath] = process.argv.slice(2), root = process.env.CLAUDE_PROJECT_DIR || process.cwd();
     let result;
     if (action === 'plan') result = plan(root, read(value === '-' ? 0 : value));
     else if (action === 'check') {
       result = check(root, value);
       if (!result.ok) process.exitCode = 1;
     } else if (action === 'review') result = review(root, value);
-    else throw Error('Uso: ' + runner + ' plan <file.json|-> | check <id> | review <id>');
+    else if (action === 'handoff') {
+      if (!reportPath) throw Error('Uso: ' + runner + ' handoff <id> <file.json>');
+      result = handoff(root, value, read(reportPath));
+    }
+    else throw Error('Uso: ' + runner + ' plan <file.json|-> | check <id> | handoff <id> <file.json> | review <id>');
     console.log(JSON.stringify(result, null, 2));
   } catch (error) { console.error(error.message); process.exitCode = 1; }
 }
 module.exports = {
-  plan, authorize, enforceWorker, check, review, readingProfiles, writingProfiles,
+  plan, authorize, enforceWorker, check, handoff, review, readingProfiles, writingProfiles,
   eccFull, isKitProfile, isManagedWorker,
 };

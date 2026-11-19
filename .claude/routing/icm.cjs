@@ -44,11 +44,21 @@ function stateFile(run, id) { return path.join(run.stateDir, id + '.json'); }
 function digestFiles(run, files) {
   return Object.fromEntries([...new Set(files)].sort().map(p => [p, hash(fs.readFileSync(filePath(run.root, p, true)))]));
 }
-function inputStamp(run, s) {
-  return hash(JSON.stringify({ version: run.data.version, runId: run.data.runId, stage: s,
-    files: digestFiles(run, [s.contract, ...s.inputs]),
+function inputSnapshot(run, s) {
+  const files = digestFiles(run, [s.contract, ...s.inputs]);
+  const stamp = hash(JSON.stringify({ version: run.data.version, runId: run.data.runId, stage: s, files,
     dependencies: s.dependsOn.map(d => readJSON(stateFile(run, d)).signature),
   }));
+  return { files, stamp };
+}
+function changedInputFiles(run, s, before) {
+  if (!before || typeof before !== 'object' || Array.isArray(before)) return null;
+  const current = new Set([s.contract, ...s.inputs]);
+  return [...new Set([...Object.keys(before), ...current])].sort().filter(name => {
+    if (!current.has(name) || !Object.hasOwn(before, name)) return true;
+    try { return before[name] !== digestFiles(run, [name])[name]; }
+    catch { return true; }
+  });
 }
 function valid(run, id) {
   try {
@@ -58,11 +68,47 @@ function valid(run, id) {
     if (!fs.existsSync(f)) return { ok: false, reason: 'mai verificata' };
     const record = readJSON(f);
     if (record.status !== 'pass') return { ok: false, reason: record.reason || 'verifica fallita' };
-    const current = inputStamp(run, s), outputs = digestFiles(run, s.outputs);
+    const current = inputSnapshot(run, s).stamp, outputs = digestFiles(run, s.outputs);
     if (record.inputStamp !== current || JSON.stringify(record.outputs) !== JSON.stringify(outputs)) return { ok: false, reason: 'input, contratto, configurazione o output modificati' };
     if (record.signature !== hash(JSON.stringify({ inputStamp: current, outputs }))) return { ok: false, reason: 'ricevuta incoerente' };
     return { ok: true, reason: 'pass attuale' };
   } catch (e) { return { ok: false, reason: e.message }; }
+}
+function status(run) {
+  const stages = run.data.stages.map(s => {
+    const result = valid(run, s.id);
+    let record = null;
+    try { record = readJSON(stateFile(run, s.id)); } catch {}
+    const changed = result.ok && record?.inputFiles ? [] : changedInputFiles(run, s, record?.inputFiles);
+    const evidence = record ? {
+      status: record.status,
+      at: record.at || null,
+      log: fs.existsSync(path.join(run.stateDir, s.id + '.log')) ? path.relative(run.root, path.join(run.stateDir, s.id + '.log')) : null,
+      current: result.ok,
+    } : null;
+    return {
+      id: s.id,
+      objective: typeof s.objective === 'string' ? s.objective : null,
+      objectiveAvailable: typeof s.objective === 'string',
+      ...result,
+      evidence,
+      changedInputs: changed,
+      changeAttribution: 'unavailable',
+      nextStep: result.ok ? 'nessuna: fase verificata' : `rileggi contratto e input della fase ${s.id}, poi esegui la verifica dichiarata`,
+    };
+  });
+  const next = stages.find(s => !s.ok) || null;
+  const lastValid = [...stages].reverse().find(s => s.ok) || null;
+  return {
+    runId: run.data.runId,
+    objective: typeof run.data.objective === 'string' ? run.data.objective : null,
+    objectiveAvailable: typeof run.data.objective === 'string',
+    lastValidEvidence: lastValid ? { stage: lastValid.id, ...lastValid.evidence } : null,
+    observedChange: next?.changedInputs ?? (next ? 'non disponibile: nessuna impronta precedente per file' : []),
+    next: next?.id || null,
+    nextStep: next?.nextStep || 'run completato: tutte le fasi hanno una ricevuta valida',
+    stages,
+  };
 }
 function gate(run, id) {
   const s = stage(run, id);
@@ -87,7 +133,7 @@ function check(run, id) {
   try {
     save(run, id, { status: 'fail', reason: 'verifica in corso o interrotta', at: new Date().toISOString() });
     gate(run, id);
-    const before = inputStamp(run, s), log = path.join(run.stateDir, id + '.log');
+    const before = inputSnapshot(run, s), log = path.join(run.stateDir, id + '.log');
     const logFd = fs.openSync(log, 'w'); let result;
     try {
       result = spawnSync(s.verify.command, s.verify.args, { cwd: run.root, shell: false,
@@ -95,10 +141,11 @@ function check(run, id) {
     } finally { fs.closeSync(logFd); }
     if (result.error || result.status !== 0) throw Error(result.error?.message || 'comando terminato con exit ' + result.status);
     gate(run, id);
-    if (before !== inputStamp(run, s)) throw Error('Input modificati durante la verifica; ripetere.');
+    if (before.stamp !== inputSnapshot(run, s).stamp) throw Error('Input modificati durante la verifica; ripetere.');
     const outputs = digestFiles(run, s.outputs);
-    const record = { status: 'pass', at: new Date().toISOString(), inputStamp: before, outputs,
-      signature: hash(JSON.stringify({ inputStamp: before, outputs })) };
+    const record = { status: 'pass', at: new Date().toISOString(), inputStamp: before.stamp,
+      inputFiles: before.files, outputs,
+      signature: hash(JSON.stringify({ inputStamp: before.stamp, outputs })) };
     save(run, id, record);
     return { stage: id, status: 'pass', log: path.relative(run.root, log) };
   } catch (e) {
@@ -112,12 +159,11 @@ function main() {
     if (!['status', 'gate', 'check'].includes(action) || !manifest) throw Error('Uso: node .claude/routing/icm.cjs status|gate|check manifest.json [fase]');
     const run = loadRun(process.env.CLAUDE_PROJECT_DIR || process.cwd(), manifest); let result;
     if (action === 'status') {
-      const stages = run.data.stages.map(s => ({ id: s.id, ...valid(run, s.id) }));
-      result = { runId: run.data.runId, next: stages.find(s => !s.ok)?.id || null, stages };
+      result = status(run);
     } else if (action === 'gate') { gate(run, id); result = { stage: id, ready: true }; }
     else result = check(run, id);
     console.log(JSON.stringify(result));
   } catch (e) { console.error(e.message); process.exitCode = 1; }
 }
 if (require.main === module) main();
-module.exports = { filePath, loadRun, valid, gate, check };
+module.exports = { filePath, loadRun, valid, gate, check, status };

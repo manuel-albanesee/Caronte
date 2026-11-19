@@ -2,6 +2,30 @@
 
 18 novembre 2026. Ambiente di esecuzione Linux, Node v24.22.3. Lo ZIP contiene la suite e il relativo risultato TAP, eseguibili senza dipendenze npm.
 
+## Piano di supervisione e ripresa
+
+Prova su Linux con Claude Code 2.1.327, il modulo ECC GateGuard alla
+revisione `3f14a10` e RTK 1.2.0. Una API locale ha fornito risposte
+pilotabili. L'installazione e le chiamate agli hook hanno usato i binari reali.
+
+| Percorso | Caso | Esito |
+| --- | --- | --- |
+| Sessione principale | Primo `npm test` in un progetto di prova | Blocco GateGuard, zero chiamate RTK e nessun file indicatore di esecuzione. |
+| Sessione principale | `git status` | Una chiamata all'hook RTK ed esecuzione della forma riscritta. |
+| Worktree di subagent | `git status` | Una chiamata all'hook RTK nel worktree isolato. |
+| Worktree di subagent | Primo `npm test` | Decisione di blocco nei dati locali di GateGuard e zero chiamate RTK. È intervenuto anche il controllo Caronte sul piano del worker. |
+
+La migrazione da una copia installata del commit `f4019ea` lascia un solo
+hook GateGuard → RTK. Una nuova verifica dell'installazione riporta zero
+modifiche. Il render JavaScript del report è stato provato con un episodio,
+due riletture, una richiesta API registrata, giorni senza campioni e cambio
+di periodo. Il controllo di layout in Chromium è rimasto bloccato dal
+runtime locale.
+
+La prova attesta la composizione degli hook su Linux. Il percorso nativo
+Windows con Git Bash e PowerShell e la prova comportamentale con sviluppatori
+restano da svolgere.
+
 ## Riletture e dashboard
 
 - Tutti i 70 test della suite sono passati su Linux con Node 22.13.1 e 24.22.3.

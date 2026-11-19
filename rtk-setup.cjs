@@ -53,7 +53,18 @@ function readUserSettings(env, home) {
   }
 }
 
-function prepareRtk({ dry, settings, project }, {
+function removeStandaloneRtk(settings) {
+  const groups = settings.hooks.PreToolUse || [];
+  const standalone = hook => hook.type === 'command' && hook.command === 'rtk' &&
+    JSON.stringify(hook.args) === '["hook","claude"]' && hook.timeout === 5 &&
+    Object.keys(hook).length === 4;
+  settings.hooks.PreToolUse = groups.map(group => ({
+    ...group,
+    hooks: group.matcher === 'Bash' ? group.hooks.filter(hook => !standalone(hook)) : group.hooks,
+  })).filter(group => group.hooks.length);
+}
+
+function prepareRtk({ dry, settings, project, gateGuard }, {
   platform = process.platform,
   env = process.env,
   home = os.homedir(),
@@ -61,6 +72,24 @@ function prepareRtk({ dry, settings, project }, {
   lookup = findExecutable,
   userSettings = readUserSettings(env, home),
 } = {}) {
+  const groups = settings.hooks?.PreToolUse || [];
+  const coordinator = groups.flatMap(group => group.hooks).find(hook =>
+    hook.args?.[0] === '${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs');
+  gateGuard ??= env.CARONTE_ECC_GATEGUARD || coordinator?.args[1];
+  removeStandaloneRtk(settings);
+  if ([project, userSettings, settings].some(hasBashHook)) {
+    throw Error('Sequenza GateGuard → RTK impossibile: controlla gli hook RTK autonomi nei settings utente e di progetto.');
+  }
+  if (userSettings === null) {
+    throw Error('Impossibile verificare la presenza di hook RTK autonomi nei settings utente.');
+  }
+  if (!gateGuard) return { hook: 'disabled', reason: 'GateGuard ECC non configurato' };
+
+  gateGuard = fs.realpathSync(gateGuard);
+  if (!fs.statSync(gateGuard).isFile() || path.basename(gateGuard) !== 'gateguard-fact-force.js') {
+    throw Error('Indica il file ECC scripts/hooks/gateguard-fact-force.js.');
+  }
+
   const directories = (env.PATH || '').split(path.delimiter);
   const extraDirectories = platform === 'win32'
     ? (env.LOCALAPPDATA ? [path.join(env.LOCALAPPDATA, 'Microsoft', 'WinGet', 'Links')] : [])
@@ -123,7 +152,6 @@ function prepareRtk({ dry, settings, project }, {
     ...(binary === 'installed' ? { packageManager: installer.name } : {}),
   };
   if (!findOnPath('rtk')) status.pathNote = 'Apri un terminale nuovo e verifica che rtk --version funzioni. Il comando riscritto richiede rtk nel PATH.';
-  if ([settings, project, userSettings].some(hasBashHook)) return { ...status, hook: 'reused' };
 
   const native = execute(executable, ['hook', 'claude', '--help'], 5000);
   if (native.status !== 0) return {
@@ -131,15 +159,20 @@ function prepareRtk({ dry, settings, project }, {
     error: 'RTK è presente ma manca il suo hook nativo per Claude Code. Aggiorna RTK con il gestore con cui lo hai installato.',
   };
 
-  if (userSettings === null) status.settingsNote = 'Impossibile ispezionare i settings utente per riconoscere eventuali hook RTK.';
+  const args = ['${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs', gateGuard, executable];
+  if (coordinator && JSON.stringify(coordinator.args) === JSON.stringify(args)) {
+    return { ...status, hook: 'reused', ordered: true };
+  }
+  settings.hooks.PreToolUse = settings.hooks.PreToolUse.map(group => ({
+    ...group, hooks: group.hooks.filter(hook => hook !== coordinator),
+  })).filter(group => group.hooks.length);
   return {
-    ...status,
-    hook: dry ? 'planned' : 'configured',
+    ...status, hook: dry ? 'planned' : 'configured', ordered: true,
     entry: {
       matcher: 'Bash',
-      hooks: [{ type: 'command', command: 'rtk', args: ['hook', 'claude'], timeout: 5 }],
+      hooks: [{ type: 'command', command: 'node', args, timeout: 20, onFailure: 'block' }],
     },
   };
 }
 
-module.exports = { prepareRtk };
+module.exports = { prepareRtk, removeStandaloneRtk };

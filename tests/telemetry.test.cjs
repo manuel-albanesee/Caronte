@@ -115,6 +115,9 @@ test('usage reads only allowlisted fields, excludes history before opt-in and de
   assert.equal(report.usage.calls, 1);
   assert.deepEqual(report.usage.tokens, { input: 110, output: 17, cache_read: 500, cache_write: 80 });
   assert.equal(report.usage.sessions, 1);
+  assert.deepEqual(report.usageDaily.find(day => day.day === new Date(now).toISOString().slice(0, 10)),
+    { day: new Date(now).toISOString().slice(0, 10), calls: 1 });
+  assert.ok(report.usageDaily.some(day => day.calls === null));
   assert.doesNotMatch(rows(), /private|transcript\.jsonl|msg_same/);
 });
 
