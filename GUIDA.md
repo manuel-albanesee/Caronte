@@ -16,7 +16,7 @@ Il comando installa Caronte, ECC, Headroom e RTK nella cartella corrente. Aggiun
 
 Nel terminale interattivo Caronte mostra il logo ASCII, una percentuale per ciascun componente, aggiornata al completamento delle fasi, e le percentuali di download degli strumenti che le espongono. Le copie riutilizzate sono indicate durante il controllo. I messaggi di avanzamento usano stderr. Il riepilogo JSON finale esce su stdout.
 
-Se Headroom già installato nel PATH risponde ai controlli della CLI, Caronte lo riusa direttamente. Se serve una nuova copia, l’installer scarica il repository e prepara l’ambiente Python nel progetto.
+Caronte cerca Headroom nel PATH e nella cartella utente `.local/bin`. Una copia funzionante viene riutilizzata prima dell’ambiente del progetto. Se Windows nega l’avvio e manca un’altra copia funzionante, il riepilogo indica l’eseguibile bloccato.
 
 Per puntare direttamente all’eseguibile Headroom già installato, passa il suo percorso:
 

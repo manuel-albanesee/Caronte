@@ -1,5 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const { planRepository } = require('./repository-setup.cjs');
 const { filePath } = require('./.claude/routing/icm.cjs');
@@ -27,11 +28,13 @@ function planHeadroom(root, explicitPath) {
     if (!external.version) throw Error('Headroom (' + explicitPath + '): ' + external.error);
     return { report: { executable: explicitPath, version: external.version, status: 'external', runtime: 'present' } };
   }
+  const external = findExternalHeadroom(root);
+  if (external?.version) return { report: { ...external, status: 'external', runtime: 'present' } };
+
   const plan = { report: { version, runtime: 'planned' } };
   setupHeadroom(root, plan, true);
-  if (plan.report.runtime !== 'present') {
-    const external = findExternalHeadroom(root);
-    if (external) return { report: { ...external, status: 'external', runtime: 'present' } };
+  if (plan.report.runtime === 'planned' && external?.error) {
+    return { report: { ...external, status: 'external', runtime: 'unavailable' } };
   }
   const repository = planRepository(root, spec);
   return { ...repository, report: { ...repository.report, ...plan.report } };
@@ -48,24 +51,28 @@ function execute(root, exe, args, timeout, live = false) {
 function findExternalHeadroom(root) {
   const name = process.platform === 'win32' ? 'headroom.exe' : 'headroom';
   const directories = new Set((process.env.PATH || '').split(path.delimiter).map(entry => entry.replace(/^"(.*)"$/, '$1')));
+  directories.add(path.join(os.homedir(), '.local', 'bin'));
+  let blocked = null;
   for (const directory of directories) {
     if (!path.isAbsolute(directory)) continue;
     const executable = path.join(directory, name);
     if (!fs.existsSync(executable)) continue;
     const probe = probeHeadroom(root, executable);
     if (probe.version) return { executable, version: probe.version };
+    if (['EPERM', 'EACCES'].includes(probe.code)) {
+      blocked ??= { executable, error: 'Avvio di Headroom fallito (' + executable + '): ' + probe.error };
+    }
   }
-  return null;
+  return blocked;
 }
 
 function probeHeadroom(root, executable) {
   const probe = execute(root, executable, ['--version'], 10000);
-  if (probe.status !== 0) return { error: commandError(probe) };
-  const version = /^headroom(?:, version)?\s+(\d+(?:\.\d+)+[^\s]*)\s*$/im.exec(probe.stdout ?? '')?.[1];
+  if (probe.status !== 0) return { error: commandError(probe), code: probe.error?.code };
+  const version = /^headroom(?:,?\s+version)?\s+v?(\d+(?:\.\d+)+[^\s]*)\s*$/im.exec((probe.stdout ?? '') + '\n' + (probe.stderr ?? ''))?.[1];
   if (!version) return { error: 'versione Headroom non riconosciuta' };
   const help = execute(root, executable, ['wrap', 'claude', '--help'], 10000);
-  if (help.status !== 0) return { error: commandError(help) };
-  if (!/Usage:.*\bwrap\s+claude\b/i.test(help.stdout ?? '')) return { error: 'il comando wrap claude non è disponibile' };
+  if (help.status !== 0) return { error: commandError(help), code: help.error?.code };
   return { version };
 }
 

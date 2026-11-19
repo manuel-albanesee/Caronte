@@ -118,6 +118,8 @@ test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie EC
 
 test('install-project plans the full ECC and Headroom checkouts and preserves an existing ECC registration', t => {
   const root = temporary(t);
+  const user = temporary(t);
+  write(user, 'homedir.cjs', 'require("node:os").homedir = () => __dirname;');
   const command = process.platform === 'win32' ? 'headroom.exe' : 'headroom';
   const directories = (process.env.PATH || '').split(path.delimiter);
   const env = {
@@ -126,7 +128,8 @@ test('install-project plans the full ECC and Headroom checkouts and preserves an
   };
   assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
   function dryRun() {
-    const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run'],
+    const result = spawnSync(process.execPath, ['--require', path.join(user, 'homedir.cjs'),
+      path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run'],
       { cwd: root, env, encoding: 'utf8' });
     assert.equal(result.status, 0, result.stderr);
     assert.equal(result.stderr, '');
@@ -179,6 +182,31 @@ test('install-project skips the Headroom checkout when the CLI is already on PAT
   const { changed, headroom: report } = JSON.parse(result.stdout);
   assert.deepEqual(report, { executable: headroom, version: '0.45.0', status: 'external', runtime: 'present' });
   assert.ok(!changed.includes('.claude/vendor/headroom'));
+});
+
+test('Headroom in the user bin is selected automatically, and a blocked copy does not trigger another download', {
+  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
+}, t => {
+  const root = temporary(t);
+  const user = temporary(t);
+  const executable = path.join(user, '.local', 'bin', 'headroom');
+  write(user, '.local/bin/headroom', '#!/bin/sh\nif [ "$1" = --version ]; then echo "Headroom v0.45.0" >&2; else echo "Help"; fi\n');
+  const script = [
+    'require("node:os").homedir = () => process.argv[2];',
+    'console.log(JSON.stringify(require(process.argv[1]).planHeadroom(process.cwd()).report));',
+  ].join('\n');
+  function report() {
+    const result = spawnSync(process.execPath, ['-e', script, path.join(kit, 'headroom-setup.cjs'), user], {
+      cwd: root, encoding: 'utf8', env: { ...process.env, PATH: '' },
+    });
+    assert.equal(result.status, 0, result.stderr);
+    return JSON.parse(result.stdout);
+  }
+  fs.chmodSync(executable, 0o755);
+  assert.deepEqual(report(), { executable, version: '0.45.0', status: 'external', runtime: 'present' });
+  fs.chmodSync(executable, 0o644);
+  assert.equal(report().runtime, 'unavailable');
+  assert.deepEqual(fs.readdirSync(root), []);
 });
 
 test('caronte start uses the Headroom path saved by the installer and forwards Claude options', {
