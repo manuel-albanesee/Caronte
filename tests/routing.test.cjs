@@ -209,30 +209,38 @@ test('Headroom in the user bin is selected automatically, and a blocked copy doe
   assert.deepEqual(fs.readdirSync(root), []);
 });
 
-test('caronte start uses the Headroom path saved by the installer and forwards Claude options', {
+test('caronte start launches Headroom directly and forwards Claude options', {
   skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
 }, t => {
   const root = temporary(t);
   const executable = path.join(root, 'tools with spaces', 'headroom');
   write(root, 'tools with spaces/headroom', [
     '#!/usr/bin/env node',
+    'require("node:fs").appendFileSync("headroom-invocations", JSON.stringify(process.argv.slice(2)) + "\\n");',
     'const args = process.argv.slice(2);',
-    'if (args[0] === "--version") console.log("headroom, version 0.45.0");',
-    'else if (args.includes("--help")) console.log("Usage: headroom wrap claude");',
-    'else { console.log(JSON.stringify({ args, memory: process.env.HEADROOM_CODE_MEMORY })); process.exitCode = 23; }',
+    'console.log(JSON.stringify({ args, memory: process.env.HEADROOM_CODE_MEMORY }));',
+    'process.exitCode = 23;',
     '',
   ].join('\n'));
   fs.chmodSync(executable, 0o755);
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: executable } }));
-  const options = ['--resume', 'session id'];
-  function start(args) {
+  const options = ['--verbose', '--resume', 'session id'];
+  function start(args, selected = executable, status = 23) {
+    const invocationsFile = path.join(root, 'headroom-invocations');
+    fs.rmSync(invocationsFile, { force: true });
     const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'start', ...args], {
       cwd: root, encoding: 'utf8', env: {
         ...process.env, HEADROOM_CODE_MEMORY: 'serena',
         PATH: path.dirname(executable) + path.delimiter + process.env.PATH,
       },
     });
-    assert.equal(result.status, 23, result.stderr);
+    assert.equal(result.status, status, result.stderr);
+    assert.ok(result.stderr.includes('Avvio Headroom da ' + selected), result.stderr);
+    if (status === 23) {
+      assert.equal(fs.readFileSync(invocationsFile, 'utf8'), JSON.stringify(['wrap', 'claude', ...args]) + '\n');
+    } else {
+      assert.equal(fs.existsSync(invocationsFile), false);
+    }
     return result;
   }
   assert.deepEqual(JSON.parse(start(options).stdout), { args: ['wrap', 'claude', ...options], memory: 'none' });
@@ -242,8 +250,10 @@ test('caronte start uses the Headroom path saved by the installer and forwards C
   write(root, 'unavailable/headroom', 'not executable');
   fs.chmodSync(blocked, 0o644);
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: blocked } }));
+  const failed = start(options, blocked, 1);
+  assert.match(failed.stderr, /Avvio di Headroom fallito: .*EACCES/);
+  fs.rmSync(blocked);
   const fallback = start(options);
-  assert.match(fallback.stderr, /Uso la copia Headroom disponibile/);
   assert.deepEqual(JSON.parse(fallback.stdout), { args: ['wrap', 'claude', ...options], memory: 'none' });
 });
 

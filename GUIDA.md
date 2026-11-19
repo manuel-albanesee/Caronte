@@ -49,7 +49,7 @@ caronte start
 
 Il comando mostra il logo con il link GitHub e usa la copia Headroom selezionata dall’installer. Puoi passargli le opzioni di Claude Code, per esempio `caronte start --resume`.
 
-L’avvio salta per impostazione predefinita la preparazione di Serena gestita da Headroom. Per abilitarla esplicitamente usa `caronte start --code-memory serena`. Se l’eseguibile Headroom salvato è mancante o non può essere eseguito, Caronte prova una copia già installata e verificata.
+L’avvio salta per impostazione predefinita la preparazione di Serena gestita da Headroom. Per abilitarla esplicitamente usa `caronte start --code-memory serena`. Caronte mostra il percorso scelto e lancia direttamente Headroom. Le verifiche della CLI avvengono durante l’installazione o con `caronte install-project --verify`. Se il percorso salvato è mancante, Caronte cerca Headroom nel PATH, in `.local/bin` e poi nella copia del progetto. Se Windows nega l’avvio dell’eseguibile selezionato, Caronte riporta l’errore.
 
 Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file, ECC, il runtime Headroom e l’hook RTK. Se un’installazione precedente aveva solo Caronte, riesegui `caronte install-project` per aggiungere le dipendenze.
 

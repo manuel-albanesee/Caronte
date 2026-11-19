@@ -52,14 +52,31 @@ function execute(root, exe, args, timeout, live = false) {
   });
 }
 
-function findExternalHeadroom(root) {
+function* externalHeadroomExecutables() {
   const name = process.platform === 'win32' ? 'headroom.exe' : 'headroom';
   const directories = new Set((process.env.PATH || '').split(path.delimiter).map(entry => entry.replace(/^"(.*)"$/, '$1')));
   directories.add(path.join(os.homedir(), '.local', 'bin'));
-  let blocked = null;
   for (const directory of directories) {
-    if (!path.isAbsolute(directory)) continue;
-    const executable = path.join(directory, name);
+    if (path.isAbsolute(directory)) yield path.join(directory, name);
+  }
+}
+
+function locateHeadroom(root, configured) {
+  if (configured) {
+    const executable = path.resolve(root, configured);
+    if (fs.statSync(executable, { throwIfNoEntry: false })) return executable;
+  }
+  for (const executable of externalHeadroomExecutables()) {
+    if (fs.existsSync(executable)) return executable;
+  }
+  const command = process.platform === 'win32' ? 'Scripts/headroom.exe' : 'bin/headroom';
+  const local = filePath(root, location + '/.venv/' + command);
+  if (fs.existsSync(local)) return local;
+}
+
+function findExternalHeadroom(root) {
+  let blocked = null;
+  for (const executable of externalHeadroomExecutables()) {
     if (!fs.existsSync(executable)) continue;
     const probe = probeHeadroom(root, executable);
     if (probe.version) return { executable, version: probe.version };
@@ -134,4 +151,4 @@ function commandError(result) {
   return result.error?.message || output?.slice(-3).join(' ').slice(0, 600) || 'codice ' + result.status;
 }
 
-module.exports = { location, planHeadroom, setupHeadroom };
+module.exports = { location, locateHeadroom, planHeadroom, setupHeadroom };
