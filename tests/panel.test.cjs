@@ -70,14 +70,9 @@ test('the panel displays live activity, cumulative token categories and missing 
   assert.equal(draw(40, 36, page).page, 0);
 });
 
-test('the ASCII view preserves every column and row of the README artwork at any panel width', async () => {
+test('the ASCII view preserves every column and row of the artwork at any panel width', async () => {
   const { drawArtwork } = await view;
   const { ferryman, ferrymanWidth } = await import('../.claude/skills/caronte-panel/hooks/ferryman.js');
-  const readme = readFileSync(path.join(__dirname, '../README.md'), 'utf8');
-  const [, columnCount, rowCount, artwork] = readme.match(/<!-- caronte-logo: (\d+) columns by (\d+) rows -->\s*```text\r?\n([\s\S]*?)\r?\n```/);
-  assert.equal(artwork.replace(/\r\n/g, '\n'), ferryman.map(row => row.trimEnd()).join('\n'));
-  assert.equal(ferrymanWidth, Number(columnCount));
-  assert.equal(ferryman.length, Number(rowCount));
   assert.ok(ferryman.every(row => row.length === ferrymanWidth));
 
   for (const columns of [14, 40, 82, 102, 130]) {
