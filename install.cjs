@@ -184,7 +184,7 @@ function cli(args) {
   } else if (!dry && result.rtk.error) process.exitCode = 1;
   console.log(JSON.stringify(result, null, 2));
 }
-module.exports = { install, atomicWrite, kitAsset, installationFile, begin, end };
+module.exports = { install, atomicWrite, kitAsset, installationFile, begin, end, cli };
 if (require.main === module) {
   try { cli(process.argv.slice(2)); }
   catch (error) { console.error(error.message); process.exitCode = 1; }
