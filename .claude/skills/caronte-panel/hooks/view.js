@@ -1,12 +1,15 @@
-const logo = [
-  '###  #  ##   #  # # ### ###',
-  '#   # # # # # # ###  #  #  ',
-  '#   ### ##  # # ###  #  ## ',
-  '#   # # # # # # # #  #  #  ',
-  '### # # # #  #  # #  #  ###',
+const wordmark = [
+  " ___  /\\    ___   __  _   _ _____ ____",
+  "/    /   \\ |   \\ /  \\ |\\  |   |   |",
+  "|    |---| |___/ |  | | \\ |   |   |---",
+  "|    |   | |  \\  |  | |  \\|   |   |",
+  "\\___ |   | |   \\ \\__/ |   |   |   |___",
 ];
-
-const amber = ['#FFF0BF', '#FFDD96', '#FFC272', '#F4AA5A', '#E88F47'];
+const wordmarkWidth = Math.max(...wordmark.map(row => row.length));
+const hull = '~~ ~    \\__________________/    ~ ~~';
+const compactHull = '.~ \\___________/ ~.';
+const amber = ['#FFF0C9', '#FFE4A8', '#FFCC88', '#FFB274', '#F79860'];
+const wake = '#79BCBA';
 const aqua = '#74E4D9';
 const ink = '#EFF7FC';
 const muted = '#9EB5C2';
@@ -71,6 +74,13 @@ export function drawPanel(Box, Text, columns, cards) {
   });
   const rule = line('─'.repeat(width), dim);
   const gap = line(' ');
+  const centered = (value, color, bold = false, blockWidth = value.length) =>
+    line(' '.repeat(Math.floor((width - blockWidth) / 2)) + value, color, bold);
+  const branding = width >= wordmarkWidth
+    ? [...wordmark.map((row, index) => centered(row, amber[index], true, wordmarkWidth)),
+      centered(hull, wake)]
+    : [centered(width >= compactHull.length ? '.-- CARONTE --.' : 'CARONTE', warm, true),
+      width >= compactHull.length ? centered(compactHull, wake) : rule];
   const count = cards.filter(card => isActive(card.status)).length;
   const number = new Intl.NumberFormat('it-IT');
   const checkLabels = {
@@ -81,8 +91,7 @@ export function drawPanel(Box, Text, columns, cards) {
   };
 
   const children = [
-    ...(width >= logo[0].length ? logo.map((row, index) => line(row, amber[index], true)) : [line('C A R O N T E', warm, true)]),
-    rule,
+    ...branding,
     line(`SUBAGENT   ${count}/${cards.length} attivi`, aqua, true),
   ];
   if (!cards.length) children.push(gap, line('In attesa di una delega', muted));

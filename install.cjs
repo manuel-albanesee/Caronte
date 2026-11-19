@@ -26,7 +26,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
           const before = fs.readFileSync(p);
           const known = [previous.hashes[rel], previous.v2Hashes[rel], previous.v21Hashes[rel],
             previous.v232Hashes?.[rel], previous.v24Hashes?.[rel], previous.outputFilterHashes?.[rel],
-            previous.dashboardHashes?.[rel], previous.preEccFullHashes?.[rel]];
+            previous.dashboardHashes?.[rel], previous.preEccFullHashes?.[rel], previous.sidebarHashes?.[rel]];
           const digest = hash(before);
           const normalized = hash(before.toString('utf8').replace(/\r\n/g, '\n'));
           if (!before.equals(content) && !known.includes(digest) && !known.includes(normalized)) throw Error('Conflitto, file personalizzato: ' + rel + '. Nessuna modifica applicata.');

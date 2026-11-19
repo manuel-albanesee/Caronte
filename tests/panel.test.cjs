@@ -29,12 +29,16 @@ test('the panel displays live activity, cumulative token categories and missing 
   assert.deepEqual(cards.map(card => card.id), ['live', 'done']);
   assert.deepEqual(cards[0].usage, [12, 23, 34, 45]);
   const wide = lines(drawPanel(box, text, 40, cards)).join('\n');
-  assert.match(wide, /### +# +##/);
+  assert.match(wide, /_ +_____ ____\n/);
+  assert.match(wide, /~ ~~\nSUBAGENT/);
   assert.match(wide, /› Lettura/);
   assert.match(wide, /Cache ↓ 34 +↑ 45/);
   assert.match(wide, /Token —/);
   assert.doesNotMatch(wide, /[\u001b\u202E]|\b100%/);
-  assert.equal(lines(drawPanel(box, text, 24, cards))[0], 'C A R O N T E');
+  const compact = lines(drawPanel(box, text, 24, cards));
+  assert.equal(compact[0].trim(), '.-- CARONTE --.');
+  assert.match(compact[1], /\\_+\//);
+  assert.equal(lines(drawPanel(box, text, 14, cards))[0].trim(), 'CARONTE');
 });
 
 test('checkpoint completion follows the session, agent and review evidence in a linked worktree', async () => {

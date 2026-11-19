@@ -37,7 +37,7 @@ See [ECC completo e Caronte](GUIDA.md#ecc-completo-e-caronte) for setup.
 
 ### Live subagent panel
 
-![CARONTE sidebar in Claude Code showing an active subagent, checkpoint progress and token usage](docs/images/caronte-subagent-panel.png)
+![The CARONTE ASCII wordmark above an active subagent, checkpoint progress and token usage in Claude Code](docs/images/caronte-subagent-panel.png)
 
 *Claude Code demo with a test subagent and simulated token usage.*
 
