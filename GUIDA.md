@@ -21,6 +21,41 @@ Dopo l'installazione avvia una sessione nuova nella root, con `headroom wrap cla
 
 Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file e l’hook RTK sul disco. Dopo aver riavviato Claude Code, `/agents` e `/hooks` mostrano cosa ha caricato la sessione.
 
+## Aggiornamento automatico di Caronte
+
+Attiva l'hook una volta nel clone Git che userai come sorgente. Su Windows, per
+esempio:
+
+```powershell
+Set-Location "C:\git\Caronte"
+git pull --ff-only
+node .\install.cjs --enable-auto-update
+```
+
+Da quel momento basta eseguire `git pull --ff-only` nel clone di Caronte e
+avviare o riprendere Claude Code nella root del progetto. L'hook utente
+`SessionStart` riconosce anche le installazioni precedenti con il blocco Caronte
+in `CLAUDE.md` e il relativo hook nel progetto. Ogni worktree con Caronte
+installato viene aggiornato al proprio avvio.
+
+La versione del kit è il commit Git registrato in
+`.claude-routing-backups/caronte-install.json`. Caronte legge i file
+committati in `HEAD` dal clone locale e applica solo revisioni successive.
+Il controllo funziona senza rete. Il merge mantiene i permessi, gli hook
+estranei e la scelta `--ecc-full`. I conflitti nei file gestiti rimandano
+l'aggiornamento e producono un messaggio con il percorso da verificare.
+Gli aggiornamenti applicati conservano un backup. Le eventuali risorse già
+caricate da Claude Code all'inizio della sessione vengono rilette al riavvio.
+
+L'aggiornamento del kit funziona anche senza RTK o WinGet. L'installer manuale
+continua a gestire il setup RTK e il controllo delle dipendenze segue
+[la propria procedura](DIPENDENZE.md).
+
+Se sposti il clone, esegui di nuovo `--enable-auto-update` dalla nuova posizione.
+Per rimuovere l'hook utente usa `node install.cjs --disable-auto-update`.
+Se un'interruzione forzata lascia `.claude-routing-backups/.caronte-install.lock`,
+rimuovilo solo dopo aver verificato che nessuna installazione sia in corso.
+
 ## RTK per Git, build e test
 
 Il comando `node install.cjs` cerca RTK (Rust Token Killer) nel PATH e nelle posizioni utente più comuni e verifica binario e comandi. Se manca lo installa con WinGet (`rtk-ai.rtk`, scope utente) su Windows. Su macOS e Linux usa Homebrew quando disponibile, altrimenti Cargo dal repository ufficiale al tag `v1.2.0`. Il dry-run mostra la decisione senza installare il binario o cambiare i file.
