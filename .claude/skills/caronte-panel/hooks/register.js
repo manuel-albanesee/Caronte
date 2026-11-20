@@ -3,6 +3,8 @@ import { agentCards, artworkWindow, combineUsage, drawArtwork, drawPanel, isActi
 import { createHistory, historyDirectory, readHistory, saveRecord, sessionCost, usageTotals } from './history.js';
 
 const pane = 'caronte-panel';
+const logoPath = '/.claude/skills/caronte-panel/assets/ferryman.svg';
+const graphicSurfaces = new Set(['desktop', 'vscode']);
 const initialArtOffset = Math.floor(ferrymanWidth / 2);
 const reviewId = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const checkCommand = /^node \.claude\/routing\/delivery\.cjs check [0-9a-f-]+$/;
@@ -191,7 +193,7 @@ export function register(on) {
       argumentHint: '[ascii|left|right|prev|next]',
     });
     $.clock.every(900, () => refresh($, board).catch(() => {}));
-    if (e.isInteractive && e.surface === 'terminal') {
+    if (e.isInteractive && (e.surface === 'terminal' || graphicSurfaces.has(e.surface))) {
       const placement = await openPane($).catch(() => null);
       board.open = placement?.isPlaced === true;
     }
@@ -214,6 +216,7 @@ export function register(on) {
     board.completedTurns = new Set();
     board.cards = [];
     board.rendered = null;
+    board.logoSource = undefined;
     board.artOffset = null;
     board.page = 0;
     board.pageCount = 1;
@@ -234,7 +237,7 @@ export function register(on) {
       return {};
     }
     board.open = placed || (await openPane($)).isPlaced;
-    if (!board.open) return { text: 'Apri /caronte-panel in una sessione terminale interattiva.' };
+    if (!board.open) return { text: 'Apri /caronte-panel in una sessione interattiva.' };
     await refresh($, board).catch(() => {});
     if (action === 'prev' || action === 'next') {
       selectPage($, board, board.page + (action === 'next' ? 1 : -1));
@@ -328,7 +331,7 @@ export function register(on) {
     if (e.requestId !== pane) return next(e);
     // Claude Code can place the pane after the user widens their terminal.
     board.open = true;
-    const { Box, Text, Button, Link } = $.ui.resolve(e);
+    const { Box, Text, Button, Link, Svg } = $.ui.resolve(e);
     const changeView = offset => {
       if (board.artOffset === offset) return;
       board.artOffset = offset;
@@ -339,9 +342,14 @@ export function register(on) {
     if (board.artOffset !== null) {
       return drawArtwork({ Box, Text, Button }, bodyColumns, board.artOffset, changeView);
     }
-    const { tree, page, pageCount } = drawPanel({ Box, Text, Button, Link }, {
+    let logoSource;
+    if (Svg && graphicSurfaces.has(e.surface)) {
+      board.logoSource ??= $.session.root().then(root => $.fs.read(root + logoPath)).catch(() => null);
+      logoSource = await board.logoSource;
+    }
+    const { tree, page, pageCount } = drawPanel({ Box, Text, Button, Link, Svg }, {
       columns: bodyColumns, rows: e.props.scroll?.bodyRows, cards: board.cards, page: board.page,
-      projectTotals: board.totals,
+      projectTotals: board.totals, logoSource,
       openArtwork: () => changeView(initialArtOffset),
       changePage: index => selectPage($, board, index),
     });

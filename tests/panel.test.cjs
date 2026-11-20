@@ -92,6 +92,40 @@ test('the ASCII view preserves every column and row of the artwork at any panel 
   }
 });
 
+test('the logo uses the complete SVG on graphical surfaces and keeps a text fallback', async () => {
+  const { register } = await mod;
+  const hooks = new Map();
+  register((event, match, handler) => hooks.set(event, handler || match));
+  const logoPath = '.claude/skills/caronte-panel/assets/ferryman.svg';
+  const source = readFileSync(path.join(__dirname, '..', logoPath), 'utf8');
+  assert.match(source, /viewBox="0 0 2000 1800"/);
+  assert.equal([...source.matchAll(/<text\s/g)].length, 94);
+  let reads = 0;
+  const api = {
+    session: { root: async () => '/project' },
+    fs: { read: async file => {
+      assert.equal(file, '/project/' + logoPath);
+      reads++;
+      return source;
+    } },
+    ui: { resolve: () => ({ Box: box, Text: text, Button: button, Link: link, Svg: box }) },
+  };
+  const render = surface => hooks.get('ui.render')(api, {
+    surface, requestId: 'caronte-panel', props: { bodyColumns: 40, scroll: { bodyRows: 36 } },
+  });
+  const terminal = (await render('terminal')).children[0];
+  assert.equal(control(terminal, 'ferryman-svg'), undefined);
+  assert.equal(reads, 0);
+  for (const surface of ['desktop', 'vscode']) {
+    const logo = (await render(surface)).children[0];
+    assert.deepEqual(control(logo, 'ferryman-svg'), {
+      key: 'ferryman-svg', source, alt: 'Traghettatore di Caronte', width: 304, height: 80,
+    });
+    assert.equal(logo.children.at(-2).href, 'https://github.com/manuel-albanesee');
+  }
+  assert.equal(reads, 1);
+});
+
 test('checkpoint completion follows the session, agent and review evidence in a linked worktree', async () => {
   const { register } = await mod;
   const hooks = new Map();

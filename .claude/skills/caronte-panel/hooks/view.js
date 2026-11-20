@@ -137,8 +137,8 @@ export function fitArtwork(columns, rows) {
   }).join(''));
 }
 
-export function drawPanel({ Box, Text, Button, Link }, {
-  columns, rows, cards, page, openArtwork, changePage, projectTotals = { tokens: [0, 0, 0, 0], usd: null },
+export function drawPanel({ Box, Text, Button, Link, Svg }, {
+  columns, rows, cards, page, openArtwork, changePage, logoSource, projectTotals = { tokens: [0, 0, 0, 0], usd: null },
 }) {
   const width = Math.max(1, (columns || 40) - 2);
   const bodyRows = Math.max(1, rows || 16);
@@ -151,7 +151,12 @@ export function drawPanel({ Box, Text, Button, Link }, {
   });
   const rule = line('─'.repeat(width), dim);
   const logo = [];
-  if (artRows) {
+  if (artRows && logoSource && Svg) {
+    logo.push(Svg({
+      key: 'ferryman-svg', source: logoSource, alt: 'Traghettatore di Caronte',
+      width: width * 8, height: artRows * 16,
+    }));
+  } else if (artRows) {
     const art = fitArtwork(width, artRows);
     const top = Math.floor((artRows - art.length) / 2);
     for (let index = 0; index < artRows; index++) {
