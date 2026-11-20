@@ -11,6 +11,11 @@ const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
 const localSettingsFile = '.claude/settings.local.json';
 const installationFile = '.claude-routing-backups/caronte-install.json';
+const sidebarArtwork = new Set([
+  '.claude/skills/caronte-panel/assets/ferryman.svg',
+  '.claude/skills/caronte-panel/hooks/ferryman.js',
+  '.claude/skills/caronte-panel/hooks/wordmark.js',
+]);
 function kitAsset(rel) {
   return rel.startsWith('.claude/') &&
     !['.claude/settings.json', localSettingsFile].includes(rel.toLowerCase()) &&
@@ -37,6 +42,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   const readSource = rel => snapshot ? snapshot.files.get(rel) : fs.readFileSync(path.join(source, rel));
   const previous = JSON.parse(readSource('previous-files.json'));
   const changes = [];
+  const backedUpArtwork = [];
   function readTarget(rel) {
     const p = filePath(root, rel);
     const stat = fs.lstatSync(p, { throwIfNoEntry: false });
@@ -47,18 +53,25 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     if (before && before.equals(content)) return;
     changes.push({ rel, p, before, content, mode });
   }
+  const claude = readTarget('CLAUDE.md');
+  let text = claude.before?.toString('utf8') ?? '';
+  const installed = text.indexOf(begin) >= 0 && text.indexOf(end) > text.indexOf(begin) &&
+    (readTarget(installationFile).before !== null || readTarget('.claude/hooks/sync-dependencies.cjs').before !== null);
   function planAsset(rel) {
     const content = readSource(rel), target = readTarget(rel), { before } = target;
     if (before && !before.equals(content)) {
       const known = [previous.hashes[rel], previous.v2Hashes[rel], previous.v21Hashes[rel],
         previous.v232Hashes?.[rel], previous.v24Hashes?.[rel], previous.outputFilterHashes?.[rel],
         previous.dashboardHashes?.[rel], previous.v25Hashes?.[rel], previous.preEccFullHashes?.[rel], ...(previous.sidebarHashes?.[rel] ?? [])];
-      const installed = installedFiles?.get(rel);
-      if (installed) known.push(hash(installed), hash(installed.toString('utf8').replace(/\r\n/g, '\n')));
+      const installedAsset = installedFiles?.get(rel);
+      if (installedAsset) known.push(hash(installedAsset), hash(installedAsset.toString('utf8').replace(/\r\n/g, '\n')));
       const digest = hash(before);
       const normalized = hash(before.toString('utf8').replace(/\r\n/g, '\n'));
       if (![digest, normalized].some(value => known.includes(value))) {
-        throw Error('Conflitto, file personalizzato: ' + rel + '. Nessuna modifica applicata.');
+        if (!installed || !sidebarArtwork.has(rel)) {
+          throw Error('Conflitto, file personalizzato: ' + rel + '. Nessuna modifica applicata.');
+        }
+        backedUpArtwork.push(rel);
       }
     }
     plan(rel, content, target);
@@ -74,8 +87,6 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   if (snapshot) {
     for (const rel of snapshot.files.keys()) if (kitAsset(rel)) planAsset(rel);
   } else walk('.claude');
-  const claude = filePath(root, 'CLAUDE.md');
-  let text = fs.existsSync(claude) ? fs.readFileSync(claude, 'utf8') : '';
   const block = begin + '\n' + readSource('CLAUDE.md').toString('utf8').trim() + '\n' + end;
   if (text.includes(begin) || text.includes(end)) {
     if (text.split(begin).length !== 2 || text.split(end).length !== 2 || text.indexOf(begin) > text.indexOf(end)) throw Error('Marker routing incoerenti in CLAUDE.md.');
@@ -85,7 +96,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     if (/^# Routing dei modelli e ICM\s*$/m.test(text)) throw Error('Blocco routing personalizzato in CLAUDE.md: integrare il diff prima di installare.');
     text = text.trimEnd() + (text.trim() ? '\n\n' : '') + block + '\n';
   }
-  plan('CLAUDE.md', Buffer.from(text));
+  plan('CLAUDE.md', Buffer.from(text), claude);
   const settingsPath = filePath(root, localSettingsFile);
   const settings = fs.existsSync(settingsPath) ? JSON.parse(fs.readFileSync(settingsPath, 'utf8').replace(/^\uFEFF/, '')) : {};
   if (!settings || Array.isArray(settings) || typeof settings !== 'object') throw Error('settings.local.json deve essere un oggetto JSON.');
@@ -175,6 +186,8 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   plan(localSettingsFile, Buffer.from(JSON.stringify(settings, null, 2) + '\n'));
   if (snapshot) plan(installationFile, Buffer.from(JSON.stringify({ revision: snapshot.revision }) + '\n'));
   summary.changed = changes.map(x => x.rel);
+  if (snapshot) summary.revision = snapshot.revision;
+  if (backedUpArtwork.length) summary.backedUpArtwork = backedUpArtwork;
   for (const repo of repositories) {
     if (repo.report.status === 'planned' || repo.exclude || repo.report.runtime === 'planned') summary.changed.push(repo.spec.location);
   }

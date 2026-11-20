@@ -1,11 +1,17 @@
 const phases = 7;
 
-async function showLogo() {
-  if (!process.stderr.isTTY) return;
-  const { fitArtwork, githubProfile } = await import('./.claude/skills/caronte-panel/hooks/view.js');
-  const columns = Math.min(44, process.stderr.columns || 44);
+async function showLogo(output = process.stderr) {
+  if (!output.isTTY) return;
+  const { wordmarkRows, githubProfile } = await import('./.claude/skills/caronte-panel/hooks/wordmark.js');
+  const columns = Math.max(1, (output.columns || 80) - 2);
+  const colorEnabled = !Object.hasOwn(process.env, 'NO_COLOR') && process.env.TERM !== 'dumb';
+  const art = wordmarkRows(columns).map(row => '  ' + row.map(({ text, color }) => {
+    if (!colorEnabled || !text.trim()) return text;
+    const rgb = color.slice(1).match(/../g).map(channel => parseInt(channel, 16)).join(';');
+    return '\x1b[38;2;' + rgb + 'm' + text + '\x1b[39m';
+  }).join('')).join('\n');
   const profile = '\x1b]8;;' + githubProfile + '\x1b\\' + githubProfile + '\x1b]8;;\x1b\\';
-  process.stderr.write('\n' + fitArtwork(columns, 11).map(row => '  ' + row.trimEnd()).join('\n') + '\n  CARONTE\n  ' + profile + '\n\n');
+  output.write('\n' + art + '\n  ' + profile + '\n\n');
 }
 
 function installationProgress() {

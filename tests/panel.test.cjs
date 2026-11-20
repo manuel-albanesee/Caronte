@@ -6,6 +6,16 @@ const test = require('node:test');
 const view = import('../.claude/skills/caronte-panel/hooks/view.js');
 const mod = import('../.claude/skills/caronte-panel/hooks/register.js');
 
+test('the interactive startup banner uses the same wordmark as the terminal sidebar', async () => {
+  const { showLogo } = require('../terminal-ui.cjs');
+  const { wordmark } = await import('../.claude/skills/caronte-panel/hooks/wordmark.js');
+  let output;
+  await showLogo({ isTTY: true, columns: 80, write: value => { output = value; } });
+  const lines = output.replace(/\x1b\[[0-9;]+m/g, '').split('\n');
+  assert.deepEqual(lines.slice(1, 12), wordmark.map(row => '  ' + row));
+  assert.match(lines[12], /github\.com\/manuel-albanesee/);
+});
+
 const box = props => props;
 const text = props => ({ children: props.children });
 const button = props => ({ ...props, children: [props.label] });

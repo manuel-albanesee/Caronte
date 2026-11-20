@@ -91,6 +91,31 @@ test('legacy sidebar releases upgrade without a revision marker and still reject
   assert.ok(install(project).changed.includes(ferryman));
   assert.equal(read(project, ferryman), read(kit, ferryman));
   assert.equal(read(project, folder + 'wordmark.js'), read(kit, folder + 'wordmark.js'));
+  const localArtwork = original['ferryman.js'] + '// Local edit\r\n';
+  write(project, ferryman, localArtwork);
+  const update = install(project);
+  assert.deepEqual(update.backedUpArtwork, [ferryman]);
+  assert.equal(read(project, path.join(update.backup, ferryman)), localArtwork);
+  assert.equal(read(project, ferryman), read(kit, ferryman));
+});
+
+test('caronte start updates the project from its checkout before opening Headroom', needsHistory, t => {
+  const { base, remote, source, commit, installOld, enable } = fixture(t);
+  const project = path.join(base, 'project');
+  installOld(project);
+  enable();
+  const launcher = 'caronte.cjs';
+  write(remote, launcher, read(kit, launcher));
+  write(remote, agent, read(project, agent) + '\nUpdate before launch.\n');
+  const revision = commit(launcher, agent);
+  git(source, 'pull', '-q', '--ff-only');
+  const result = spawnSync(process.execPath, [path.join(source, launcher), 'start', '--headroom-python=' + path.join(base, 'missing')], {
+    cwd: project, encoding: 'utf8',
+  });
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Caronte aggiornato alla revisione .*\nInterprete Python di Headroom non trovato/);
+  assert.equal(json(project, installationFile).revision, revision);
+  assert.match(read(project, agent), /Update before launch/);
 });
 
 test('one user hook updates legacy projects and worktrees after pulling Caronte', needsHistory, t => {

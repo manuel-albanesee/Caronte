@@ -15,6 +15,9 @@ async function start(args) {
   const { locateHeadroom, pythonEntry, resolveHeadroomPython } = require('./headroom-setup.cjs');
   const { showLogo } = require('./terminal-ui.cjs');
   const root = process.cwd();
+  const { updateMessage, updateProject } = require('./auto-update.cjs');
+  const update = fs.existsSync(path.join(__dirname, '.git')) ? updateProject(root) : null;
+  if (update) console.error('Caronte | ' + updateMessage(update));
   const settingsFile = path.join(root, '.claude', 'settings.local.json');
   const settings = fs.existsSync(settingsFile) ? JSON.parse(fs.readFileSync(settingsFile, 'utf8').replace(/^\uFEFF/, '')) : {};
   const separator = args.indexOf('--');
@@ -56,7 +59,14 @@ async function main() {
   if (!command || command === '--help' || command === '-h' ||
       (command === 'install-project' && flags.some(flag => flag === '--help' || flag === '-h'))) {
     console.log(usage);
-  } else if (command === 'start') {
+    return;
+  }
+  const path = require('node:path');
+  if (__dirname.split(path.sep).some(part => part.toLowerCase() === 'node_modules') &&
+      !require('./auto-update.cjs').checkoutRevision()) {
+    throw Error('Caronte risolve una copia npm separata. Esegui npm link dal clone Git che aggiorni con git pull.');
+  }
+  if (command === 'start') {
     await start(flags);
   } else if (command !== 'install-project' || flags.some(flag => !flag.startsWith('--'))) {
     console.error(usage);

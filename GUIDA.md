@@ -6,7 +6,7 @@ Aggiornato il 18 novembre 2026. Brief preparati dal coordinatore, ricerca e svil
 
 Servono Git, Node.js 22+, Python 3.11+ e Claude Code 2.1.327+. Per installare RTK su Windows serve WinGet se il binario manca.
 
-Nel clone permanente di Caronte esegui `npm link` una volta per registrare il comando `caronte` nel terminale. Apri poi la root del progetto e lancia:
+Nel clone permanente di Caronte esegui `npm link` una volta per collegare il comando `caronte` al clone. Da quel momento `git pull` aggiorna anche il comando collegato. L’installer mostra il percorso del clone e la revisione usata. Apri la root del progetto e lancia:
 
 ```powershell
 caronte install-project
@@ -14,7 +14,7 @@ caronte install-project
 
 Il comando installa Caronte, ECC, Headroom e RTK nella cartella corrente. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
 
-Nel terminale interattivo Caronte mostra il logo ASCII, una percentuale per ciascun componente, aggiornata al completamento delle fasi, e le percentuali di download degli strumenti che le espongono. Le copie riutilizzate sono indicate durante il controllo. I messaggi di avanzamento usano stderr. Il riepilogo JSON finale esce su stdout.
+Nel terminale interattivo Caronte mostra il logo ASCII arancione, una percentuale per ciascun componente, aggiornata al completamento delle fasi, e le percentuali di download degli strumenti che le espongono. Le copie riutilizzate sono indicate durante il controllo. I messaggi di avanzamento usano stderr. Il riepilogo JSON finale esce su stdout.
 
 Caronte cerca Headroom nel PATH e nella cartella utente `.local/bin`. Una copia funzionante viene riutilizzata prima dell’ambiente del progetto. Se Windows nega l’avvio e manca un’altra copia funzionante, il riepilogo indica l’eseguibile bloccato.
 
@@ -64,6 +64,10 @@ Per un interprete in un altro ambiente, puoi indicare il percorso assoluto con `
 Usa `caronte install-project --headroom-python` per riusare lo stesso ambiente durante l’installazione. Usa `caronte install-project --verify --headroom-python` per verificarlo in un progetto già installato.
 
 ## Aggiornamento automatico di Caronte
+
+Quando avvii con `caronte start` da un progetto già installato, Caronte applica la revisione del clone locale prima di aprire Claude Code. Se trova una versione del logo diversa da quella prevista, salva l’originale nel backup e installa il logo della nuova revisione. Le modifiche locali agli altri file gestiti continuano a richiedere una risoluzione del conflitto.
+
+Se avvii Claude Code direttamente, puoi ottenere lo stesso aggiornamento con l’hook utente.
 
 Attiva l'hook una volta nel clone Git che userai come sorgente. Su Windows, per
 esempio:

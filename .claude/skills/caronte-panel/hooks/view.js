@@ -1,6 +1,6 @@
 import { ferryman, ferrymanWidth } from './ferryman.js';
 import { tokenFields, usageTotals } from './history.js';
-import { wordmark } from './wordmark.js';
+import { githubProfile, wordmarkRows } from './wordmark.js';
 
 const aqua = '#74E4D9';
 const ink = '#EFF7FC';
@@ -10,27 +10,6 @@ const red = '#FF9B99';
 const good = '#A8EAA2';
 const warm = '#FFCA80';
 const background = '#000000';
-const wordmarkColors = {
-  '#': '#FFCD7F', '@': '#FFA446', '%': '#FF9934', '=': '#FF932E',
-  '\\': '#9C431E', '+': '#7D3418', '/': '#652A17', ':': '#512318',
-};
-const wordmarkWidth = Math.max(...wordmark.map(row => row.length));
-const compactWordmark = [
-  ' __   /\\  __   __       ___ __',
-  '|    /__\\ |_) |  | |\\ |  |  |_',
-  '|___ |  | | \\ |__| | \\|  |  |__',
-];
-const compactWidth = Math.max(...compactWordmark.map(row => row.length));
-export const githubProfile = 'https://github.com/manuel-albanesee';
-const palette = ' .:-=+*#%@';
-const firstArtRow = ferryman.findIndex(row => /\S/.test(row));
-const drawing = ferryman.slice(firstArtRow, ferryman.findLastIndex(row => /\S/.test(row)) + 1);
-// Visual weight of a glyph on a 0–9 scale: the artwork is light ink on a blank field,
-// so spaces carry no weight and dense glyphs such as "$" carry the most.
-const lightInk = '.,\'`:;"^-_';
-const midInk = '~!<>()[]{}|/\\ilI1+=*?rtfjxnuvczsJLYT7';
-const inkWeight = character => (character === ' ' ? 0 : lightInk.includes(character) ? 2 : midInk.includes(character) ? 5 : 9);
-const density = drawing.map(row => [...row].map(inkWeight));
 const number = new Intl.NumberFormat('it-IT');
 const dollars = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 4 });
 const date = new Intl.DateTimeFormat('it-IT', { dateStyle: 'short', timeStyle: 'short' });
@@ -125,43 +104,16 @@ function statsLines(cards, line, rule) {
   return children;
 }
 
-export function fitArtwork(columns, rows) {
-  const scale = Math.min(1, columns / ferrymanWidth, rows / drawing.length);
-  const width = Math.max(1, Math.round(scale * ferrymanWidth));
-  const height = Math.max(1, Math.round(scale * drawing.length));
-  const cellWidth = ferrymanWidth / width;
-  const cellHeight = drawing.length / height;
-  return Array.from({ length: height }, (_, row) => Array.from({ length: width }, (_, column) => {
-    const left = column * cellWidth;
-    const right = (column + 1) * cellWidth;
-    const top = row * cellHeight;
-    const bottom = (row + 1) * cellHeight;
-    let shade = 0;
-    // Weight each original character by the part that falls inside the new cell.
-    for (let y = Math.floor(top); y < Math.ceil(bottom); y++) {
-      const overlapY = Math.min(bottom, y + 1) - Math.max(top, y);
-      for (let x = Math.floor(left); x < Math.ceil(right); x++) {
-        const overlapX = Math.min(right, x + 1) - Math.max(left, x);
-        shade += (density[y]?.[x] ?? 0) * overlapX * overlapY;
-      }
-    }
-    return palette[Math.round(shade / (cellWidth * cellHeight))];
-  }).join(''));
-}
-
 function drawWordmark(Text, width, height) {
-  const full = height >= wordmark.length && width >= wordmarkWidth;
-  const art = full ? wordmark : height >= 3 && width >= compactWidth ? compactWordmark : ['CARONTE'];
-  const margin = Math.floor(Math.max(0, width - Math.max(...art.map(row => row.length))) / 2);
+  const art = wordmarkRows(width, height);
+  const artWidth = Math.max(...art.map(row => row.reduce((length, part) => length + part.text.length, 0)));
+  const margin = Math.floor((width - artWidth) / 2);
   const top = Math.floor((height - art.length) / 2);
-  return Array.from({ length: height }, (_, index) => {
-    const row = art[index - top] ?? '';
-    const segments = full ? row.match(/(.)\1*/g) ?? [] : [row.slice(0, width)];
-    return Text({ wrap: 'truncate-end', children: [
-      ' '.repeat(margin),
-      ...segments.map(segment => Text({ color: full ? wordmarkColors[segment[0]] ?? warm : '#FFA446', children: [segment] })),
-    ] });
-  });
+  return Array.from({ length: height }, (_, index) => Text({
+    wrap: 'truncate-end',
+    children: [' '.repeat(margin), ...(art[index - top] ?? []).map(part =>
+      Text({ color: part.color, children: [part.text] }))],
+  }));
 }
 
 export function drawPanel({ Box, Text, Button, Link, Svg }, {
