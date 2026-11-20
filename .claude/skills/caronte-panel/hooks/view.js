@@ -169,7 +169,11 @@ export function drawPanel({ Box, Text, Button, Link, Svg }, {
   children.push(Box({ key: 'metrics', flexDirection: 'column', height: statsRows, children: metrics }));
   const [input, output, read, write] = projectTotals.tokens.map(value => number.format(value));
   const amount = projectTotals.usd === null ? '—' : '$' + dollars.format(projectTotals.usd);
-  const cost = line(width >= 30 ? `Progetto · costo stim. ${amount}` : `Costo stim. ${amount}`, warm, true);
+  const costSuffix = width >= 30 ? ` · costo stim. ${amount}` : ` · ${amount}`;
+  const name = label(projectTotals.projectName ?? 'Progetto').trim();
+  const nameSpace = width - costSuffix.length;
+  const costName = name.length <= nameSpace ? name : name.slice(0, Math.max(0, nameSpace - 1)) + '…';
+  const cost = line(name && nameSpace > 0 ? costName + costSuffix : `Costo stim. ${amount}`, warm, true);
   const inOut = line(`In ${input}  Out ${output}`);
   const cache = line(`Cache ↓ ${read}  ↑ ${write}`);
   const footer = footerRows >= 6 ? [

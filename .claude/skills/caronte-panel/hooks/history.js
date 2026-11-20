@@ -15,8 +15,7 @@ export function sessionCost(cost) {
 }
 
 export async function historyDirectory($, root) {
-  const repo = await $.session.repo().catch(() => null);
-  const git = await $.fs.stat((repo?.root ?? root) + '/.git', { resolve: true }).catch(() => null);
+  const git = await $.fs.stat(root + '/.git', { resolve: true }).catch(() => null);
   if (git?.kind === 'dir' && git.realPath) return git.realPath + '/caronte-sidebar';
   const { transcriptPath } = await $.session.info().catch(() => ({}));
   return transcriptPath ? transcriptPath.replace(/[^/\\]+$/, 'caronte-sidebar') : null;

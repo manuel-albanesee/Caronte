@@ -202,11 +202,13 @@ dell'autore. In Claude Desktop e nell’estensione Claude Code per VS Code il
 logo è un SVG dell’ASCII art originale su una griglia da 200 × 100. Nel
 terminale viene mostrata la scritta CARONTE arancione. La versione 3D da 47 × 11
 caratteri compare quando il riquadro è abbastanza grande. Nei riquadri più
-piccoli compare una scritta compatta. Il 60% centrale mostra le attività in corso,
+piccoli compare la scritta 3D compatta, oppure la scritta semplice se manca
+spazio per cinque righe. Il 60% centrale mostra le attività in corso,
 le deleghe concluse, gli strumenti usati e i checkpoint. Cambia pagina con
 **↑** e **↓**, oppure con `/caronte-panel prev` e `/caronte-panel next`.
-L’ultimo 20% mostra i totali del progetto per input, output, cache read, cache
-write e la stima del costo in USD riportata da Claude Code.
+L’ultimo 20% mostra il nome della cartella radice del repository Git, i totali
+per input, output, cache read e cache write, e la stima del costo in USD
+riportata da Claude Code.
 
 Le schede delle deleghe e i contatori vengono salvati localmente a partire
 dalla prima sessione con questa versione della sidebar. Lo storico usa la

@@ -94,7 +94,11 @@ test('the terminal wordmark preserves the full 3D artwork when it fits', async (
   assert.ok(full[0].children.some(child => child.color === '#FFCD7F'));
   assert.ok(full.at(-1).children.some(child => child.color === '#512318'));
   assert.match(lines(draw(24, 16)).join(''), /CARONTE/);
-  assert.match(lines(draw(40, 36)).join(''), /\|___/);
+  const compact = draw(40, 36).children.slice(0, -2);
+  assert.equal(compact.length, 5);
+  assert.match(lines(compact[0]).join(''), /###.*##.*###.*##.*#### ####/);
+  assert.ok(compact[0].children.some(child => child.color === '#FFCD7F'));
+  assert.ok(compact[4].children.some(child => child.color === '#7D3418'));
 });
 
 test('the ASCII view preserves every column and row of the artwork at any panel width', async () => {
@@ -294,17 +298,17 @@ test('the project history restores completed activity and counts resumed turns a
     input_tokens: input, output_tokens: output, cache_read_input_tokens: read, cache_creation_input_tokens: write,
   });
   const next = async () => ({});
-  function launch(id, root, roster = []) {
+  function launch(id, root, roster = [], repoRoot = root) {
     const hooks = new Map();
     register((event, match, handler) => hooks.set(event, handler || match));
     let cost;
     let mtime = 0;
     const api = {
       agent: { list: async () => roster },
-      session: { id: async () => id, root: async () => root, repo: async () => null, usage: async () => ({ cost }) },
+      session: { id: async () => id, root: async () => root, repo: async () => ({ root: repoRoot }), usage: async () => ({ cost }) },
       fs: {
         stat: async file => {
-          if (file === root + '/.git') return { kind: 'dir', realPath: file };
+          if (file === repoRoot + '/.git') return { kind: 'dir', realPath: file };
           throw Error('Unavailable');
         },
         write: async (file, data) => files.set(file, { data, mtimeMs: ++mtime }),
@@ -350,9 +354,13 @@ test('the project history restores completed activity and counts resumed turns a
   await second.emit('turn.complete', { turnId: 'main', usage: usage(1, 2, 3, 4) });
   await second.measure(0.50);
   panel = await second.render();
-  assert.match(panel, /\$1,75/);
+  assert.match(panel, /project · costo stim\. \$1,75/);
   assert.match(panel, /Input +16[\s\S]*Output +28[\s\S]*Cache read +40[\s\S]*Cache write +52/);
   const other = launch('second', '/other-project');
   await other.start(true);
   assert.match(await other.render(), /In attesa di una delega[\s\S]*costo stim\. —[\s\S]*Input +0/);
+  const windows = launch('windows', 'C:\\git\\worktrees\\feature', [], 'C:\\git\\TEST');
+  await windows.start(true);
+  await windows.measure(0.25);
+  assert.match(await windows.render(), /TEST · costo stim\. \$0,25/);
 });

@@ -91,7 +91,13 @@ async function scope($, board) {
     board.session = session;
     board.root = root;
     board.state = undefined;
-    board.history = historyDirectory($, root).then(directory => createHistory(directory, session)).catch(() => null);
+    board.history = $.session.repo().catch(() => null).then(repo => {
+      const repoRoot = repo?.root ?? root;
+      if (board.session === session && board.root === root) {
+        board.projectName = repoRoot.split(/[/\\]/).filter(Boolean).at(-1);
+      }
+      return historyDirectory($, repoRoot);
+    }).then(directory => createHistory(directory, session)).catch(() => null);
     board.project = null;
   }
   return board.history;
@@ -171,7 +177,7 @@ async function updateBoard($, board, force) {
   const visible = [...cards, ...historical].sort((a, b) =>
     Number(isActive(b.status)) - Number(isActive(a.status)) ||
     (b.recordedAt ?? b.start ?? 0) - (a.recordedAt ?? a.start ?? 0));
-  const summary = { cards: visible, tokens: board.project.tokens, usd: board.project.usd };
+  const summary = { cards: visible, tokens: board.project.tokens, usd: board.project.usd, projectName: board.projectName };
   if (board.open && board.plans === plans && JSON.stringify(summary) !== board.rendered) {
     board.rendered = JSON.stringify(summary);
     board.cards = visible;
