@@ -11,11 +11,7 @@ const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
 const localSettingsFile = '.claude/settings.local.json';
 const installationFile = '.claude-routing-backups/caronte-install.json';
-const sidebarArtwork = new Set([
-  '.claude/skills/caronte-panel/assets/ferryman.svg',
-  '.claude/skills/caronte-panel/hooks/ferryman.js',
-  '.claude/skills/caronte-panel/hooks/wordmark.js',
-]);
+const sidebarPath = '.claude/skills/caronte-panel/';
 function kitAsset(rel) {
   return rel.startsWith('.claude/') &&
     !['.claude/settings.json', localSettingsFile].includes(rel.toLowerCase()) &&
@@ -42,7 +38,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   const readSource = rel => snapshot ? snapshot.files.get(rel) : fs.readFileSync(path.join(source, rel));
   const previous = JSON.parse(readSource('previous-files.json'));
   const changes = [];
-  const backedUpArtwork = [];
+  const backedUpSidebar = [];
   function readTarget(rel) {
     const p = filePath(root, rel);
     const stat = fs.lstatSync(p, { throwIfNoEntry: false });
@@ -68,10 +64,10 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
       const digest = hash(before);
       const normalized = hash(before.toString('utf8').replace(/\r\n/g, '\n'));
       if (![digest, normalized].some(value => known.includes(value))) {
-        if (!installed || !sidebarArtwork.has(rel)) {
+        if (!installed || !rel.startsWith(sidebarPath)) {
           throw Error('Conflitto, file personalizzato: ' + rel + '. Nessuna modifica applicata.');
         }
-        backedUpArtwork.push(rel);
+        backedUpSidebar.push(rel);
       }
     }
     plan(rel, content, target);
@@ -187,7 +183,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   if (snapshot) plan(installationFile, Buffer.from(JSON.stringify({ revision: snapshot.revision }) + '\n'));
   summary.changed = changes.map(x => x.rel);
   if (snapshot) summary.revision = snapshot.revision;
-  if (backedUpArtwork.length) summary.backedUpArtwork = backedUpArtwork;
+  if (backedUpSidebar.length) summary.backedUpSidebar = backedUpSidebar;
   for (const repo of repositories) {
     if (repo.report.status === 'planned' || repo.exclude || repo.report.runtime === 'planned') summary.changed.push(repo.spec.location);
   }

@@ -94,7 +94,7 @@ test('legacy sidebar releases upgrade without a revision marker and still reject
   const localArtwork = original['ferryman.js'] + '// Local edit\r\n';
   write(project, ferryman, localArtwork);
   const update = install(project);
-  assert.deepEqual(update.backedUpArtwork, [ferryman]);
+  assert.deepEqual(update.backedUpSidebar, [ferryman]);
   assert.equal(read(project, path.join(update.backup, ferryman)), localArtwork);
   assert.equal(read(project, ferryman), read(kit, ferryman));
 });
@@ -105,6 +105,9 @@ test('caronte start updates the project from its checkout before opening Headroo
   installOld(project);
   enable();
   const launcher = 'caronte.cjs';
+  const sidebarView = '.claude/skills/caronte-panel/hooks/view.js';
+  const localView = read(project, sidebarView) + '\n// Local sidebar copy.\n';
+  write(project, sidebarView, localView);
   write(remote, launcher, read(kit, launcher));
   write(remote, agent, read(project, agent) + '\nUpdate before launch.\n');
   const revision = commit(launcher, agent);
@@ -114,6 +117,10 @@ test('caronte start updates the project from its checkout before opening Headroo
   });
   assert.equal(result.status, 1);
   assert.match(result.stderr, /Caronte aggiornato alla revisione .*\nInterprete Python di Headroom non trovato/);
+  const backup = /File precedenti della sidebar salvati in ([^\r\n]+)\./.exec(result.stderr);
+  assert.ok(backup);
+  assert.equal(read(project, path.join(backup[1], sidebarView)), localView);
+  assert.equal(read(project, sidebarView), read(source, sidebarView));
   assert.equal(json(project, installationFile).revision, revision);
   assert.match(read(project, agent), /Update before launch/);
 });

@@ -65,7 +65,7 @@ Usa `caronte install-project --headroom-python` per riusare lo stesso ambiente d
 
 ## Aggiornamento automatico di Caronte
 
-Quando avvii con `caronte start` da un progetto già installato, Caronte applica la revisione del clone locale prima di aprire Claude Code. Se trova una versione del logo diversa da quella prevista, salva l’originale nel backup e installa il logo della nuova revisione. Le modifiche locali agli altri file gestiti continuano a richiedere una risoluzione del conflitto.
+Quando avvii con `caronte start` da un progetto già installato, Caronte applica la revisione del clone locale prima di aprire Claude Code. Se trova file della sidebar distribuiti dal kit che differiscono dalla versione attesa, li salva nel backup e installa quelli della nuova revisione. Le modifiche locali ai file gestiti fuori dalla sidebar continuano a richiedere una risoluzione del conflitto.
 
 Se avvii Claude Code direttamente, puoi ottenere lo stesso aggiornamento con l’hook utente.
 

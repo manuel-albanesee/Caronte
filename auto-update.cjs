@@ -145,13 +145,13 @@ function updateProject(target) {
     }
     const result = applyCheckout(root, revision, previous, false, null, false, true);
     if (!result.changed.some(file => file !== installationFile)) return null;
-    return { revision, backup: result.backedUpArtwork ? result.backup : undefined };
+    return { revision, backup: result.backedUpSidebar ? result.backup : undefined };
   });
 }
 
 function updateMessage(update) {
   return 'Caronte aggiornato alla revisione ' + update.revision.slice(0, 12) + '.' +
-    (update.backup ? ' Logo precedente salvato in ' + update.backup + '.' : '');
+    (update.backup ? ' File precedenti della sidebar salvati in ' + update.backup + '.' : '');
 }
 
 function configureAutoUpdate(enabled) {
