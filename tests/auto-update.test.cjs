@@ -3,8 +3,8 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
-const { spawnSync } = require('node:child_process');
-const { installationFile } = require('../install.cjs');
+const { execFileSync, spawnSync } = require('node:child_process');
+const { install, installationFile } = require('../install.cjs');
 
 const kit = path.resolve(__dirname, '..');
 const preUpdate = 'd78360d77b823e751dc6af36ddf58a8637e54921';
@@ -70,6 +70,28 @@ function fixture(t) {
   }
   return { base, remote, source, config, commit, installOld, enable };
 }
+
+test('legacy sidebar releases upgrade without a revision marker and still reject local edits', {
+  skip: spawnSync('git', ['-C', kit, 'cat-file', '-e', '596740a^{commit}']).status !== 0,
+}, t => {
+  const project = fs.mkdtempSync(path.join(os.tmpdir(), 'caronte sidebar '));
+  t.after(() => fs.rmSync(project, { recursive: true, force: true }));
+  const folder = '.claude/skills/caronte-panel/hooks/';
+  const original = {};
+  for (const file of ['ferryman.js', 'view.js', 'register.js']) {
+    const rel = folder + file;
+    original[file] = execFileSync('git', ['-C', kit, 'show', '596740a:' + rel], { encoding: 'utf8' }).replace(/\n/g, '\r\n');
+    write(project, rel, original[file]);
+  }
+  const ferryman = folder + 'ferryman.js';
+  write(project, ferryman, original['ferryman.js'] + '// Local edit\r\n');
+  assert.throws(() => install(project), /Conflitto, file personalizzato:.*ferryman\.js/);
+  assert.match(read(project, ferryman), /Local edit/);
+  write(project, ferryman, original['ferryman.js']);
+  assert.ok(install(project).changed.includes(ferryman));
+  assert.equal(read(project, ferryman), read(kit, ferryman));
+  assert.equal(read(project, folder + 'wordmark.js'), read(kit, folder + 'wordmark.js'));
+});
 
 test('one user hook updates legacy projects and worktrees after pulling Caronte', needsHistory, t => {
   const { base, remote, source, config, commit, installOld, enable } = fixture(t);
