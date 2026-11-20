@@ -53,9 +53,10 @@ test('the panel displays live activity, cumulative token categories and missing 
     assert.equal(totals.height, Math.round(rows * 0.2));
     assert.equal(logo.height + metrics.height + totals.height, rows);
     assert.equal(logo.children.at(-2).href, 'https://github.com/manuel-albanesee');
-    const artwork = lines(logo).slice(0, -2);
+    const artwork = logo.children.slice(0, -2).map(row => lines(row).join(''));
     assert.equal(artwork.length, logo.height - 2);
-    assert.ok(artwork.every(row => /^[ .:=+*#%@-]+$/.test(row) && row.length <= columns - 2));
+    assert.ok(artwork.join('').length >= 'CARONTE'.length);
+    assert.ok(artwork.every(row => row.length <= columns - 2));
     assert.match(lines(metrics).join('\n'), /SUBAGENT 1(?:\/2| attivi)/);
   }
 
@@ -68,6 +69,22 @@ test('the panel displays live activity, cumulative token categories and missing 
   assert.deepEqual(lines(first.tree.children[0]), lines(second.tree.children[0]));
   assert.match(lines(second.tree.children[1]).join('\n'), /Token —/);
   assert.equal(draw(40, 36, page).page, 0);
+});
+
+test('the terminal wordmark preserves the full 3D artwork when it fits', async () => {
+  const { drawPanel } = await view;
+  const { wordmark } = await import('../.claude/skills/caronte-panel/hooks/wordmark.js');
+  const draw = (columns, rows) => drawPanel({ Box: box, Text: box, Button: button, Link: link }, {
+    columns, rows, cards: [], page: 0,
+  }).tree.children[0];
+  const full = draw(49, 65).children.slice(0, -2);
+  assert.equal(wordmark.length, 11);
+  assert.equal(Math.max(...wordmark.map(row => row.length)), 47);
+  assert.deepEqual(full.map(row => lines(row).join('')), wordmark);
+  assert.ok(full[0].children.some(child => child.color === '#FFCD7F'));
+  assert.ok(full.at(-1).children.some(child => child.color === '#512318'));
+  assert.match(lines(draw(24, 16)).join(''), /CARONTE/);
+  assert.match(lines(draw(40, 36)).join(''), /\|___/);
 });
 
 test('the ASCII view preserves every column and row of the artwork at any panel width', async () => {

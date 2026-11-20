@@ -1,5 +1,6 @@
 import { ferryman, ferrymanWidth } from './ferryman.js';
 import { tokenFields, usageTotals } from './history.js';
+import { wordmark } from './wordmark.js';
 
 const aqua = '#74E4D9';
 const ink = '#EFF7FC';
@@ -9,6 +10,17 @@ const red = '#FF9B99';
 const good = '#A8EAA2';
 const warm = '#FFCA80';
 const background = '#000000';
+const wordmarkColors = {
+  '#': '#FFCD7F', '@': '#FFA446', '%': '#FF9934', '=': '#FF932E',
+  '\\': '#9C431E', '+': '#7D3418', '/': '#652A17', ':': '#512318',
+};
+const wordmarkWidth = Math.max(...wordmark.map(row => row.length));
+const compactWordmark = [
+  ' __   /\\  __   __       ___ __',
+  '|    /__\\ |_) |  | |\\ |  |  |_',
+  '|___ |  | | \\ |__| | \\|  |  |__',
+];
+const compactWidth = Math.max(...compactWordmark.map(row => row.length));
 export const githubProfile = 'https://github.com/manuel-albanesee';
 const palette = ' .:-=+*#%@';
 const firstArtRow = ferryman.findIndex(row => /\S/.test(row));
@@ -137,6 +149,21 @@ export function fitArtwork(columns, rows) {
   }).join(''));
 }
 
+function drawWordmark(Text, width, height) {
+  const full = height >= wordmark.length && width >= wordmarkWidth;
+  const art = full ? wordmark : height >= 3 && width >= compactWidth ? compactWordmark : ['CARONTE'];
+  const margin = Math.floor(Math.max(0, width - Math.max(...art.map(row => row.length))) / 2);
+  const top = Math.floor((height - art.length) / 2);
+  return Array.from({ length: height }, (_, index) => {
+    const row = art[index - top] ?? '';
+    const segments = full ? row.match(/(.)\1*/g) ?? [] : [row.slice(0, width)];
+    return Text({ wrap: 'truncate-end', children: [
+      ' '.repeat(margin),
+      ...segments.map(segment => Text({ color: full ? wordmarkColors[segment[0]] ?? warm : '#FFA446', children: [segment] })),
+    ] });
+  });
+}
+
 export function drawPanel({ Box, Text, Button, Link, Svg }, {
   columns, rows, cards, page, openArtwork, changePage, logoSource, projectTotals = { tokens: [0, 0, 0, 0], usd: null },
 }) {
@@ -157,13 +184,7 @@ export function drawPanel({ Box, Text, Button, Link, Svg }, {
       width: width * 8, height: artRows * 16,
     }));
   } else if (artRows) {
-    const art = fitArtwork(width, artRows);
-    const top = Math.floor((artRows - art.length) / 2);
-    for (let index = 0; index < artRows; index++) {
-      const row = art[index - top] ?? '';
-      const margin = Math.floor((width - row.length) / 2);
-      logo.push(Text({ color: warm, size: 'caption', wrap: 'truncate-end', children: [(' '.repeat(margin) + row).padEnd(width)] }));
-    }
+    logo.push(...drawWordmark(Text, width, artRows));
   }
   if (logoRows) logo.push(Link({ href: githubProfile }));
   if (logoRows > 2) logo.push(rule);

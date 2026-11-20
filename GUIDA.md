@@ -196,7 +196,9 @@ prompt. Lo stesso comando lo chiude anche durante una risposta.
 La sidebar ha sfondo nero. Il primo 20% contiene il logo e il link GitHub
 dell'autore. In Claude Desktop e nell’estensione Claude Code per VS Code il
 logo è un SVG dell’ASCII art originale su una griglia da 200 × 100. Nel
-terminale viene mostrata la miniatura ASCII. Il 60% centrale mostra le attività in corso,
+terminale viene mostrata la scritta CARONTE arancione. La versione 3D da 47 × 11
+caratteri compare quando il riquadro è abbastanza grande. Nei riquadri più
+piccoli compare una scritta compatta. Il 60% centrale mostra le attività in corso,
 le deleghe concluse, gli strumenti usati e i checkpoint. Cambia pagina con
 **↑** e **↓**, oppure con `/caronte-panel prev` e `/caronte-panel next`.
 L’ultimo 20% mostra i totali del progetto per input, output, cache read, cache
