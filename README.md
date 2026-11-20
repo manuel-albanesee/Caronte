@@ -55,3 +55,7 @@ Source-available (Caronte Source-Available License v2.0), not open source. Comme
 ## Built with
 
 Node.js (CommonJS hooks and CLI), Python (ICM scripts), Claude Code hooks and subagents, ECC, Headroom, RTK, `node:test`.
+
+## Technical documentation
+
+The full technical reference (architecture, commands, configuration) is in [TECHNICAL.md](TECHNICAL.md).
