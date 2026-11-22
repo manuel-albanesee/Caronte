@@ -24,7 +24,7 @@ function git(args, { input, statuses = [0] } = {}) {
 
 function checkoutRevision() {
   const result = git(['rev-parse', '--show-toplevel'], { statuses: [0, 128] });
-  if (result.status !== 0 || fs.realpathSync(result.stdout.toString('utf8').trim()) !== fs.realpathSync(source)) return null;
+  if (result.status !== 0 || fs.realpathSync.native(result.stdout.toString('utf8').trim()) !== fs.realpathSync.native(source)) return null;
   const revision = git(['rev-parse', '--verify', 'HEAD']).stdout.toString('ascii').trim();
   if (!revisionPattern.test(revision)) throw Error('Revisione Git di Caronte non riconosciuta.');
   return revision;

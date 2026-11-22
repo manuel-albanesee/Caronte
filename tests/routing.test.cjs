@@ -8,9 +8,42 @@ const { parseBrief, inputMetadata, validate } = require('../.claude/hooks/valida
 const { loadRun, valid, gate, check, status } = require('../.claude/routing/icm.cjs');
 const { install } = require('../install.cjs');
 const { gateRtkStatus } = require('../.claude/hooks/sync-dependencies.cjs');
+// Isolate the suite from the developer's own Caronte installation (ECC full mode is set in the user's shell).
+delete process.env.CARONTE_ECC_FULL;
 const kit = path.resolve(__dirname, '..');
 const brief = 'OBIETTIVO: trova il chiamante\nINPUT: nessuno\nFATTI: errore riproducibile\nVINCOLI: sola lettura\nUSCITA: percorso e riga\nVERIFICA: identifica il chiamante e fermati';
 function temporary(t) { const p = fs.mkdtempSync(path.join(os.tmpdir(), 'routing test-')); t.after(() => fs.rmSync(p, { recursive: true, force: true })); return p; }
+// Windows cannot run shebang scripts: Headroom/Python fixtures are real .exe stubs that run a sibling "<exe>.js" with this Node.
+const win = process.platform === 'win32';
+const exeSuffix = win ? '.exe' : '';
+let stubFile;
+const stubBlocked = t => win && !stubExecutable() && (t.skip('Windows blocca gli eseguibili non firmati su questa macchina.'), true);
+function stubExecutable() {
+  if (stubFile !== undefined) return stubFile;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'caronte-stub-'));
+  const source = path.join(dir, 'stub.cs');
+  fs.writeFileSync(source, fs.readFileSync(path.join(__dirname, 'fixtures', 'stub.cs'), 'utf8').replaceAll('__NODE__', JSON.stringify(process.execPath)));
+  const csc = path.join(process.env.SystemRoot || 'C:\Windows', 'Microsoft.NET', 'Framework64', 'v4.0.30319', 'csc.exe');
+  const out = path.join(dir, 'stub.exe');
+  const built = spawnSync(csc, ['/nologo', '/target:exe', '/out:' + out, source], { encoding: 'utf8' });
+  assert.equal(built.status, 0, built.stdout + built.stderr);
+  // Managed machines (EDR, Smart App Control) may refuse to run unsigned executables: detect it instead of failing.
+  fs.writeFileSync(out + '.js', 'process.exitCode = 0;');
+  if (spawnSync(out, [], { windowsHide: true }).error) return (stubFile = null);
+  return (stubFile = out);
+}
+// Creates an executable fixture: a POSIX script (`posix`) or, on Windows, an .exe stub that runs `js`.
+function executable(file, posix, js) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  if (win) {
+    fs.copyFileSync(stubExecutable(), file);
+    fs.writeFileSync(file + '.js', js);
+  } else {
+    fs.writeFileSync(file, posix);
+    fs.chmodSync(file, 0o755);
+  }
+  return file;
+}
 function write(root, name, text) { const p = path.join(root, name); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); }
 function event(prompt = brief, type = 'Agent') { return { tool_name: type, tool_input: { prompt } }; }
 function fixture(t) {
@@ -149,28 +182,27 @@ test('install-project plans the full ECC and Headroom checkouts and preserves an
   assert.equal(fs.existsSync(path.join(root, checkout)), false);
 });
 
-test('a working Headroom environment is reused even if its version differs from the fresh install', {
-  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
-}, t => {
+test('a working Headroom environment is reused even if its version differs from the fresh install', t => {
+  if (stubBlocked(t)) return;
   const { setupHeadroom } = require('../headroom-setup.cjs');
   const root = temporary(t);
-  const bin = '.claude/vendor/headroom/.venv/bin/';
-  write(root, bin + 'python', '#!/bin/sh\ncase "$*" in *importlib.metadata*) echo 0.45.0;; *) exit 12;; esac\n');
-  write(root, bin + 'headroom', '#!/bin/sh\ntest "$1" = --version\n');
-  for (const name of ['python', 'headroom']) fs.chmodSync(path.join(root, bin, name), 0o755);
+  const bin = path.join(root, '.claude/vendor/headroom/.venv', win ? 'Scripts' : 'bin');
+  executable(path.join(bin, 'python' + exeSuffix), '#!/bin/sh\ncase "$*" in *importlib.metadata*) echo 0.45.0;; *) exit 12;; esac\n',
+    "if (process.argv.slice(2).join(' ').includes('importlib.metadata')) console.log('0.45.0'); else process.exitCode = 12;");
+  executable(path.join(bin, 'headroom' + exeSuffix), '#!/bin/sh\ntest "$1" = --version\n',
+    "process.exitCode = process.argv[2] === '--version' ? 0 : 1;");
   const plan = { report: { runtime: 'planned', version: '0.44.0' } };
   setupHeadroom(root, plan, false);
   assert.equal(plan.report.runtime, 'present');
   assert.equal(plan.report.version, '0.45.0');
 });
 
-test('install-project skips the Headroom checkout when the CLI is already on PATH', {
-  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
-}, t => {
+test('install-project skips the Headroom checkout when the CLI is already on PATH', t => {
+  if (stubBlocked(t)) return;
   const root = temporary(t);
-  write(root, 'bin/headroom', '#!/bin/sh\ncase "$*" in\n--version) echo "headroom, version 0.45.0";;\n"wrap claude --help") echo "Usage: headroom wrap claude";;\n*) exit 12;;\nesac\n');
-  const headroom = path.join(root, 'bin', 'headroom');
-  fs.chmodSync(headroom, 0o755);
+  const headroom = executable(path.join(root, 'bin', 'headroom' + exeSuffix),
+    '#!/bin/sh\ncase "$*" in\n--version) echo "headroom, version 0.45.0";;\n"wrap claude --help") echo "Usage: headroom wrap claude";;\n*) exit 12;;\nesac\n',
+    "const a = process.argv.slice(2).join(' ');\nif (a === '--version') console.log('headroom, version 0.45.0');\nelse if (a === 'wrap claude --help') console.log('Usage: headroom wrap claude');\nelse process.exitCode = 12;");
   const env = {
     ...process.env, PATH: path.dirname(headroom) + path.delimiter + process.env.PATH,
     CLAUDE_CONFIG_DIR: path.join(root, 'claude-user'),
@@ -183,9 +215,10 @@ test('install-project skips the Headroom checkout when the CLI is already on PAT
   assert.deepEqual(report, { executable: headroom, version: '0.45.0', status: 'external', runtime: 'present' });
   assert.ok(!changed.includes('.claude/vendor/headroom'));
 
-  const python = path.join(root, 'uv tools', 'headroom-ai', 'bin', 'python');
-  write(root, 'uv tools/headroom-ai/bin/python', '#!/bin/sh\ntest "$1 $2" = "-I -c" || exit 13\nshift 3\nexec ' + JSON.stringify(headroom) + ' "$@"\n');
-  fs.chmodSync(python, 0o755);
+  const python = executable(path.join(root, 'uv tools', 'headroom-ai', win ? 'Scripts' : 'bin', 'python' + exeSuffix),
+    '#!/bin/sh\ntest "$1 $2" = "-I -c" || exit 13\nshift 3\nexec ' + JSON.stringify(headroom) + ' "$@"\n',
+    "const a = process.argv.slice(2);\nif (a[0] !== '-I' || a[1] !== '-c') process.exit(13);\n" +
+    'process.exitCode = require("node:child_process").spawnSync(' + JSON.stringify(headroom) + ", a.slice(3), { stdio: 'inherit' }).status;");
   const viaPython = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'install-project', '--dry-run', '--headroom-python'], {
     cwd: root, env: { ...env, UV_TOOL_DIR: path.join(root, 'uv tools') }, encoding: 'utf8',
   });
@@ -195,13 +228,13 @@ test('install-project skips the Headroom checkout when the CLI is already on PAT
   assert.ok(!pythonPlan.changed.includes('.claude/vendor/headroom'));
 });
 
-test('Headroom in the user bin is selected automatically, and a blocked copy does not trigger another download', {
-  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
-}, t => {
+test('Headroom in the user bin is selected automatically, and a blocked copy does not trigger another download', t => {
+  if (stubBlocked(t)) return;
   const root = temporary(t);
   const user = temporary(t);
-  const executable = path.join(user, '.local', 'bin', 'headroom');
-  write(user, '.local/bin/headroom', '#!/bin/sh\nif [ "$1" = --version ]; then echo "Headroom v0.45.0" >&2; else echo "Help"; fi\n');
+  const userHeadroom = executable(path.join(user, '.local', 'bin', 'headroom' + exeSuffix),
+    '#!/bin/sh\nif [ "$1" = --version ]; then echo "Headroom v0.45.0" >&2; else echo "Help"; fi\n',
+    "if (process.argv[2] === '--version') console.error('Headroom v0.45.0'); else console.log('Help');");
   const script = [
     'require("node:os").homedir = () => process.argv[2];',
     'console.log(JSON.stringify(require(process.argv[1]).planHeadroom(process.cwd()).report));',
@@ -213,36 +246,35 @@ test('Headroom in the user bin is selected automatically, and a blocked copy doe
     assert.equal(result.status, 0, result.stderr);
     return JSON.parse(result.stdout);
   }
-  fs.chmodSync(executable, 0o755);
-  assert.deepEqual(report(), { executable, version: '0.45.0', status: 'external', runtime: 'present' });
-  fs.chmodSync(executable, 0o644);
+  assert.deepEqual(report(), { executable: userHeadroom, version: '0.45.0', status: 'external', runtime: 'present' });
+  if (win) fs.writeFileSync(userHeadroom, 'not executable'); // Windows reports an unrunnable .exe as UNKNOWN/EFTYPE.
+  else fs.chmodSync(userHeadroom, 0o644);
   assert.equal(report().runtime, 'unavailable');
   assert.deepEqual(fs.readdirSync(root), []);
 });
 
-test('caronte start launches Headroom directly and forwards Claude options', {
-  skip: process.platform === 'win32' ? 'The fixture uses a POSIX shebang.' : false,
-}, t => {
+test('caronte start launches Headroom directly and forwards Claude options', t => {
+  if (stubBlocked(t)) return;
   const root = temporary(t);
-  const executable = path.join(root, 'tools with spaces', 'headroom');
-  write(root, 'tools with spaces/headroom', [
+  const fixtureLines = [
     '#!/usr/bin/env node',
     'require("node:fs").appendFileSync("headroom-invocations", JSON.stringify(process.argv.slice(2)) + "\\n");',
     'const args = process.argv.slice(2);',
     'console.log(JSON.stringify({ args, memory: process.env.HEADROOM_CODE_MEMORY }));',
     'process.exitCode = 23;',
     '',
-  ].join('\n'));
-  fs.chmodSync(executable, 0o755);
-  write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: executable } }));
+  ];
+  const fixtureExecutable = file => executable(file, fixtureLines.join('\n'), fixtureLines.slice(1).join('\n'));
+  const headroomFile = fixtureExecutable(path.join(root, 'tools with spaces', 'headroom' + exeSuffix));
+  write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: headroomFile } }));
   const options = ['--verbose', '--resume', 'session id'];
-  function start(args, selected = executable, status = 23, expectedArgs = ['wrap', 'claude', ...args]) {
+  function start(args, selected = headroomFile, status = 23, expectedArgs = ['wrap', 'claude', ...args]) {
     const invocationsFile = path.join(root, 'headroom-invocations');
     fs.rmSync(invocationsFile, { force: true });
     const result = spawnSync(process.execPath, [path.join(kit, 'caronte.cjs'), 'start', ...args], {
       cwd: root, encoding: 'utf8', env: {
         ...process.env, HEADROOM_CODE_MEMORY: 'serena',
-        PATH: path.dirname(executable) + path.delimiter + process.env.PATH,
+        PATH: path.dirname(headroomFile) + path.delimiter + process.env.PATH,
         UV_TOOL_DIR: path.join(root, 'uv tools'),
       },
     });
@@ -258,19 +290,17 @@ test('caronte start launches Headroom directly and forwards Claude options', {
   assert.deepEqual(JSON.parse(start(options).stdout), { args: ['wrap', 'claude', ...options], memory: 'none' });
   const optedIn = ['--code-memory=serena', ...options];
   assert.deepEqual(JSON.parse(start(optedIn).stdout), { args: ['wrap', 'claude', ...optedIn], memory: 'serena' });
-  const blocked = path.join(root, 'unavailable', 'headroom');
-  write(root, 'unavailable/headroom', 'not executable');
-  fs.chmodSync(blocked, 0o644);
+  const blocked = path.join(root, 'unavailable', 'headroom' + exeSuffix);
+  write(root, 'unavailable/headroom' + exeSuffix, 'not executable');
+  if (!win) fs.chmodSync(blocked, 0o644);
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: blocked } }));
   const failed = start(options, blocked, 1);
-  assert.match(failed.stderr, /Avvio di Headroom fallito: .*EACCES/);
+  assert.match(failed.stderr, win ? /(?:UNKNOWN|EFTYPE|EPERM)/ : /Avvio di Headroom fallito: .*EACCES/);
   const pythonArgs = ['-I', '-c', 'from headroom.cli import main; main()', 'wrap', 'claude', ...options];
-  const python = start([`--headroom-python=${executable}`, ...options], executable, 23, pythonArgs);
+  const python = start([`--headroom-python=${headroomFile}`, ...options], headroomFile, 23, pythonArgs);
   assert.match(python.stderr, /Avvio Headroom tramite Python/);
   assert.deepEqual(JSON.parse(python.stdout), { args: pythonArgs, memory: 'none' });
-  const uvPython = path.join(root, 'uv tools', 'headroom-ai', 'bin', 'python');
-  fs.mkdirSync(path.dirname(uvPython), { recursive: true });
-  fs.copyFileSync(executable, uvPython);
+  const uvPython = fixtureExecutable(path.join(root, 'uv tools', 'headroom-ai', win ? 'Scripts' : 'bin', 'python' + exeSuffix));
   const detected = start(['--headroom-python', ...options], uvPython, 23, pythonArgs);
   assert.deepEqual(JSON.parse(detected.stdout), { args: pythonArgs, memory: 'none' });
   fs.rmSync(blocked);
@@ -767,4 +797,14 @@ test('ordered RTK replaces the old local hook and survives an installer rerun', 
     ] }] },
   }));
   assert.throws(() => install(root, false, setup), /hook RTK autonomi/);
+});
+
+test('la root del progetto è riconosciuta anche con un percorso 8.3 (nome corto di Windows)', { skip: process.platform !== 'win32' ? 'Solo Windows.' : false }, t => {
+  const { plan } = require('../.claude/routing/delivery.cjs');
+  const { root } = gitRepo(t);
+  write(root, 'app.txt', 'hello');
+  const script = "(New-Object -ComObject Scripting.FileSystemObject).GetFolder('" + root.replace(/'/g, "''") + "').ShortPath";
+  const short = spawnSync('powershell', ['-NoProfile', '-Command', script], { encoding: 'utf8' }).stdout.trim();
+  if (!short || short.toLowerCase() === root.toLowerCase()) return t.skip('I nomi 8.3 non sono attivi su questo volume.');
+  assert.doesNotThrow(() => plan(short, { profile: 'ecc-tdd-guide', files: ['app.txt'], tests: [], noTestsReason: 'Modifica di testo.' }));
 });

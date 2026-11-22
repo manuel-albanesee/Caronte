@@ -28,7 +28,7 @@ function planRepository(root, spec) {
   const installed = entry ? inspect(folder, spec) : null;
   const top = git(root, ['rev-parse', '--show-toplevel']);
   let exclude = null;
-  if (top.status === 0 && fs.realpathSync(top.stdout.trim()) === root &&
+  if (top.status === 0 && fs.realpathSync.native(top.stdout.trim()) === root &&
       git(root, ['check-ignore', '--quiet', '--', spec.location + '/']).status === 1) {
     const resolved = git(root, ['rev-parse', '--path-format=absolute', '--git-path', 'info/exclude']);
     if (resolved.status !== 0) throw Error('Impossibile individuare le esclusioni Git del progetto.');

@@ -26,8 +26,8 @@ function git(root, args, env = process.env) {
   return result.stdout;
 }
 function locate(root) {
-  root = fs.realpathSync(root);
-  const gitRoot = fs.realpathSync(git(root, ['rev-parse', '--show-toplevel']).trim());
+  root = fs.realpathSync.native(root);
+  const gitRoot = fs.realpathSync.native(git(root, ['rev-parse', '--show-toplevel']).trim());
   if (gitRoot !== root) throw Error('Esegui dalla root del worktree Git del progetto.');
   return { root, state: path.join(git(root, ['rev-parse', '--absolute-git-dir']).trim(), 'claude-routing-work') };
 }
@@ -204,7 +204,7 @@ function enforceWorker(root, event) {
     if (!spec.tests.length || event.tool_input?.command !== runner + ' check ' + grant.id) {
       throw Error('Il worker può eseguire solo il comando di test mirato del brief. La suite completa spetta all’orchestratore.');
     }
-    if (fs.realpathSync(event.cwd || root) !== repo.root) throw Error('Esegui il test dalla root del piano.');
+    if (fs.realpathSync.native(event.cwd || root) !== repo.root) throw Error('Esegui il test dalla root del piano.');
     if (event.tool_input?.run_in_background) throw Error('Il test mirato deve terminare prima della consegna.');
   } else {
     const target = event.tool_input?.file_path ?? event.tool_input?.notebook_path;
