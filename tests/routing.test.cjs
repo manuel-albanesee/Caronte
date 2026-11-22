@@ -8,6 +8,8 @@ const { parseBrief, inputMetadata, validate } = require('../.claude/hooks/valida
 const { loadRun, valid, gate, check, status } = require('../.claude/routing/icm.cjs');
 const { install } = require('../install.cjs');
 const { gateRtkStatus } = require('../.claude/hooks/sync-dependencies.cjs');
+// Isolate the suite from the developer's own Caronte installation (ECC full mode is set in the user's shell).
+delete process.env.CARONTE_ECC_FULL;
 const kit = path.resolve(__dirname, '..');
 const brief = 'OBIETTIVO: trova il chiamante\nINPUT: nessuno\nFATTI: errore riproducibile\nVINCOLI: sola lettura\nUSCITA: percorso e riga\nVERIFICA: identifica il chiamante e fermati';
 function temporary(t) { const p = fs.mkdtempSync(path.join(os.tmpdir(), 'routing test-')); t.after(() => fs.rmSync(p, { recursive: true, force: true })); return p; }
@@ -767,4 +769,14 @@ test('ordered RTK replaces the old local hook and survives an installer rerun', 
     ] }] },
   }));
   assert.throws(() => install(root, false, setup), /hook RTK autonomi/);
+});
+
+test('la root del progetto è riconosciuta anche con un percorso 8.3 (nome corto di Windows)', { skip: process.platform !== 'win32' ? 'Solo Windows.' : false }, t => {
+  const { plan } = require('../.claude/routing/delivery.cjs');
+  const { root } = gitRepo(t);
+  write(root, 'app.txt', 'hello');
+  const script = "(New-Object -ComObject Scripting.FileSystemObject).GetFolder('" + root.replace(/'/g, "''") + "').ShortPath";
+  const short = spawnSync('powershell', ['-NoProfile', '-Command', script], { encoding: 'utf8' }).stdout.trim();
+  if (!short || short.toLowerCase() === root.toLowerCase()) return t.skip('I nomi 8.3 non sono attivi su questo volume.');
+  assert.doesNotThrow(() => plan(short, { profile: 'ecc-tdd-guide', files: ['app.txt'], tests: [], noTestsReason: 'Modifica di testo.' }));
 });

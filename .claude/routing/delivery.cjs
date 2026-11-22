@@ -26,8 +26,8 @@ function git(root, args, env = process.env) {
   return result.stdout;
 }
 function locate(root) {
-  root = fs.realpathSync(root);
-  const gitRoot = fs.realpathSync(git(root, ['rev-parse', '--show-toplevel']).trim());
+  root = fs.realpathSync.native(root);
+  const gitRoot = fs.realpathSync.native(git(root, ['rev-parse', '--show-toplevel']).trim());
   if (gitRoot !== root) throw Error('Esegui dalla root del worktree Git del progetto.');
   return { root, state: path.join(git(root, ['rev-parse', '--absolute-git-dir']).trim(), 'claude-routing-work') };
 }
