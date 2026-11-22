@@ -35,12 +35,12 @@ function fixture(t) {
   const source = path.join(base, 'Caronte clone');
   const config = path.join(base, 'Claude settings');
   const env = { ...process.env, CLAUDE_CONFIG_DIR: config };
-  git(kit, 'clone', '-q', '--no-hardlinks', kit, remote);
+  git(kit, '-c', 'core.autocrlf=false', 'clone', '-q', '--no-hardlinks', kit, remote);
   git(remote, 'checkout', '-q', '-B', 'main', preUpdate);
   git(remote, 'config', 'user.name', 'Test');
   git(remote, 'config', 'user.email', 'test@example.com');
   git(remote, 'config', 'core.autocrlf', 'false');
-  git(remote, 'clone', '-q', '-b', 'main', remote, source);
+  git(remote, '-c', 'core.autocrlf=false', 'clone', '-q', '-b', 'main', remote, source);
 
   function commit(...files) {
     git(remote, 'add', '--', ...files);
