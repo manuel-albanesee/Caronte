@@ -93,13 +93,16 @@ function locateHeadroom(root, configured) {
   if (fs.existsSync(local)) return local;
 }
 
+// Windows reports an executable it refuses to run (policy, antivirus, corrupted file) as UNKNOWN or EFTYPE.
+const blockedCodes = process.platform === 'win32' ? ['EPERM', 'EACCES', 'UNKNOWN', 'EFTYPE'] : ['EPERM', 'EACCES'];
+
 function findExternalHeadroom(root) {
   let blocked = null;
   for (const executable of externalHeadroomExecutables()) {
     if (!fs.existsSync(executable)) continue;
     const probe = probeHeadroom(root, executable);
     if (probe.version) return { executable, version: probe.version };
-    if (['EPERM', 'EACCES'].includes(probe.code)) {
+    if (blockedCodes.includes(probe.code)) {
       blocked ??= { executable, error: 'Avvio di Headroom fallito (' + executable + '): ' + probe.error };
     }
   }
