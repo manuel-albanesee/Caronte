@@ -23,6 +23,20 @@ function queryTerms(text) {
   return [...seen].slice(0, 64);
 }
 
+// Cartella dell'indice: CARONTE_SKILL_INDEX se impostata, altrimenti quella condivisa di FastSkillRetrieval (~/.fsr/index/claude).
+function defaultIndex(env = process.env) {
+  if (env.CARONTE_SKILL_INDEX) return env.CARONTE_SKILL_INDEX;
+  return path.join(env.FSR_HOME || path.join(require('node:os').homedir(), '.fsr'), 'index', 'claude');
+}
+
+// Nome mostrato all'utente (es. "ecc:java-reviewer") al posto della cartella indicizzata (es. "agent--java-reviewer").
+function displayName(dir, name) {
+  try {
+    const map = JSON.parse(fs.readFileSync(path.join(dir, 'sources.json'), 'utf8'));
+    return map[name]?.name || name.replace(/^(?:agent|cmd)--/, '');
+  } catch { return name.replace(/^(?:agent|cmd)--/, ''); }
+}
+
 function openIndex(dir) {
   const file = path.join(dir, 'registry.sqlite3');
   if (!fs.existsSync(file)) return null;
@@ -46,4 +60,4 @@ function search(db, query, options = {}) {
     .map(r => ({ name: r.name, kind: r.kind, score: Number(r.score.toFixed(2)) }));
 }
 
-module.exports = { queryTerms, openIndex, search, DEFAULTS };
+module.exports = { queryTerms, openIndex, search, defaultIndex, displayName, DEFAULTS };

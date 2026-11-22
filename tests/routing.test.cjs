@@ -320,7 +320,7 @@ test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
   const settingsFile = '.claude/settings.local.json';
   for (const file of [
     '.claude', 'CLAUDE.md', 'install.cjs', 'previous-files.json', 'rtk-setup.cjs',
-    'ecc-setup.cjs', 'headroom-setup.cjs', 'repository-setup.cjs', 'terminal-ui.cjs',
+    'ecc-setup.cjs', 'headroom-setup.cjs', 'fsr-setup.cjs', 'repository-setup.cjs', 'terminal-ui.cjs',
   ]) {
     fs.cpSync(path.join(kit, file), path.join(source, file), { recursive: true });
   }

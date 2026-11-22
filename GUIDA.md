@@ -12,7 +12,7 @@ Nel clone permanente di Caronte esegui `npm link` una volta per collegare il com
 caronte install-project
 ```
 
-Il comando installa Caronte, ECC, Headroom e RTK nella cartella corrente. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
+Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella cartella corrente. FastSkillRetrieval è obbligatorio: viene scaricato dal [repository ufficiale](https://github.com/manuel-albanesee/FastSkillRetrieval) a una revisione fissata in `~/.fsr/venv` e richiede Python 3.13. Senza di lui l’installazione risulta incompleta. All’avvio di ogni sessione costruisce o aggiorna in background l’indice `~/.fsr/index/claude` (la prima volta circa 3 minuti); `CARONTE_FSR_AUTOINDEX=off` ferma l’indicizzazione e `CARONTE_SKILL_MODE=off` i suggerimenti. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
 
 Nel terminale interattivo Caronte mostra il logo ASCII arancione, una percentuale per ciascun componente, aggiornata al completamento delle fasi, e le percentuali di download degli strumenti che le espongono. Le copie riutilizzate sono indicate durante il controllo. I messaggi di avanzamento usano stderr. Il riepilogo JSON finale esce su stdout.
 
@@ -51,7 +51,7 @@ Il comando mostra il logo con il link GitHub e usa la copia Headroom selezionata
 
 L’avvio salta per impostazione predefinita la preparazione di Serena gestita da Headroom. Per abilitarla esplicitamente usa `caronte start --code-memory serena`. Caronte mostra il percorso scelto e lancia direttamente Headroom. Le verifiche della CLI avvengono durante l’installazione o con `caronte install-project --verify`. Se il percorso salvato è mancante, Caronte cerca Headroom nel PATH, in `.local/bin` e poi nella copia del progetto. Se Windows nega l’avvio dell’eseguibile selezionato, Caronte riporta l’errore.
 
-Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file, ECC, il runtime Headroom e l’hook RTK. Se un’installazione precedente aveva solo Caronte, riesegui `caronte install-project` per aggiungere le dipendenze.
+Puoi anche aprire Claude Code nella root del progetto e incollare il [prompt di installazione autonoma](INSTALL_PROMPT.md). `--verify` verifica i file, ECC, il runtime Headroom, FastSkillRetrieval e l’hook RTK. Se un’installazione precedente aveva solo Caronte, riesegui `caronte install-project` per aggiungere le dipendenze.
 
 Per avviare Headroom con il Python dell’installazione `uv` esistente, usa questo comando. Caronte cerca nella directory standard degli strumenti `uv` o in `UV_TOOL_DIR`, se impostata.
 

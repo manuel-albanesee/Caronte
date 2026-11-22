@@ -15,6 +15,10 @@ The original material is distributed under the [Caronte Source-Available License
 - [ECC](https://github.com/affaan-m/ECC) by **Affaan Mustafa** and contributors provides the upstream specialist profiles. Caronte ships selected upstream snapshots and corresponding adaptations. The original material retains [its MIT license](.claude/routing/ecc/LICENSE). The [manifest](.claude/routing/ecc/manifest.json) records the upstream revision and object hashes.
 - The original Caronte instructions and workflow layered on these profiles are covered by the root license. Independent use of the original MIT materials remains governed by their upstream licenses.
 
+## FastSkillRetrieval
+
+- [FastSkillRetrieval](https://github.com/manuel-albanesee/FastSkillRetrieval) by **Manuel Albanese** (@manuel-albanesee), released under the MIT license, builds and queries the local BM25 index of installed skills, agents and commands. Caronte does not bundle it: the installer fetches it from the official repository at a pinned commit into `~/.fsr/venv`, and only reads its index.
+
 ## Runtime integrations
 
-Caronte integrates with [Claude Code](https://code.claude.com/docs). Its installer can fetch [ECC](https://github.com/affaan-m/ECC), [Headroom](https://github.com/headroomlabs-ai/headroom), and [RTK](https://github.com/rtk-ai/rtk) from their upstream distributions. Each distribution retains its own terms. Caronte is an independent project.
+Caronte integrates with [Claude Code](https://code.claude.com/docs). Its installer can fetch [ECC](https://github.com/affaan-m/ECC), [Headroom](https://github.com/headroomlabs-ai/headroom), [RTK](https://github.com/rtk-ai/rtk), and [FastSkillRetrieval](https://github.com/manuel-albanesee/FastSkillRetrieval) from their upstream distributions. Each distribution retains its own terms. Caronte is an independent project.

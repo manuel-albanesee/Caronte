@@ -1,21 +1,21 @@
 'use strict';
 // UserPromptSubmit: cerca skill pertinenti nell'indice FastSkillRetrieval (sola lettura).
-// CARONTE_SKILL_INDEX = cartella di stato con registry.sqlite3; se manca o è illeggibile non fa nulla.
+// Indice: CARONTE_SKILL_INDEX, altrimenti ~/.fsr/index/claude (FastSkillRetrieval); se manca o è illeggibile non fa nulla.
 // CARONTE_SKILL_MODE = suggest (default: scrive solo il log) | inject (aggiunge il contesto al prompt) | off.
 const fs = require('node:fs');
 const path = require('node:path');
-const { openIndex, search } = require('../routing/skill-suggest.cjs');
+const { openIndex, search, defaultIndex, displayName } = require('../routing/skill-suggest.cjs');
 
 function run(event, env = process.env) {
   const mode = env.CARONTE_SKILL_MODE || 'suggest';
-  const dir = env.CARONTE_SKILL_INDEX;
-  if (mode === 'off' || !dir || typeof event.prompt !== 'string') return null;
+  const dir = defaultIndex(env);
+  if (mode === 'off' || typeof event.prompt !== 'string') return null;
   let db;
   try {
     db = openIndex(dir);
     if (!db) return null;
     const started = process.hrtime.bigint();
-    const hits = search(db, event.prompt);
+    const hits = search(db, event.prompt).map(hit => ({ ...hit, name: displayName(dir, hit.name) }));
     const ms = Number(process.hrtime.bigint() - started) / 1e6;
     const root = env.CLAUDE_PROJECT_DIR || event.cwd || process.cwd();
     const log = path.join(root, '.claude', 'skill-suggestions.jsonl');

@@ -72,7 +72,7 @@ test('validatore: suggestTools cerca sull\'OBIETTIVO, toglie i prefissi e degrad
   const dir = makeIndex();
   try {
     assert.deepEqual(suggestTools('postgres query optimization', { CARONTE_SKILL_INDEX: dir }), ['postgres-patterns']);
-    assert.deepEqual(suggestTools('postgres query optimization', {}), []);
+    assert.deepEqual(suggestTools('postgres query optimization', { FSR_HOME: path.join(dir, 'vuoto') }), []);
     assert.deepEqual(suggestTools('postgres query optimization', { CARONTE_SKILL_INDEX: path.join(dir, 'x') }), []);
   } finally { fs.rmSync(dir, { recursive: true, force: true }); }
 });

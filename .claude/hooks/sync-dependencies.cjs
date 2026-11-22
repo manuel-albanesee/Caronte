@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const { initialize, readStatus } = require('../routing/telemetry.cjs');
 const { sync } = require('../routing/dependencies.cjs');
 const { isGateGuardDisabled } = require('./gateguard-rtk.cjs');
+const { startIndexing } = require('../routing/fsr-index.cjs');
 const path = require('node:path');
 
 function gateRtkStatus(root, env = process.env) {
@@ -51,6 +52,10 @@ async function main() {
   const messages = Object.entries(result)
     .filter(([, status]) => status.changed)
     .map(([name, status]) => name.toUpperCase() + ' aggiornato a ' + status.version);
+  const indexing = startIndexing(root);
+  if (indexing.started && indexing.firstBuild) {
+    messages.push('FastSkillRetrieval: primo indice di skill, agent e comandi in costruzione in background (circa 3 minuti). Poi si aggiorna da solo quando cambia qualcosa');
+  }
   messages.unshift('Caronte: GateGuard → RTK ' + gateRtkStatus(root));
   messages.unshift(readStatus(root)
     ? 'Caronte: telemetria locale attiva nei metadati Git del worktree; copre questa sessione e i suoi subagent. Registra esiti e conteggi, non prompt o codice. Disattiva con /caronte-telemetry-off'

@@ -52,14 +52,15 @@ function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE', '
   }
   return meta;
 }
-// Suggerimenti opzionali: richiedono CARONTE_SKILL_INDEX; qualsiasi problema produce [] e non blocca il validatore.
+// Suggerimenti opzionali dall'indice FastSkillRetrieval (CARONTE_SKILL_INDEX o ~/.fsr/index/claude); qualsiasi problema produce [] e non blocca il validatore.
 function suggestTools(objective, env = process.env) {
   try {
-    if (!env.CARONTE_SKILL_INDEX || env.CARONTE_SKILL_MODE === 'off') return [];
-    const { openIndex, search } = require('../routing/skill-suggest.cjs');
-    const db = openIndex(env.CARONTE_SKILL_INDEX);
+    if (env.CARONTE_SKILL_MODE === 'off') return [];
+    const { openIndex, search, defaultIndex, displayName } = require('../routing/skill-suggest.cjs');
+    const dir = defaultIndex(env);
+    const db = openIndex(dir);
     if (!db) return [];
-    try { return search(db, objective).map(h => h.name.replace(/^(?:agent|cmd)--/, '')); } finally { db.close(); }
+    try { return search(db, objective).map(h => displayName(dir, h.name)); } finally { db.close(); }
   } catch { return []; }
 }
 function validate(event, root) {

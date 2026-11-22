@@ -50,6 +50,9 @@ Le fasi ICM registrano dipendenze e output. Alla ripresa, Caronte mostra l'obiet
 ### Una finestra di contesto più silenziosa
 RTK filtra l'output shell supportato e Caronte accorcia i log verbosi di test e build prima che arrivino a Claude. Le finestre di auto-compact sono configurate a 200k per la sessione principale e 100k per i worker inclusi. Il tuo comando di avvio Headroom continua a gestire la compressione del contesto lato richiesta. Sono controlli sul contesto, non limiti di spesa.
 
+### Gli strumenti giusti, senza caricare tutto il catalogo
+[FastSkillRetrieval](https://github.com/manuel-albanesee/FastSkillRetrieval) indicizza skill, agent e comandi installati. Caronte ne legge l'indice BM25 locale in pochi millisecondi e suggerisce all'orchestratore gli strumenti ECC pertinenti a una delega, senza portare l'intero catalogo nel contesto. L'indice si costruisce in background all'avvio della sessione e si aggiorna solo quando qualcosa cambia.
+
 ### Tutto sotto controllo, in tempo reale
 Un pannello laterale dentro Claude Code mostra l'attività dei subagent in corso e completata, i totali di progetto per token di input, output, cache-read e cache-write, e il costo stimato in USD riportato da Claude Code. Chiudere la sessione non fa perdere nulla: Caronte ripristina l'attività registrata localmente quando riapri il progetto.
 
@@ -85,7 +88,7 @@ Node.js, Vitest, Jest, pytest, .NET (con filtri VSTest), Maven e Gradle. Ogni pi
 
 ## Inizia
 
-**Requisiti:** Git, Node.js 22+, Python 3.11+ e Claude Code 2.1.327+. La prima installazione scarica le dipendenze da GitHub e dal Python Package Index. Su Windows, RTK viene installato tramite WinGet se manca.
+**Requisiti:** Git, Node.js 22+, Python 3.11+ e Claude Code 2.1.327+. FastSkillRetrieval è obbligatorio e richiede Python 3.13: senza di lui l'installazione risulta incompleta. La prima installazione scarica le dipendenze da GitHub e dal Python Package Index. Su Windows, RTK viene installato tramite WinGet se manca.
 
 ### Opzione 1: la CLI di Caronte (consigliata)
 
@@ -103,7 +106,7 @@ Poi, nella radice di ogni progetto da equipaggiare:
 caronte install-project
 ```
 
-Il comando installa Caronte, ECC, Headroom e RTK nella directory corrente. Per un'anteprima usa `caronte install-project --dry-run`, per un controllo `caronte install-project --verify`, e avvia Claude Code con `caronte start`.
+Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella directory corrente. Per un'anteprima usa `caronte install-project --dry-run`, per un controllo `caronte install-project --verify`, e avvia Claude Code con `caronte start`.
 
 ### Opzione 2: lascia che sia Claude Code a installarlo
 
@@ -123,7 +126,7 @@ node install.cjs "<project-root>" --verify
 
 Tieni `.claude/settings.local.json` e `.claude-routing-backups/` fuori dal controllo di versione. Poi avvia Claude Code dal worktree di destinazione e usa `/agents` e `/hooks` per vedere cosa ha caricato la sessione. I normali permessi di Claude Code restano validi.
 
-L'installer scarica la release completa di ECC in `.claude/skills/ecc/` e abilita il suo plugin nativo di Claude Code, preservando un'eventuale registrazione da marketplace. Riusa una CLI Headroom funzionante nel PATH, altrimenti la scarica in `.claude/vendor/headroom/` con la sua CLI proxy nella `.venv` del checkout. RTK usa per impostazione predefinita il modulo GateGuard del checkout ECC. Vedi la [guida all'installazione](GUIDA.md#installazione).
+L'installer scarica la release completa di ECC in `.claude/skills/ecc/` e abilita il suo plugin nativo di Claude Code, preservando un'eventuale registrazione da marketplace. Riusa una CLI Headroom funzionante nel PATH, altrimenti la scarica in `.claude/vendor/headroom/` con la sua CLI proxy nella `.venv` del checkout. RTK usa per impostazione predefinita il modulo GateGuard del checkout ECC. FastSkillRetrieval viene scaricato dal [repository ufficiale](https://github.com/manuel-albanesee/FastSkillRetrieval) a una revisione fissata e installato in `~/.fsr/venv`; l'indice sta in `~/.fsr/index/claude`. Con `CARONTE_SKILL_MODE=off` disattivi i suggerimenti, con `CARONTE_FSR_AUTOINDEX=off` l'indicizzazione in background, con `CARONTE_SKILL_INDEX` usi un'altra cartella di indice. Vedi la [guida all'installazione](GUIDA.md#installazione).
 
 ### Resta aggiornato in automatico
 
@@ -194,3 +197,4 @@ I materiali MIT inclusi mantengono le rispettive licenze. Vedi [NOTICE.md](NOTIC
 - **Jake Van Clief**, creatore di [ICM Architect](https://github.com/RinDig/icm-architect), e **Jake Van Clief e David McDermott**, autori dell'[articolo su ICM](https://arxiv.org/abs/2603.16021).
 - **Affaan Mustafa** e i [contributori di ECC](https://github.com/affaan-m/ECC) per i profili degli specialisti.
 - I [contributori di RTK](https://github.com/rtk-ai/rtk) per il filtraggio dell'output shell.
+- **Manuel Albanese**, autore di [FastSkillRetrieval](https://github.com/manuel-albanesee/FastSkillRetrieval) (licenza MIT), che fornisce l'indice di ricerca di skill, agent e comandi.
