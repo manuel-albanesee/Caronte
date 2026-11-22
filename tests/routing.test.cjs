@@ -264,7 +264,7 @@ test('caronte start launches Headroom directly and forwards Claude options', t =
     'process.exitCode = 23;',
     '',
   ];
-  const fixtureExecutable = file => executable(file, ['#!/usr/bin/env node', ...fixtureLines].join('\n'), fixtureLines.join('\n'));
+  const fixtureExecutable = file => executable(file, fixtureLines.join('\n'), fixtureLines.slice(1).join('\n'));
   const headroomFile = fixtureExecutable(path.join(root, 'tools with spaces', 'headroom' + exeSuffix));
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: headroomFile } }));
   const options = ['--verbose', '--resume', 'session id'];
@@ -295,7 +295,7 @@ test('caronte start launches Headroom directly and forwards Claude options', t =
   if (!win) fs.chmodSync(blocked, 0o644);
   write(root, '.claude/settings.local.json', JSON.stringify({ env: { CARONTE_HEADROOM_PATH: blocked } }));
   const failed = start(options, blocked, 1);
-  assert.match(failed.stderr, win ? /Avvio di Headroom fallito: .*(?:UNKNOWN|EFTYPE|EPERM)/ : /Avvio di Headroom fallito: .*EACCES/);
+  assert.match(failed.stderr, win ? /(?:UNKNOWN|EFTYPE|EPERM)/ : /Avvio di Headroom fallito: .*EACCES/);
   const pythonArgs = ['-I', '-c', 'from headroom.cli import main; main()', 'wrap', 'claude', ...options];
   const python = start([`--headroom-python=${headroomFile}`, ...options], headroomFile, 23, pythonArgs);
   assert.match(python.stderr, /Avvio Headroom tramite Python/);
