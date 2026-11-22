@@ -35,7 +35,7 @@ function parseBrief(prompt) {
   }
   return sections;
 }
-function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE']) {
+function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE', 'ECC_TOOLS']) {
   const meta = {}; let fence;
   for (const line of section.split('\n')) {
     const mark = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
@@ -64,6 +64,13 @@ function validate(event, root) {
     if (!kitProfile && !kitBrief) return;
   }
   const sections = parseBrief(prompt), meta = inputMetadata(sections.INPUT);
+  if (coexist) {
+    // Con ECC completo il coordinatore cerca gli strumenti ECC pertinenti (skill, agent, comandi) prima di delegare e li passa al subagent.
+    if (meta.ECC_TOOLS === undefined) throw Error('Cerca gli strumenti ECC pertinenti e indicali in INPUT con ECC_TOOLS: ["nome"], oppure ECC_TOOLS: [] se nessuno è pertinente.');
+    let tools;
+    try { tools = JSON.parse(meta.ECC_TOOLS); } catch { tools = null; }
+    if (!Array.isArray(tools) || tools.some(t => typeof t !== 'string' || !t.trim())) throw Error('ECC_TOOLS deve essere un array JSON di nomi di strumenti ECC.');
+  }
   if (meta.INPUT_FILES !== undefined) {
     const files = JSON.parse(meta.INPUT_FILES);
     if (!Array.isArray(files) || files.some(f => typeof f !== 'string')) throw Error('INPUT_FILES deve essere un array JSON di percorsi.');

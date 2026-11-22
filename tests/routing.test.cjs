@@ -93,8 +93,14 @@ test('ECC completo lascia funzionare i profili nativi, le loro sotto-deleghe gen
   const task = { tool_name: 'Agent', tool_input: { subagent_type: native.agent_type, prompt: 'Review the failing test.' } };
   assert.equal(fullEccHook(root, 'validate-agent-brief', task), '');
   assert.match(fullEccHook(root, 'validate-agent-brief', {
-    ...task, tool_input: { ...task.tool_input, prompt: brief },
+    ...task, tool_input: { ...task.tool_input, prompt: brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_TOOLS: []') },
   }).permissionDecisionReason, /sola lettura/);
+  assert.match(fullEccHook(root, 'validate-agent-brief', {
+    ...task, tool_input: { ...task.tool_input, prompt: brief },
+  }).permissionDecisionReason, /ECC_TOOLS/);
+  assert.match(fullEccHook(root, 'validate-agent-brief', {
+    ...task, tool_input: { ...task.tool_input, prompt: brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_TOOLS: ecc:tdd-workflow') },
+  }).permissionDecisionReason, /array JSON/);
   assert.equal(fullEccHook(root, 'validate-agent-brief', {
     ...native, ...task, tool_input: { subagent_type: 'general-purpose', prompt: 'Read the test output.' },
   }), '');
@@ -119,7 +125,7 @@ test('ECC completo conserva i limiti di un piano Caronte anche con un profilo de
   const { plan } = require('../.claude/routing/delivery.cjs');
   const type = 'ecc:tdd-guide';
   const planned = plan(root, { profile: type, files: ['app.txt'], tests: [], noTestsReason: 'Modifica di testo.' });
-  const prompt = brief.replace('VINCOLI: sola lettura', 'VINCOLI: solo app.txt\nCAPABILITY: write\nREVIEW_ID: ' + planned.id);
+  const prompt = brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_TOOLS: ["ecc:tdd-workflow"]').replace('VINCOLI: sola lettura', 'VINCOLI: solo app.txt\nCAPABILITY: write\nREVIEW_ID: ' + planned.id);
   assert.equal(fullEccHook(root, 'validate-agent-brief', {
     tool_name: 'Agent', tool_input: { subagent_type: type, prompt }, session_id: 'session',
   }), '');
