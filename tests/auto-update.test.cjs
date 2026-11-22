@@ -54,7 +54,7 @@ function fixture(t) {
   }
   function enable() {
     const updaterFiles = [
-      'install.cjs', 'auto-update.cjs', 'rtk-setup.cjs', 'ecc-setup.cjs', 'headroom-setup.cjs', 'repository-setup.cjs', 'terminal-ui.cjs',
+      'install.cjs', 'auto-update.cjs', 'rtk-setup.cjs', 'ecc-setup.cjs', 'headroom-setup.cjs', 'fsr-setup.cjs', 'repository-setup.cjs', 'terminal-ui.cjs',
     ];
     for (const name of updaterFiles) fs.copyFileSync(path.join(kit, name), path.join(remote, name));
     const revision = commit(...updaterFiles);

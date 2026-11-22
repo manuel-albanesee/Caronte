@@ -35,7 +35,7 @@ function parseBrief(prompt) {
   }
   return sections;
 }
-function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE', 'ECC_TOOLS']) {
+function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE', 'ECC_TOOLS', 'ECC_QUERY']) {
   const meta = {}; let fence;
   for (const line of section.split('\n')) {
     const mark = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
@@ -52,6 +52,17 @@ function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE', '
   }
   return meta;
 }
+// Suggerimenti opzionali dall'indice FastSkillRetrieval (CARONTE_SKILL_INDEX o ~/.fsr/index/claude); qualsiasi problema produce [] e non blocca il validatore.
+function suggestTools(objective, env = process.env) {
+  try {
+    if (env.CARONTE_SKILL_MODE === 'off') return [];
+    const { openIndex, search, defaultIndex, displayName } = require('../routing/skill-suggest.cjs');
+    const dir = defaultIndex(env);
+    const db = openIndex(dir);
+    if (!db) return [];
+    try { return search(db, objective).map(h => displayName(dir, h.name)); } finally { db.close(); }
+  } catch { return []; }
+}
 function validate(event, root) {
   if (!['Agent', 'Task'].includes(event.tool_name)) return;
   const { subagent_type: profile, prompt } = event.tool_input || {};
@@ -66,7 +77,13 @@ function validate(event, root) {
   const sections = parseBrief(prompt), meta = inputMetadata(sections.INPUT);
   if (coexist) {
     // Con ECC completo il coordinatore cerca gli strumenti ECC pertinenti (skill, agent, comandi) prima di delegare e li passa al subagent.
-    if (meta.ECC_TOOLS === undefined) throw Error('Cerca gli strumenti ECC pertinenti e indicali in INPUT con ECC_TOOLS: ["nome"], oppure ECC_TOOLS: [] se nessuno è pertinente.');
+    if (meta.ECC_TOOLS === undefined) {
+      // L'indice è in inglese: ECC_QUERY (parole chiave inglesi scelte dal coordinatore) rende la ricerca molto più precisa dell'OBIETTIVO in italiano.
+      const found = suggestTools(meta.ECC_QUERY || sections.OBIETTIVO);
+      throw Error('Cerca gli strumenti ECC pertinenti e indicali in INPUT con ECC_TOOLS: ["nome"], oppure ECC_TOOLS: [] se nessuno è pertinente.' +
+        (found.length ? ` Suggeriti dall'indice${meta.ECC_QUERY ? '' : ' (ricerca sull\'OBIETTIVO in italiano: poco affidabile)'} (verifica la pertinenza): ${JSON.stringify(found)}.` : '') +
+        (meta.ECC_QUERY ? '' : ' Per un risultato migliore aggiungi in INPUT ECC_QUERY: <3-6 parole chiave in inglese>, perché le descrizioni degli strumenti sono in inglese.'));
+    }
     let tools;
     try { tools = JSON.parse(meta.ECC_TOOLS); } catch { tools = null; }
     if (!Array.isArray(tools) || tools.some(t => typeof t !== 'string' || !t.trim())) throw Error('ECC_TOOLS deve essere un array JSON di nomi di strumenti ECC.');
@@ -108,4 +125,4 @@ function main() {
   }
 }
 if (require.main === module) main();
-module.exports = { parseBrief, inputMetadata, validate };
+module.exports = { parseBrief, inputMetadata, validate, suggestTools };

@@ -103,7 +103,7 @@ Then, in the root of each project you want to equip:
 caronte install-project
 ```
 
-This installs Caronte, ECC, Headroom and RTK in the current directory. Preview it with `caronte install-project --dry-run`, check it with `caronte install-project --verify`, and launch Claude Code with `caronte start`.
+This installs Caronte, ECC, Headroom, RTK and FastSkillRetrieval in the current directory. Preview it with `caronte install-project --dry-run`, check it with `caronte install-project --verify`, and launch Claude Code with `caronte start`.
 
 ### Option 2: let Claude Code install it
 
@@ -123,7 +123,7 @@ node install.cjs "<project-root>" --verify
 
 Keep `.claude/settings.local.json` and `.claude-routing-backups/` out of version control. Then start Claude Code from the target worktree and use `/agents` and `/hooks` to see what the session loaded. Your normal Claude Code permissions still apply.
 
-The installer downloads the full ECC release into `.claude/skills/ecc/` and enables its native Claude Code plugin, preserving an existing marketplace registration. It reuses a working Headroom CLI on PATH, or otherwise downloads it into `.claude/vendor/headroom/` with its proxy CLI in the checkout's `.venv`. RTK uses the GateGuard module from the ECC checkout by default. See the [installation guide](GUIDA.md#installazione).
+The installer downloads the full ECC release into `.claude/skills/ecc/` and enables its native Claude Code plugin, preserving an existing marketplace registration. It reuses a working Headroom CLI on PATH, or otherwise downloads it into `.claude/vendor/headroom/` with its proxy CLI in the checkout's `.venv`. RTK uses the GateGuard module from the ECC checkout by default. FastSkillRetrieval is mandatory: it is installed from its [official repository](https://github.com/manuel-albanesee/FastSkillRetrieval) at a pinned commit into `~/.fsr/venv` (Python 3.13), and an install without it is reported as incomplete. At each session start `sync-dependencies.cjs` runs `init-index --if-stale` in the background, so `~/.fsr/index/claude` is rebuilt only when skills, agents or commands changed; the `suggest-skills` and `validate-agent-brief` hooks read it read-only with `node:sqlite`. Env: `CARONTE_SKILL_INDEX`, `CARONTE_SKILL_MODE` (suggest, inject, off), `CARONTE_FSR_AUTOINDEX=off`, `FSR_HOME`. See the [installation guide](GUIDA.md#installazione).
 
 ### Stay up to date automatically
 

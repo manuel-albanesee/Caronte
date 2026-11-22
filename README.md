@@ -20,6 +20,7 @@ AI agents write code fast. Trusting the result is the slow part.
 - **Delivery by diff, not by report.** The orchestrator records a Git baseline and a test plan first. The worker runs only the targeted tests from that plan and produces a test receipt. The orchestrator then reads the real diff, checks the receipt against the current files and only after that runs the full suite.
 - **GateGuard integration.** Destructive or unexplained actions are blocked until the agent states what it will do and why. Shell output is filtered at the source through RTK.
 - **ICM runs.** Multi-stage work is resumable: a manifest, a gate before each stage and a check after its outputs, so a new session can restart from the last valid evidence.
+- **Skill retrieval.** [FastSkillRetrieval](https://github.com/manuel-albanesee/FastSkillRetrieval) indexes every installed skill, agent and command. Caronte reads that local BM25 index in a few milliseconds and suggests the relevant ECC tools for a delegation, instead of loading the whole catalogue into the context. The index builds itself in the background at session start and refreshes only when something changed.
 - **Subagent panel.** A sidebar shows what each subagent is doing, with token and cost totals.
 - **Local telemetry.** `node .claude/routing/telemetry.cjs dashboard` shows where time and tokens went.
 
@@ -33,7 +34,7 @@ AI agents write code fast. Trusting the result is the slow part.
 
 ## Install
 
-Requires Node.js 22+, Claude Code 2.1.327+ and Python 3.11+ for the ICM scripts.
+Requires Node.js 22+, Claude Code 2.1.327+ and Python 3.11+ for the ICM scripts. FastSkillRetrieval is mandatory and needs Python 3.13; an install without it is reported as incomplete.
 
 ```bash
 npm link                      # from the cloned repo
@@ -41,6 +42,8 @@ caronte install-project --dry-run
 caronte install-project --verify
 caronte start
 ```
+
+Each install fetches ECC, Headroom, RTK and FastSkillRetrieval from their official repositories (FastSkillRetrieval at a pinned commit, into `~/.fsr/venv`). Set `CARONTE_SKILL_MODE=off` to turn suggestions off, `CARONTE_FSR_AUTOINDEX=off` to stop the background indexing, or `CARONTE_SKILL_INDEX` to use another index folder.
 
 An alternative is `node install.cjs "<project-root>" --dry-run`. Tests: `node --test tests/*.test.cjs`.
 
@@ -54,7 +57,7 @@ Source-available (Caronte Source-Available License v2.0), not open source. Comme
 
 ## Built with
 
-Node.js (CommonJS hooks and CLI), Python (ICM scripts), Claude Code hooks and subagents, ECC, Headroom, RTK, `node:test`.
+Node.js (CommonJS hooks and CLI), Python (ICM scripts), Claude Code hooks and subagents, ECC, Headroom, RTK, FastSkillRetrieval, `node:test`.
 
 ## Technical documentation
 

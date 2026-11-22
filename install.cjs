@@ -6,6 +6,7 @@ const { filePath } = require('./.claude/routing/icm.cjs');
 const { prepareRtk, removeStandaloneRtk } = require('./rtk-setup.cjs');
 const { location: eccLocation, planEcc } = require('./ecc-setup.cjs');
 const { location: headroomLocation, planHeadroom, resolveHeadroomPython, setupHeadroom } = require('./headroom-setup.cjs');
+const { planFsr, setupFsr } = require('./fsr-setup.cjs');
 const { applyRepositories } = require('./repository-setup.cjs');
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
@@ -135,6 +136,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   const ecc = manageEcc ? planEcc(root, settings, project, configuredPaths.ecc) : null;
   if (headroomPython) progress?.('Headroom: verifico il runtime tramite Python da ' + headroomPython + '.', undefined, 'Headroom', 0);
   const headroom = manageEcc ? planHeadroom(root, configuredPaths.headroom, headroomPython) : null;
+  const fsr = manageEcc ? planFsr() : null;
   const repositories = [ecc, headroom].filter(plan => plan?.spec);
   for (const repo of repositories) {
     if (repo.report.status === 'present') progress?.(repo.spec.name + ': repository già presente, riuso la copia locale.', undefined, repo.spec.name, repo.spec.name === 'ECC' ? 100 : 25);
@@ -159,6 +161,10 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     } else if (headroom.report.runtime === 'planned') {
       progress?.('Headroom: runtime del progetto da completare.');
     }
+  }
+  if (fsr) {
+    summary.fsr = fsr.report;
+    if (fsr.report.status === 'present') progress?.('FastSkillRetrieval: già installato all’ultima revisione verificata.', undefined, 'FSR', 100);
   }
   if (overrides.length) summary.checkEnvironmentOverrides = overrides;
   settings.hooks ??= {};
@@ -187,7 +193,11 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   for (const repo of repositories) {
     if (repo.report.status === 'planned' || repo.exclude || repo.report.runtime === 'planned') summary.changed.push(repo.spec.location);
   }
-  if (dry || !summary.changed.length) return { dryRun: dry, ...summary };
+  if (dry || !summary.changed.length) {
+    // FastSkillRetrieval è opzionale: si installa dal repository ufficiale anche quando i file del kit non cambiano.
+    if (!dry && fsr?.report.status === 'planned') setupFsr(fsr, { progress });
+    return { dryRun: dry, ...summary };
+  }
   if (changes.length) progress?.('Aggiorno i file di Caronte nel progetto.', 2);
   const backupName = '.claude-routing-backups/' + new Date().toISOString().replace(/[:.]/g, '-') + '-' + process.pid;
   const backup = filePath(root, backupName); fs.mkdirSync(backup, { recursive: true });
@@ -209,6 +219,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
     throw e;
   }
   if (headroom?.report.runtime === 'planned') setupHeadroom(root, headroom, false, progress);
+  if (fsr?.report.status === 'planned') setupFsr(fsr, { progress });
   return { ...summary, backup: backupName };
 }
 async function cli(args) {
@@ -251,10 +262,10 @@ async function cli(args) {
     { manageEcc: true, progress, dependencyPaths, headroomPython });
   if (verify) {
     result.verified = result.changed.length === 0 && result.headroom.runtime === 'present' &&
-      result.rtk.hook === 'reused';
+      result.fsr?.status === 'present' && result.rtk.hook === 'reused';
     if (!result.verified) process.exitCode = 1;
   } else if (!dry) {
-    if (result.rtk.error || result.headroom.error) {
+    if (result.rtk.error || result.headroom.error || result.fsr?.error) {
       process.exitCode = 1;
       progress('Installazione incompleta. Il riepilogo indica le dipendenze da verificare.');
     } else {
