@@ -106,7 +106,7 @@ Poi, nella radice di ogni progetto da equipaggiare:
 caronte install-project
 ```
 
-Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella directory corrente. Per un'anteprima usa `caronte install-project --dry-run`, per un controllo `caronte install-project --verify`, e avvia Claude Code con `caronte start`.
+Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella directory corrente. Per un'anteprima usa `caronte install-project --dry-run`, per un controllo `caronte install-project --verify`, e avvia Claude Code con `caronte start`. Per aggiornare un progetto già installato esegui `caronte update` dalla sua root, a sessione chiusa: applica la revisione committata del clone locale di Caronte e aggiorna ECC, RTK, FastSkillRetrieval e il runtime Headroom del progetto.
 
 ### Opzione 2: lascia che sia Claude Code a installarlo
 

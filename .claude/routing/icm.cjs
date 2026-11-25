@@ -30,6 +30,9 @@ function loadRun(root, name) {
     for (const p of [s.contract, ...s.inputs, ...s.outputs]) filePath(root, p);
     if (!s.verify || typeof s.verify.command !== 'string' || !s.verify.command.trim() || !Array.isArray(s.verify.args) || s.verify.args.some(a => typeof a !== 'string')) throw Error('Verifica senza comando e args validi: ' + s.id);
     if (s.verify.timeoutMs !== undefined && (!Number.isInteger(s.verify.timeoutMs) || s.verify.timeoutMs < 1 || s.verify.timeoutMs > 600000)) throw Error('timeoutMs deve essere tra 1 e 600000.');
+    // Facoltativi: profilo del worker assegnato alla fase e classe di routing (vedi policy.json); fanno parte dell'inputStamp.
+    if (s.profile !== undefined && (typeof s.profile !== 'string' || !/^[\w:.-]+$/.test(s.profile))) throw Error('profile di fase non valido: ' + s.id);
+    if (s.class !== undefined && (typeof s.class !== 'string' || !/^[\w-]+$/.test(s.class))) throw Error('class di fase non valida: ' + s.id);
     seen.add(s.id);
   }
   const dirName = path.relative(root, path.join(path.dirname(manifest), '.state-' + data.runId));

@@ -1,7 +1,8 @@
 const fs = require('node:fs');
 const { toolEvent } = require('../routing/telemetry.cjs');
 const { gate, loadRun, filePath } = require('../routing/icm.cjs');
-const { authorize, writingProfiles, readingProfiles, eccFull, isKitProfile, isManagedWorker } = require('../routing/delivery.cjs');
+const { authorize, writingProfiles, readingProfiles, eccFull, isKitProfile, isManagedWorker, loadPlan } = require('../routing/delivery.cjs');
+const policyRules = require('../routing/policy.cjs');
 const fields = ['OBIETTIVO', 'INPUT', 'FATTI', 'VINCOLI', 'USCITA', 'VERIFICA'];
 const empty = /^(?:todo|tbd|n\/?a|da (?:definire|compilare)|placeholder|\.{3}|…|\?|<[^>]+>|\{[^}]+\})[.!]?$/i;
 function parseBrief(prompt) {
@@ -35,7 +36,7 @@ function parseBrief(prompt) {
   }
   return sections;
 }
-function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE', 'ECC_TOOLS', 'ECC_QUERY']) {
+function inputMetadata(section, keys = ['INPUT_FILES', 'ICM_RUN', 'ICM_STAGE', 'ECC_TOOLS', 'ECC_QUERY', 'ICM_SKIP']) {
   const meta = {}; let fence;
   for (const line of section.split('\n')) {
     const mark = line.match(/^ {0,3}(`{3,}|~{3,})(.*)$/);
@@ -66,6 +67,8 @@ function suggestTools(objective, env = process.env) {
 function validate(event, root) {
   if (!['Agent', 'Task'].includes(event.tool_name)) return;
   const { subagent_type: profile, prompt } = event.tool_input || {};
+  // Policy di delega: nessun agent è respinto per nome; classe e tetto di modello si controllano dopo il parsing del brief.
+  const policy = policyRules.load(root);
   const coexist = eccFull();
   const kitProfile = isKitProfile(profile);
   if (coexist) {
@@ -93,20 +96,30 @@ function validate(event, root) {
     if (!Array.isArray(files) || files.some(f => typeof f !== 'string')) throw Error('INPUT_FILES deve essere un array JSON di percorsi.');
     for (const f of files) filePath(root, f, true);
   }
+  let stage = null, run = null;
   if (meta.ICM_RUN !== undefined || meta.ICM_STAGE !== undefined) {
     if (!meta.ICM_RUN || !meta.ICM_STAGE) throw Error('Specifica sia ICM_RUN sia ICM_STAGE.');
-    gate(loadRun(root, meta.ICM_RUN), meta.ICM_STAGE);
+    run = loadRun(root, meta.ICM_RUN);
+    stage = gate(run, meta.ICM_STAGE);
   }
-  const { CAPABILITY, REVIEW_ID } = inputMetadata(sections.VINCOLI, ['CAPABILITY', 'REVIEW_ID']);
+  const constraints = inputMetadata(sections.VINCOLI, ['CAPABILITY', 'REVIEW_ID', 'ROUTING', 'ESCALATION']);
+  const { CAPABILITY, REVIEW_ID } = constraints;
   if (coexist && !kitProfile && CAPABILITY !== 'write' && REVIEW_ID === undefined) {
     throw Error('Usa un profilo Caronte per una delega gestita in sola lettura, oppure assegna un piano di scrittura con REVIEW_ID.');
   }
   if (writingProfiles.has(profile) && CAPABILITY !== 'write') throw Error('Il profilo di sviluppo richiede CAPABILITY: write e REVIEW_ID.');
-  if (CAPABILITY === 'write' || REVIEW_ID !== undefined) {
+  const write = CAPABILITY === 'write' || REVIEW_ID !== undefined;
+  if (write) {
     if (readingProfiles.has(profile)) throw Error('Destinatario in sola lettura. Usa un worker implementazione.');
     if (CAPABILITY !== 'write' || !REVIEW_ID) throw Error('Una delega di scrittura richiede CAPABILITY: write e REVIEW_ID: <id>.');
-    authorize(root, REVIEW_ID, event);
   }
+  if (policy) {
+    // Prima di authorize, che registra la delega attiva: classe, profilo, modello, limiti e fase ICM.
+    let plan = null;
+    if (write) { try { plan = loadPlan(root, REVIEW_ID); } catch { /* il piano mancante è segnalato da authorize */ } }
+    policyRules.checkRouting(policy, root, event, { constraints, meta, stage, run, plan, activeRuns: write ? policyRules.activeRuns(root) : [] });
+  }
+  if (write) authorize(root, REVIEW_ID, event);
 }
 function main() {
   let event, root;
@@ -117,8 +130,8 @@ function main() {
   } catch (error) {
     if (event && root) {
       const message = error.message;
-      const reason = /ICM|manifest|dipendenz/i.test(message) ? 'icm_gate'
-        : /REVIEW_ID|piano|baseline|orchestratore|delega scrivibile/i.test(message) ? 'review_plan' : 'brief_invalid';
+      const reason = error.reason || (/ICM|manifest|dipendenz/i.test(message) ? 'icm_gate'
+        : /REVIEW_ID|piano|baseline|orchestratore|delega scrivibile/i.test(message) ? 'review_plan' : 'brief_invalid');
       toolEvent(root, event, 'blocked', reason);
     }
     process.stdout.write(JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: `${error.message} Brief: ${fields.join(', ')}. Conserva i letterali in blocchi di codice.` } }));

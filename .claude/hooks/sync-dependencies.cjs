@@ -49,9 +49,14 @@ async function main() {
     process.stderr.write('Aggiornamento dipendenze del kit: ' + error.message + '\n');
     return {};
   });
+  const labels = { ecc: 'ECC', rtk: 'RTK', fsr: 'FastSkillRetrieval', headroom: 'Headroom' };
   const messages = Object.entries(result)
     .filter(([, status]) => status.changed)
-    .map(([name, status]) => name.toUpperCase() + ' aggiornato a ' + status.version);
+    .map(([name, status]) => (labels[name] || name) + ' aggiornato a ' + status.version);
+  const pending = Object.entries(result)
+    .filter(([name, status]) => !status.changed && status.pending && ['fsr', 'headroom'].includes(name))
+    .map(([name, status]) => labels[name] + ' ' + status.pending);
+  if (pending.length) messages.push('Disponibili ' + pending.join(', ') + ': esegui caronte update nella root del progetto a sessione chiusa');
   const indexing = startIndexing(root);
   if (indexing.started && indexing.firstBuild) {
     messages.push('FastSkillRetrieval: primo indice di skill, agent e comandi in costruzione in background (circa 3 minuti). Poi si aggiorna da solo quando cambia qualcosa');

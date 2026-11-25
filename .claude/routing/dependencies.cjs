@@ -5,7 +5,18 @@ const crypto = require('node:crypto');
 const { spawnSync } = require('node:child_process');
 const bundled = require('./ecc/manifest.json');
 
-const repositories = { ecc: 'affaan-m/ECC', rtk: 'rtk-ai/rtk' };
+const { fsrPython } = require('./fsr-index.cjs');
+
+const repositories = {
+  ecc: 'affaan-m/ECC', rtk: 'rtk-ai/rtk',
+  fsr: 'manuel-albanesee/FastSkillRetrieval', headroom: 'headroomlabs-ai/headroom',
+};
+// Componenti che la SessionStart aggiorna da sola. FastSkillRetrieval (pip da Git, minuti) e Headroom
+// (eseguibile in uso durante caronte start) sono solo segnalati e si aggiornano con caronte update.
+const sessionApply = ['ecc', 'rtk'];
+const headroomVenv = '.claude/vendor/headroom/.venv';
+const fsrVerify = 'import fastskillretrieval.agent_index, fastskillretrieval.install_agent';
+const headroomRuntime = 'import importlib.metadata as m\nm.version("fastapi")\nm.version("uvicorn")\nprint(m.version("headroom-ai"))';
 const sha = /^[0-9a-f]{40}$/;
 const read = file => JSON.parse(fs.readFileSync(file, 'utf8'));
 function version(value) {
@@ -37,12 +48,12 @@ function currentEcc(dir) {
   return bundled;
 }
 async function api(repo, route) {
-  const response = await fetch('https://api.github.com/repos/' + repo + '/' + route, {
+  const response = await fetch('https://api.github.com/repos/' + repo + (route ? '/' + route : ''), {
     headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'claude-routing-kit' },
     redirect: 'error',
     signal: AbortSignal.timeout(4000),
   });
-  if (!response.ok) throw Error('GitHub HTTP ' + response.status);
+  if (!response.ok) throw Object.assign(Error('GitHub HTTP ' + response.status), { status: response.status });
   return response.json();
 }
 async function stableRelease(get, repository) {
@@ -51,23 +62,24 @@ async function stableRelease(get, repository) {
   if (!tag || release.draft || release.prerelease) throw Error('Release stabile non valida.');
   return { tag: release.tag_name, version: tag };
 }
-async function blob(get, file, commit) {
-  const entry = await get(repositories.ecc, 'contents/' + file + '?ref=' + commit);
+async function blob(get, file, commit, repo = repositories.ecc) {
+  const entry = await get(repo, 'contents/' + file + '?ref=' + commit);
   if (entry.type !== 'file' || entry.encoding !== 'base64' || typeof entry.content !== 'string' || entry.content.length > 180000) {
-    throw Error('File ECC inatteso: ' + file);
+    throw Error('File inatteso in ' + repo + ': ' + file);
   }
   const bytes = Buffer.from(entry.content, 'base64');
   const digest = crypto.createHash('sha1').update('blob ' + bytes.length + '\0').update(bytes).digest('hex');
   if (digest !== entry.sha) throw Error('Hash Git incoerente: ' + file);
   return bytes;
 }
-async function updateEcc(dir, get) {
+async function updateEcc(dir, get, apply = true) {
   const current = currentEcc(dir);
   const candidate = await stableRelease(get, repositories.ecc);
   if (!newer(candidate.version, current.version)) return { version: current.version, changed: false };
   if (candidate.version.split('.')[0] !== bundled.version.split('.')[0]) {
     throw Error('ECC ' + candidate.version + ' cambia major. In uso ECC ' + current.version + '.');
   }
+  if (!apply) return { version: current.version, changed: false, pending: candidate.version };
 
   const commit = (await get(repositories.ecc, 'commits/' + candidate.tag)).sha;
   if (!sha.test(commit || '')) throw Error('Commit ECC non valido.');
@@ -106,7 +118,7 @@ function rtkVersion(exec, root) {
   const result = exec('rtk', ['--version'], root);
   return result.status === 0 ? version(result.stdout.trim().match(/^rtk\s+(v?\d+\.\d+\.\d+)\b/i)?.[1]) : null;
 }
-async function updateRtk(root, get, exec, platform) {
+async function updateRtk(root, get, exec, platform, apply = true) {
   const current = rtkVersion(exec, root);
   if (!current || exec('rtk', ['gain', '--help'], root).status !== 0) return { version: current, changed: false };
   const candidate = await stableRelease(get, repositories.rtk);
@@ -114,6 +126,7 @@ async function updateRtk(root, get, exec, platform) {
   if (candidate.version.split('.')[0] !== current.split('.')[0]) {
     throw Error('RTK ' + candidate.version + ' cambia major. In uso RTK ' + current + '.');
   }
+  if (!apply) return { version: current, changed: false, pending: candidate.version };
 
   let result;
   if (platform === 'win32') {
@@ -134,14 +147,100 @@ async function updateRtk(root, get, exec, platform) {
   }
   return { version: installed, changed: true };
 }
-async function sync(root, { get = api, exec = run, platform = process.platform, cache = cacheDirectory(root) } = {}) {
+function pipFailure(result) {
+  const lines = String(result.stderr || result.error?.message || '').trim().split(/\r?\n/).filter(Boolean);
+  return lines.slice(-2).join(' ').slice(0, 400) || 'codice ' + result.status;
+}
+// FastSkillRetrieval non pubblica release: senza una release stabile segue il ramo predefinito del repository ufficiale,
+// solo in avanti rispetto alla revisione installata e senza cambio di major.
+async function fsrCandidate(get) {
+  try {
+    const release = await stableRelease(get, repositories.fsr);
+    return { ref: release.tag, commit: (await get(repositories.fsr, 'commits/' + release.tag)).sha };
+  } catch (error) {
+    if (error.status !== 404) throw error;
+  }
+  const branch = (await get(repositories.fsr, '')).default_branch;
+  if (typeof branch !== 'string' || !branch) throw Error('Ramo predefinito di FastSkillRetrieval non valido.');
+  return { ref: branch, commit: (await get(repositories.fsr, 'commits/' + branch)).sha };
+}
+async function updateFsr(env, get, exec, apply) {
+  const python = fsrPython(env);
+  if (!fs.existsSync(python)) return { version: null, changed: false };
+  const marker = path.join(path.dirname(path.dirname(python)), 'caronte-fsr-revision');
+  let installed = null;
+  try { installed = fs.readFileSync(marker, 'utf8').trim(); } catch { /* installazione senza marker */ }
+  const home = os.homedir();
+  const versionOf = () => {
+    const result = exec(python, ['-I', '-c', 'import importlib.metadata as m; print(m.version("fastskillretrieval"))'], home, 15000);
+    return result.status === 0 ? result.stdout.trim() : null;
+  };
+  const current = versionOf();
+  if (!current) throw Error('FastSkillRetrieval installato ma non leggibile.');
+  const state = { version: current, revision: sha.test(installed || '') ? installed : null, changed: false };
+  const candidate = await fsrCandidate(get);
+  if (!sha.test(candidate.commit || '')) throw Error('Commit FastSkillRetrieval non valido.');
+  if (candidate.commit === state.revision) return state;
+  if (state.revision) {
+    const comparison = (await get(repositories.fsr, 'compare/' + state.revision + '...' + candidate.commit)).status;
+    if (comparison === 'behind' || comparison === 'identical') return state;
+    if (comparison !== 'ahead') throw Error('La revisione installata di FastSkillRetrieval non precede ' + candidate.ref + '.');
+  }
+  const project = (await blob(get, 'pyproject.toml', candidate.commit, repositories.fsr)).toString('utf8');
+  const next = project.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
+  if (!/^name\s*=\s*"fastskillretrieval"/m.test(project) || !next) throw Error('pyproject di FastSkillRetrieval inatteso.');
+  if (next.split('.')[0] !== current.split('.')[0]) throw Error('FastSkillRetrieval ' + next + ' cambia major. In uso ' + current + '.');
+  const pending = next + ' (' + candidate.commit.slice(0, 12) + ')';
+  if (!apply) return { ...state, pending };
+  const url = 'git+https://github.com/' + repositories.fsr + '.git@' + candidate.commit;
+  const pip = args => exec(python, ['-I', '-m', 'pip', '--disable-pip-version-check', 'install', '--no-input', ...args, url], home, 600000);
+  const verify = () => exec(python, ['-I', '-c', fsrVerify], home, 15000).status === 0;
+  // Stessa versione dichiarata con codice nuovo: reinstalla il pacchetto, poi completa le dipendenze solo se servono.
+  let result = pip(['--upgrade', '--force-reinstall', '--no-deps']);
+  if (result.status === 0 && !verify()) result = pip([]);
+  if (result.status !== 0 || !verify()) return { ...state, pending, error: 'Installazione FastSkillRetrieval fallita: ' + pipFailure(result) };
+  fs.writeFileSync(marker, candidate.commit + '\n');
+  return { version: versionOf() || next, revision: candidate.commit, changed: true };
+}
+// Aggiorna solo il runtime Headroom installato dal kit nel progetto; una CLI esterna (PATH, uv) resta al suo gestore.
+async function updateHeadroom(root, get, exec, platform, apply) {
+  const bin = path.join(root, headroomVenv, platform === 'win32' ? 'Scripts' : 'bin');
+  const python = path.join(bin, platform === 'win32' ? 'python.exe' : 'python');
+  if (!fs.existsSync(python)) return { version: null, changed: false };
+  const versionOf = () => {
+    const result = exec(python, ['-I', '-B', '-c', headroomRuntime], root, 15000);
+    return result.status === 0 ? version(result.stdout.trim()) : null;
+  };
+  const current = versionOf();
+  if (!current) throw Error('Runtime Headroom del progetto incompleto o con versione non riconosciuta.');
+  const candidate = await stableRelease(get, repositories.headroom);
+  if (!newer(candidate.version, current)) return { version: current, changed: false };
+  if (candidate.version.split('.')[0] !== current.split('.')[0]) {
+    throw Error('Headroom ' + candidate.version + ' cambia major. In uso Headroom ' + current + '.');
+  }
+  if (!apply) return { version: current, changed: false, pending: candidate.version };
+  const result = exec(python, ['-I', '-m', 'pip', '--disable-pip-version-check', 'install', '--no-input',
+    '--only-binary=headroom-ai', 'headroom-ai[proxy]==' + candidate.version], root, 600000);
+  const installed = versionOf();
+  const command = path.join(bin, platform === 'win32' ? 'headroom.exe' : 'headroom');
+  if (result.status !== 0 || installed !== candidate.version || exec(command, ['--version'], root, 15000).status !== 0) {
+    return { version: installed || current, changed: false, pending: candidate.version,
+      error: 'Installazione Headroom ' + candidate.version + ' fallita: ' + pipFailure(result) + ' Chiudi le sessioni avviate con caronte start e riprova.' };
+  }
+  return { version: installed, changed: true };
+}
+async function sync(root, {
+  get = api, exec = run, platform = process.platform, cache = cacheDirectory(root), env = process.env, apply = sessionApply,
+} = {}) {
   const safe = async operation => {
     try { return await operation(); }
     catch (error) { return { changed: false, error: error.message }; }
   };
   const results = {
-    ecc: cache ? await safe(() => updateEcc(cache, get)) : { version: bundled.version, changed: false },
-    rtk: await safe(() => updateRtk(os.homedir(), get, exec, platform)),
+    ecc: cache ? await safe(() => updateEcc(cache, get, apply.includes('ecc'))) : { version: bundled.version, changed: false },
+    rtk: await safe(() => updateRtk(os.homedir(), get, exec, platform, apply.includes('rtk'))),
+    fsr: await safe(() => updateFsr(env, get, exec, apply.includes('fsr'))),
+    headroom: await safe(() => updateHeadroom(root, get, exec, platform, apply.includes('headroom'))),
   };
   if (cache) {
     fs.mkdirSync(cache, { recursive: true });
@@ -169,4 +268,4 @@ if (require.main === module) {
     .then(result => console.log(JSON.stringify(result, null, 2)))
     .catch(error => { console.error(error.message); process.exitCode = 1; });
 }
-module.exports = { sync, profileReference };
+module.exports = { sync, profileReference, sessionApply };

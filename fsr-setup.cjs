@@ -39,10 +39,11 @@ function execute(run, exe, args, timeout, live = false) {
 }
 
 function current(run, location) {
-  if (!fs.existsSync(location.python)) return false;
+  if (!fs.existsSync(location.python)) return null;
   let revision = null;
   try { revision = fs.readFileSync(location.marker, 'utf8').trim(); } catch { /* assente */ }
-  return revision === spec.revision && execute(run, location.python, ['-I', '-c', verifyCode], 10000).status === 0;
+  // La revisione fissata è la base: una revisione successiva installata da caronte update non viene riportata indietro.
+  return /^[0-9a-f]{40}$/.test(revision || '') && execute(run, location.python, ['-I', '-c', verifyCode], 10000).status === 0 ? revision : null;
 }
 
 function planFsr({ env = process.env, home = os.homedir(), platform = process.platform, run = spawnSync } = {}) {
@@ -50,7 +51,7 @@ function planFsr({ env = process.env, home = os.homedir(), platform = process.pl
   const present = current(run, location);
   return {
     location,
-    report: { status: present ? 'present' : 'planned', revision: spec.revision, path: location.venv },
+    report: { status: present ? 'present' : 'planned', revision: present || spec.revision, path: location.venv },
   };
 }
 

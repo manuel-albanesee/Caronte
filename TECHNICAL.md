@@ -103,7 +103,7 @@ Then, in the root of each project you want to equip:
 caronte install-project
 ```
 
-This installs Caronte, ECC, Headroom, RTK and FastSkillRetrieval in the current directory. Preview it with `caronte install-project --dry-run`, check it with `caronte install-project --verify`, and launch Claude Code with `caronte start`.
+This installs Caronte, ECC, Headroom, RTK and FastSkillRetrieval in the current directory. Preview it with `caronte install-project --dry-run`, check it with `caronte install-project --verify`, and launch Claude Code with `caronte start`. In an installed project, `caronte update` applies the committed revision of the local clone and updates ECC, RTK, FastSkillRetrieval and the project Headroom runtime (`.claude/routing/dependencies.cjs`, `sync` with `apply` set to all four).
 
 ### Option 2: let Claude Code install it
 

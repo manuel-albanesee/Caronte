@@ -16,7 +16,7 @@ AI agents write code fast. Trusting the result is the slow part.
 ## What Caronte does
 
 - **Brief validation.** Every delegation must carry the same sections (goal, input, facts, constraints, output, verification) before an agent starts. A hook rejects incomplete briefs.
-- **Model routing.** Read-only research goes to Haiku, bounded implementation to Haiku or Sonnet, high-impact decisions to Opus. Each profile declares its model and its tools, so a researcher cannot edit files.
+- **Model routing.** Read-only research goes to Haiku, bounded implementation to Haiku or Sonnet, high-impact decisions to Opus. Each profile declares its model and its tools, so a researcher cannot edit files. A delegation policy (`.claude/routing/policy.json`) makes this binding: every brief names its work class, any installed agent (kit, user, ECC plugin or built-in) is accepted when its model stays within the class ceiling, going above the ceiling or the agent's own model needs a stated escalation reason (a failed ICM check receipt counts), and per-turn limits push the coordinator to delegate instead of reading and editing large amounts itself.
 - **Delivery by diff, not by report.** The orchestrator records a Git baseline and a test plan first. The worker runs only the targeted tests from that plan and produces a test receipt. The orchestrator then reads the real diff, checks the receipt against the current files and only after that runs the full suite.
 - **GateGuard integration.** Destructive or unexplained actions are blocked until the agent states what it will do and why. Shell output is filtered at the source through RTK.
 - **ICM runs.** Multi-stage work is resumable: a manifest, a gate before each stage and a check after its outputs, so a new session can restart from the last valid evidence.
@@ -41,9 +41,10 @@ npm link                      # from the cloned repo
 caronte install-project --dry-run
 caronte install-project --verify
 caronte start
+caronte update                # in an installed project: kit from the local clone + dependency updates
 ```
 
-Each install fetches ECC, Headroom, RTK and FastSkillRetrieval from their official repositories (FastSkillRetrieval at a pinned commit, into `~/.fsr/venv`). Set `CARONTE_SKILL_MODE=off` to turn suggestions off, `CARONTE_FSR_AUTOINDEX=off` to stop the background indexing, or `CARONTE_SKILL_INDEX` to use another index folder.
+Each install fetches ECC, Headroom, RTK and FastSkillRetrieval from their official repositories (FastSkillRetrieval at a pinned base commit, into `~/.fsr/venv`). `caronte update`, run from the project root with no session open, applies the committed revision of the local Caronte clone and updates ECC, RTK, FastSkillRetrieval and the project Headroom runtime: stable releases (FastSkillRetrieval has none, so it follows its default branch, forward only), never across a major version, and the previous copy stays in use if anything fails. At session start ECC and RTK update by themselves; FastSkillRetrieval and Headroom are only reported. Set `CARONTE_SKILL_MODE=off` to turn suggestions off, `CARONTE_FSR_AUTOINDEX=off` to stop the background indexing, or `CARONTE_SKILL_INDEX` to use another index folder.
 
 An alternative is `node install.cjs "<project-root>" --dry-run`. Tests: `node --test tests/*.test.cjs`.
 

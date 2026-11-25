@@ -15,6 +15,8 @@ Per un task con più fasi salva, per esempio, `.icm/mapping/run.json`:
       "inputs": [".icm/mapping/snapshot/mapping.js", "tests/check-analysis.cjs"],
       "outputs": [".icm/mapping/01_analisi/output/mapping-001/handoff.md"],
       "dependsOn": [],
+      "profile": "ricerca-haiku",
+      "class": "ricerca",
       "verify": {"command": "node", "args": ["tests/check-analysis.cjs"], "timeoutMs": 120000}
     },
     {
@@ -23,6 +25,8 @@ Per un task con più fasi salva, per esempio, `.icm/mapping/run.json`:
       "inputs": [".icm/mapping/01_analisi/output/mapping-001/handoff.md", "tests/mapping.test.cjs"],
       "outputs": ["src/mapping.js", ".icm/mapping/02_fix/output/mapping-001/handoff.md"],
       "dependsOn": ["01_analisi"],
+      "profile": "ecc-tdd-guide",
+      "class": "regressione",
       "verify": {"command": "node", "args": ["--test", "tests/mapping.test.cjs"], "timeoutMs": 120000}
     }
   ]
@@ -30,6 +34,8 @@ Per un task con più fasi salva, per esempio, `.icm/mapping/run.json`:
 ```
 
 Adatta input e controlli al progetto prima di eseguire. Il modello di esempio illustra la struttura, non è una pipeline pronta. **Una fase non deve modificare gli input di una fase precedente che resta prerequisito valido.** Se la fase successiva modifica `src/mapping.js`, l'analisi deve usare uno snapshot immutabile di quel file (inserito in `inputs`) e dichiarare nel contratto il commit di origine, come nel manifest sopra. Altrimenti invalidare l'analisi dopo il fix è il risultato corretto. Preferisci trasformazioni con snapshot di input e output distinti nei workflow di sviluppo. Evita anche input/output coincidenti nella stessa fase se il verificatore li modifica.
+
+`profile` e `class` sono facoltativi. `profile` assegna il worker della fase: con la policy di delega attiva il validatore respinge un subagent diverso. `class` è la classe di routing di `.claude/routing/policy.json` e vale quando il brief non indica `ROUTING`. Con la policy attiva i file del piano di scrittura devono stare tra gli `outputs` della fase, e una delega di scrittura senza `ICM_STAGE` viene respinta finché il run ha fasi aperte, salvo `ICM_SKIP: <motivo>` in INPUT. Entrambi i campi fanno parte della configurazione della fase: cambiarli invalida la sua ricevuta.
 
 Comandi dalla root:
 

@@ -480,7 +480,7 @@ test('installer imposta finestra orchestratore e mantiene le altre impostazioni 
   assert.equal(settings.autoCompactEnabled, true);
   assert.equal(settings.autoCompactWindow, 200000);
   assert.deepEqual(settings.modelSettings.custom, { autoCompactWindow: 200000, effortLevel: 'low' });
-  assert.deepEqual(settings.env, { CLAUDE_CODE_FORK_SUBAGENT: '0', ANTHROPIC_BASE_URL: 'http://localhost:8787' });
+  assert.deepEqual(settings.env, { CLAUDE_CODE_FORK_SUBAGENT: '0', CLAUDE_CODE_SUBAGENT_MODEL: 'sonnet', ANTHROPIC_BASE_URL: 'http://localhost:8787' });
   assert.equal(settings.hooks.PreCompact[0].matcher, 'auto');
   assert.equal(install(root).changed.length, 0);
 });
@@ -718,7 +718,7 @@ test('avvio aggiorna i profili ECC validati e prova RTK tramite WinGet senza cam
     const file = blob(Buffer.from('---\nname: ' + name + '\n---\nNuovo riferimento ECC\n'));
     return flipped && name === 'tdd-guide' ? { ...file, sha: 'a'.repeat(40) } : file;
   };
-  const next = await sync(root, { get, exec, platform: 'win32' });
+  const next = await sync(root, { get, exec, platform: 'win32', env: { FSR_HOME: path.join(root, 'fsr') } });
   assert.deepEqual(next.ecc, { version: '2.2.4', changed: true });
   assert.deepEqual(next.rtk, { version: '1.2.1', changed: true });
   const active = profileReference(root, 'ecc-tdd-guide');
@@ -726,10 +726,10 @@ test('avvio aggiorna i profili ECC validati e prova RTK tramite WinGet senza cam
   assert.equal(git('status', '--short'), '');
   upstream = '2.2.5';
   flipped = true;
-  assert.match((await sync(root, { get, exec, platform: 'win32' })).ecc.error, /Hash Git incoerente/);
+  assert.match((await sync(root, { get, exec, platform: 'win32', env: { FSR_HOME: path.join(root, 'fsr') } })).ecc.error, /Hash Git incoerente/);
   assert.equal(profileReference(root, 'ecc-tdd-guide'), active);
   upstream = '3.0.0';
-  assert.match((await sync(root, { get, exec, platform: 'win32' })).ecc.error, /cambia major/);
+  assert.match((await sync(root, { get, exec, platform: 'win32', env: { FSR_HOME: path.join(root, 'fsr') } })).ecc.error, /cambia major/);
   assert.equal(profileReference(root, 'ecc-tdd-guide'), active);
 });
 
