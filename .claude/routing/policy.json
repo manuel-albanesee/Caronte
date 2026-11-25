@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "mode": "balanced",
+  "inheritedModel": "opus",
+  "genericAgents": ["general-purpose", "claude"],
+  "classes": {
+    "decisione": {
+      "maxModel": "opus",
+      "preferred": ["decisione-opus", "il coordinatore stesso se la sessione è già Opus"],
+      "keywords": ["decidi", "scegli", "architettura", "migrazione", "trade-off", "compromesso", "confronta", "strategia", "valuta se", "causa radice", "decide", "architecture", "migration", "root cause"]
+    },
+    "build": {
+      "maxModel": "sonnet",
+      "preferred": ["il resolver ECC del linguaggio (es. ecc:go-build-resolver)", "ecc-build-error-resolver", "ecc-java-build-resolver"],
+      "keywords": ["build", "compila", "compilazione", "tsc", "maven", "gradle", "errore di tipo", "type error", "non compila", "compile"]
+    },
+    "regressione": {
+      "maxModel": "sonnet",
+      "preferred": ["ecc-tdd-guide", "implementazione-sonnet"],
+      "keywords": ["regressione", "bug", "correggi", "test fallisce", "test rosso", "rotto", "non funziona", "fix", "failing", "broken", "regression"]
+    },
+    "revisione": {
+      "maxModel": "sonnet",
+      "preferred": ["il reviewer ECC del linguaggio (es. ecc:python-reviewer)", "ecc-code-reviewer"],
+      "keywords": ["review", "revisiona", "rivedi", "revisione", "audit", "controlla il codice"]
+    },
+    "sviluppo": {
+      "maxModel": "sonnet",
+      "preferred": ["implementazione-sonnet", "ecc-tdd-guide"],
+      "keywords": ["implementa", "aggiungi", "feature", "funzionalità", "refactor", "estendi", "sviluppa", "integra", "implement", "add", "extend"]
+    },
+    "meccanica": {
+      "maxModel": "sonnet",
+      "maxEffort": "low",
+      "preferred": ["implementazione-sonnet con effort: low", "implementazione-haiku solo per trasformazioni deterministiche con test"],
+      "keywords": ["rinomina", "sostituisci", "typo", "refuso", "aggiorna versione", "formatta", "sposta", "rename", "replace", "bump", "format"]
+    },
+    "ricerca": {
+      "maxModel": "haiku",
+      "maxEffort": "low",
+      "preferred": ["ricerca-haiku", "Explore"],
+      "keywords": ["trova", "cerca", "dove", "chi chiama", "mappa", "elenca", "analizza", "individua", "find", "search", "where", "locate", "list"]
+    }
+  },
+  "writeLimits": {
+    "haiku": { "maxFiles": 2, "requireTests": true }
+  },
+  "builtinModels": { "claude-code-guide": "haiku", "statusline-setup": "sonnet" },
+  "nativeFlow": { "skillPattern": "^ecc:", "windowMinutes": 30 },
+  "coordinator": {
+    "balanced": { "maxEditLines": 60, "maxEditFiles": 3, "maxReads": 25 },
+    "strict": { "maxEditLines": 0, "maxEditFiles": 0, "maxReads": 10 },
+    "exemptPrefixes": [".icm/", ".claude/", ".git/", ".claude-routing-backups/"],
+    "exemptExtensions": [".md"]
+  },
+  "largeTask": {
+    "keywords": ["più fasi", "fasi", "pipeline", "migrazione", "end-to-end", "fai tutto", "intero progetto", "riscrivi", "multi-step", "step by step"],
+    "minPaths": 5,
+    "minLength": 1200
+  }
+}

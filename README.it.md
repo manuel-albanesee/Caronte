@@ -106,7 +106,7 @@ Poi, nella radice di ogni progetto da equipaggiare:
 caronte install-project
 ```
 
-Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella directory corrente. Per un'anteprima usa `caronte install-project --dry-run`, per un controllo `caronte install-project --verify`, e avvia Claude Code con `caronte start`.
+Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella directory corrente. Per un'anteprima usa `caronte install-project --dry-run`, per un controllo `caronte install-project --verify`, e avvia Claude Code con `caronte start`. Per aggiornare un progetto già installato esegui `caronte update` dalla sua root, a sessione chiusa: applica la revisione committata del clone locale di Caronte e aggiorna ECC, RTK, FastSkillRetrieval e il runtime Headroom del progetto.
 
 ### Opzione 2: lascia che sia Claude Code a installarlo
 
@@ -126,7 +126,7 @@ node install.cjs "<project-root>" --verify
 
 Tieni `.claude/settings.local.json` e `.claude-routing-backups/` fuori dal controllo di versione. Poi avvia Claude Code dal worktree di destinazione e usa `/agents` e `/hooks` per vedere cosa ha caricato la sessione. I normali permessi di Claude Code restano validi.
 
-L'installer scarica la release completa di ECC in `.claude/skills/ecc/` e abilita il suo plugin nativo di Claude Code, preservando un'eventuale registrazione da marketplace. Riusa una CLI Headroom funzionante nel PATH, altrimenti la scarica in `.claude/vendor/headroom/` con la sua CLI proxy nella `.venv` del checkout. RTK usa per impostazione predefinita il modulo GateGuard del checkout ECC. FastSkillRetrieval viene scaricato dal [repository ufficiale](https://github.com/manuel-albanesee/FastSkillRetrieval) a una revisione fissata e installato in `~/.fsr/venv`; l'indice sta in `~/.fsr/index/claude`. Con `CARONTE_SKILL_MODE=off` disattivi i suggerimenti, con `CARONTE_FSR_AUTOINDEX=off` l'indicizzazione in background, con `CARONTE_SKILL_INDEX` usi un'altra cartella di indice. Vedi la [guida all'installazione](GUIDA.md#installazione).
+L'installer scarica la release completa di ECC in `.claude/skills/ecc/` e abilita il suo plugin nativo di Claude Code, preservando un'eventuale registrazione da marketplace. Riusa una CLI Headroom funzionante nel PATH, altrimenti la scarica in `.caronte/.headroom/` con la sua CLI proxy nella `.venv` del checkout. I dati locali delle dipendenze stanno tutti in `.caronte/`, esclusa da Git: `.caronte/.fsr` (FastSkillRetrieval), `.caronte/.headroom` (Headroom) e `.caronte/.rtk` (configurazione e database di RTK; il binario resta al gestore pacchetti). Routing, ICM, RTK e FastSkillRetrieval sono obbligatori: ogni delega porta ROUTING, ECC_QUERY ed ECC_TOOLS dall'indice FSR, ogni scrittura delegata appartiene a una fase ICM, general-purpose è negato se uno specialista copre la classe e Bash e PowerShell passano sempre da RTK. RTK usa per impostazione predefinita il modulo GateGuard del checkout ECC. FastSkillRetrieval viene scaricato dal [repository ufficiale](https://github.com/manuel-albanesee/FastSkillRetrieval) a una revisione fissata e installato in `~/.fsr/venv`; l'indice sta in `~/.fsr/index/claude`. Con `CARONTE_SKILL_MODE=off` disattivi i suggerimenti, con `CARONTE_FSR_AUTOINDEX=off` l'indicizzazione in background, con `CARONTE_SKILL_INDEX` usi un'altra cartella di indice. Vedi la [guida all'installazione](GUIDA.md#installazione).
 
 ### Resta aggiornato in automatico
 

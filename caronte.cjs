@@ -4,7 +4,10 @@ const usage = 'Usage: caronte install-project [--dry-run | --verify] [--ecc-full
   '        [--headroom-path=<executable>] [--ecc-path=<directory>] [--rtk-path=<executable>]\n' +
   '        [--headroom-python[=<absolute-path>]]\n' +
   '       caronte start [--headroom-python[=<absolute-path>]] [Claude Code options]\n' +
-  'Installs Caronte, ECC, Headroom, and RTK for the current project.';
+  '       caronte update\n' +
+  'Installs Caronte, ECC, Headroom, RTK, and FastSkillRetrieval for the current project.\n' +
+  'update applies the local Caronte clone to the current project, then updates ECC, RTK,\n' +
+  'FastSkillRetrieval, and the project Headroom runtime from their official repositories.';
 const [command, ...flags] = process.argv.slice(2);
 
 async function start(args) {
@@ -34,7 +37,11 @@ async function start(args) {
   if (!executable) throw Error('Headroom assente. Esegui caronte install-project nella root del progetto.');
   await showLogo();
   console.error('Caronte | Avvio Headroom ' + (python ? 'tramite Python da ' : 'da ') + executable);
-  const env = { ...process.env };
+  const { caronteEnv } = require('./.claude/routing/caronte-home.cjs');
+  const env = { ...process.env, ...caronteEnv(root) };
+  for (const key of Object.keys(caronteEnv(root))) {
+    if (typeof settings.env?.[key] === 'string') env[key] = settings.env[key];
+  }
   if (!wrapOptions.some(arg => ['--code-memory', '--serena', '--no-serena'].includes(arg.split('=')[0]))) {
     env.HEADROOM_CODE_MEMORY = 'none';
   }
@@ -55,6 +62,30 @@ async function start(args) {
   });
 }
 
+const labels = { ecc: 'ECC', rtk: 'RTK', fsr: 'FastSkillRetrieval', headroom: 'Headroom' };
+function describe(name, status) {
+  const label = labels[name] || name;
+  if (status.changed) return label + ' aggiornato a ' + status.version + '.';
+  if (status.error) return label + ': aggiornamento non riuscito (' + status.error + '). Resta in uso ' + (status.version ? 'la ' + status.version : 'la copia precedente') + '.';
+  if (!status.version) return label + ': non gestito dal kit qui (assente o installato esternamente).';
+  if (status.pending) return label + ' ' + status.version + ': ' + status.pending + ' disponibile ma non installato dal gestore pacchetti.';
+  return label + ' ' + status.version + ': già all’ultima versione compatibile.';
+}
+
+async function update(args) {
+  if (args.length) throw Error('caronte update non accetta opzioni.');
+  const fs = require('node:fs');
+  const root = fs.realpathSync(process.cwd());
+  const { hasInstallation, installedRevision, updateMessage, updateProject } = require('./auto-update.cjs');
+  if (!hasInstallation(root)) throw Error('Caronte non è installato in ' + root + '. Esegui prima caronte install-project nella root del progetto.');
+  const kit = updateProject(root);
+  console.log('Caronte | ' + (kit ? updateMessage(kit) : 'Kit già alla revisione ' + String(installedRevision(root) || 'sconosciuta').slice(0, 12) + ' del clone locale.'));
+  const { sync } = require('./.claude/routing/dependencies.cjs');
+  const results = await sync(root, { apply: Object.keys(labels) });
+  for (const [name, status] of Object.entries(results)) console.log('Caronte | ' + describe(name, status));
+  if (Object.values(results).some(status => status.error)) process.exitCode = 1;
+}
+
 async function main() {
   if (!command || command === '--help' || command === '-h' ||
       (command === 'install-project' && flags.some(flag => flag === '--help' || flag === '-h'))) {
@@ -68,6 +99,8 @@ async function main() {
   }
   if (command === 'start') {
     await start(flags);
+  } else if (command === 'update') {
+    await update(flags);
   } else if (command !== 'install-project' || flags.some(flag => !flag.startsWith('--'))) {
     console.error(usage);
     process.exitCode = 1;

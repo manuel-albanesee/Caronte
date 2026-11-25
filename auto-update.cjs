@@ -199,4 +199,4 @@ if (require.main === module && process.argv[2] === '--caronte-session-start') {
   }
 }
 
-module.exports = { checkoutRevision, configureAutoUpdate, installFromCheckout, updateMessage, updateProject };
+module.exports = { checkoutRevision, configureAutoUpdate, hasInstallation, installedRevision, installFromCheckout, updateMessage, updateProject };

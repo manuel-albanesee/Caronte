@@ -12,7 +12,9 @@ Nel clone permanente di Caronte esegui `npm link` una volta per collegare il com
 caronte install-project
 ```
 
-Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella cartella corrente. FastSkillRetrieval è obbligatorio: viene scaricato dal [repository ufficiale](https://github.com/manuel-albanesee/FastSkillRetrieval) a una revisione fissata in `~/.fsr/venv` e richiede Python 3.13. Senza di lui l’installazione risulta incompleta. All’avvio di ogni sessione costruisce o aggiorna in background l’indice `~/.fsr/index/claude` (la prima volta circa 3 minuti); `CARONTE_FSR_AUTOINDEX=off` ferma l’indicizzazione e `CARONTE_SKILL_MODE=off` i suggerimenti. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
+Il comando installa Caronte, ECC, Headroom, RTK e FastSkillRetrieval nella cartella corrente. FastSkillRetrieval è obbligatorio: viene scaricato dal [repository ufficiale](https://github.com/manuel-albanesee/FastSkillRetrieval) a una revisione fissata in `.caronte/.fsr/venv` e richiede Python 3.13. Senza di lui l’installazione risulta incompleta. All’avvio di ogni sessione costruisce o aggiorna in background l’indice `.caronte/.fsr/index/claude` (la prima volta circa 3 minuti); indicizzazione e suggerimenti non si disattivano.
+
+Tutti i dati locali delle dipendenze stanno in `.caronte/` nella root del progetto, esclusa da Git con un proprio `.gitignore`: `.caronte/.fsr` (FastSkillRetrieval), `.caronte/.headroom` (runtime, workspace e configurazione di Headroom) e `.caronte/.rtk` (configurazione, database, recall, tee e audit di RTK; il binario resta al gestore pacchetti). L’installer scrive in `.claude/settings.local.json` le variabili che puntano a queste cartelle. Aggiungi `--dry-run` per vedere le modifiche previste oppure `--verify` per verificare l’installazione.
 
 Nel terminale interattivo Caronte mostra il logo ASCII arancione, una percentuale per ciascun componente, aggiornata al completamento delle fasi, e le percentuali di download degli strumenti che le espongono. Le copie riutilizzate sono indicate durante il controllo. I messaggi di avanzamento usano stderr. Il riepilogo JSON finale esce su stdout.
 
@@ -68,6 +70,14 @@ Usa `caronte install-project --headroom-python` per riusare lo stesso ambiente d
 Quando avvii con `caronte start` da un progetto già installato, Caronte applica la revisione del clone locale prima di aprire Claude Code. Se trova file della sidebar distribuiti dal kit che differiscono dalla versione attesa, li salva nel backup e installa quelli della nuova revisione. Le modifiche locali ai file gestiti fuori dalla sidebar continuano a richiedere una risoluzione del conflitto.
 
 Se avvii Claude Code direttamente, puoi ottenere lo stesso aggiornamento con l’hook utente.
+
+Per aggiornare tutto a richiesta, esegui dalla root del progetto, con le sessioni chiuse:
+
+```bash
+caronte update
+```
+
+Il comando applica la revisione committata del clone locale di Caronte (esegui prima `git pull` nel clone se vuoi le novità remote), poi aggiorna ECC, RTK, FastSkillRetrieval e il runtime Headroom installato nel progetto. Per ogni componente stampa la versione in uso e l’esito; un errore lascia in uso la copia precedente e chiude con codice 1. Una CLI Headroom esterna (PATH o uv) resta al suo gestore.
 
 Attiva l'hook una volta nel clone Git che userai come sorgente. Su Windows, per
 esempio:
@@ -301,6 +311,8 @@ INPUT_FILES: ["src/cart.js", "tests/cart.test.cjs"]
 FATTI: decisioni, evidenze con fonte, informazioni solo in chat; ipotesi distinte.
 VINCOLI: modifica solo src/cart.js; preserva API e lavoro preesistente.
 CAPABILITY: write
+REVIEW_ID: <id restituito da delivery.cjs plan>
+ROUTING: sviluppo
 USCITA: diff sul disco, esito e riferimenti essenziali.
 VERIFICA: node --test tests/cart.test.cjs; fermati al pass o al blocco motivato.
 ```
@@ -311,11 +323,34 @@ Per input/fatti/vincoli realmente assenti è ammesso `nessuno`. Non è ammesso a
 
 Il chiamante verifica contenuto e tool nel proprio turno. Lo script non può provare che i fatti siano veri o sufficienti, né scoprire dati della chat omessi. Non aggiunge un modello revisore per ogni brief. La risposta del worker contiene esito, evidenze, controllo effettuato e ostacolo preciso. Riprendi un worker per integrare dati mancanti senza ripetere inutilmente tutta l'indagine.
 
+## Policy di delega e routing dei modelli
+
+`.claude/routing/policy.json` traduce in controlli la scelta del modello. Routing, ICM, RTK e FastSkillRetrieval sono obbligatori: la modalità si imposta nel campo `mode` o con `CARONTE_DELEGATION` (`balanced` di default, `strict` vieta anche le modifiche dirette del coordinatore), il valore `off` è ignorato e senza il file ogni delega viene respinta.
+
+| Obbligo | Controllo |
+|---|---|
+| Specialista | `general-purpose`, `claude` (elenco `genericAgents` della policy) e una chiamata senza `subagent_type` sono negati se per la classe esiste uno specialista installato (nomi in `preferred` o `specialists`, entro il tetto di modello) oppure un agent trovato da FSR |
+| ICM | Ogni delega di scrittura dichiara `ICM_RUN` e `ICM_STAGE`; `ICM_SKIP` non è ammesso |
+| FastSkillRetrieval | Ogni brief porta in INPUT `ECC_QUERY` (parole chiave inglesi) ed `ECC_TOOLS` con gli strumenti dell'indice FSR; se FSR trova strumenti pertinenti almeno uno va incluso, salvo `FSR_SKIP: <motivo>` di almeno 20 caratteri. Senza indice le deleghe sono respinte |
+| RTK | L'hook su Bash e PowerShell riscrive i comandi con RTK anche quando GateGuard è spento o non configurato; `RTK_DISABLED` o un binario irraggiungibile negano il comando. Per l'output esatto usa `rtk proxy <comando>` |
+
+| Controllo | Dove | Effetto |
+|---|---|---|
+| Classe di lavoro | validatore, `ROUTING: <classe>` in VINCOLI | Ogni classe fissa un tetto di costo (`maxModel`, `maxEffort`), non un elenco di agent: `ricerca` haiku/low, `meccanica` sonnet/low, `sviluppo`, `regressione`, `build`, `revisione` sonnet, `decisione` opus. `preferred` indica il ripiego quando nessuno specialista installato corrisponde |
+| Modello ed effort | validatore, campi `model`/`effort` della chiamata Agent | Modello effettivo: `model` della chiamata, poi frontmatter dell'agent (progetto, `~/.claude/agents`, plugin in `installed_plugins.json`), poi `CLAUDE_CODE_SUBAGENT_MODEL`, poi `inheritedModel`. Superare il tetto della classe o il frontmatter richiede `ESCALATION:` con il tentativo precedente e la nuova evidenza, oppure una ricevuta check ICM fallita della fase |
+| Limiti di scrittura | validatore e piano `REVIEW_ID` | `writeLimits`: un worker Haiku accetta al massimo 2 file e richiede un test mirato |
+| Agenti installati | validatore, `node .claude/routing/policy.cjs` | Tutti richiamabili. Il comando elenca ogni agent con modello, origine e classi ammesse. Explore del kit gira su Haiku; general-purpose e Plan ereditano `CLAUDE_CODE_SUBAGENT_MODEL` (sonnet nelle impostazioni di esempio) |
+| Fasi ICM | validatore | `profile` e `class` della fase vincolano la delega, il piano resta negli `outputs` della fase, ogni scrittura richiede `ICM_RUN` e `ICM_STAGE` |
+| Soglie del coordinatore | hook `coordinator-budget.cjs` | Per turno: 60 righe, 3 file, 25 letture in `balanced`; nessuna modifica diretta e 10 letture in `strict`. Le letture si azzerano dopo ogni delega; in `balanced` una procedura ECC nativa avviata da meno di 30 minuti le sospende. `.icm/`, `.claude/`, `.git/` e i file Markdown sono esenti |
+| Suggerimento | hook `suggest-skills.cjs` | A ogni prompt propone classe e profilo, segnala il lavoro ampio da organizzare in un run ICM e la prossima fase di ogni run aperto, anche senza indice FastSkillRetrieval |
+
+Lo stato delle soglie è in `<gitdir>/caronte-routing/`, per sessione, e scade dopo tre giorni. Gli errori interni dell'hook delle soglie non bloccano mai. I rifiuti finiscono in telemetria come `routing_policy` e `coordinator_budget`. Le parole chiave delle classi, i limiti e le soglie si adattano al progetto modificando `policy.json`.
+
 ## Copertura reale
 
-In modalità ECC completo, il validatore delle deleghe della tabella si
-applica ai profili del kit, ai brief Caronte espliciti e alle sotto-deleghe
-dei worker gestiti dal kit.
+Il validatore delle deleghe della tabella si applica a ogni Agent/Task del
+thread principale e alle sotto-deleghe dei worker gestiti dal kit. In
+modalità ECC completo restano esenti solo i flussi ECC nativi indicati sotto.
 
 | Superficie | Comportamento |
 |---|---|
@@ -323,11 +358,15 @@ dei worker gestiti dal kit.
 | Agent/Task da un subagent | Stesso validatore se gli hook di progetto sono attivi |
 | /indaga, /decisione, /implementa del kit | Preparazione nel coordinatore, poi Agent validato |
 | SubagentStart, anche con CLAUDE.md omesso | Promemoria breve del protocollo, senza chiamata LLM aggiuntiva |
+| Explore, Plan e agent dei plugin | Ammessi entro il tetto di modello della classe, con brief completo |
+| general-purpose e claude | Negati se esiste uno specialista per la classe; altrimenti come sopra |
+| Flussi ECC nativi | Senza brief Caronte solo entro 30 minuti da una procedura `/ecc:` avviata nel thread principale o come sotto-deleghe di un agent ECC nativo |
+| Letture e modifiche dirette del coordinatore | Soglie per turno dell'hook coordinator-budget |
 | SendMessage/ripresa di agente esistente | Procedura di delta nelle istruzioni; nessun controllo sintattico del messaggio |
 | Fork manuali, skill di terze parti con context: fork, team e processi CLI separati | Non hanno copertura pre-avvio completa da questo validatore; non usarli come alternative ai comandi del kit per deleghe controllate |
 | Hook disabilitati/policy che li escludono | Nessuna garanzia tecnica del validatore |
 
-SubagentStart propaga istruzioni: non valida il prompt prima dell'avvio. Nessun kit basato solo su questi hook può attestare la completezza di ogni possibile superficie esterna. Il routing per scopo resta una decisione del modello guidata dai profili; il validatore non seleziona il modello.
+SubagentStart propaga istruzioni: non valida il prompt prima dell'avvio. Nessun kit basato solo su questi hook può attestare la completezza di ogni possibile superficie esterna. Il validatore non sceglie il modello al posto del coordinatore: con la policy attiva verifica che profilo, classe dichiarata ed eventuale escalation siano coerenti, e le soglie del coordinatore rendono la delega la via ordinaria per il lavoro non banale. La classificazione automatica del prompt resta un suggerimento.
 
 ## ICM e controllo della ripresa
 

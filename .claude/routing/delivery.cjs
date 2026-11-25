@@ -156,6 +156,9 @@ function load(repo, id) {
   if (!idPattern.test(id || '')) throw Error('REVIEW_ID non valido.');
   return read(path.join(repo.state, id, 'plan.json'));
 }
+function loadPlan(root, id) {
+  return { ...load(locate(root), id), id };
+}
 function active(repo) {
   try { return read(path.join(repo.state, 'active.json')); }
   catch (error) {
@@ -342,5 +345,5 @@ if (require.main === module) {
 }
 module.exports = {
   plan, authorize, enforceWorker, check, handoff, review, readingProfiles, writingProfiles,
-  eccFull, isKitProfile, isManagedWorker,
+  eccFull, isKitProfile, isManagedWorker, loadPlan,
 };

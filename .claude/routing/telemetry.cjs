@@ -9,7 +9,7 @@ const RETENTION_DAYS = 30;
 const MAX_DAY_BYTES = 2 * 1024 * 1024;
 const MAX_TRANSCRIPT_BYTES = 8 * 1024 * 1024;
 const TOOLS = new Set(['Agent', 'Task', 'Bash', 'PowerShell', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'Monitor', 'Skill']);
-const REASONS = new Set(['brief_invalid', 'review_plan', 'icm_gate', 'worker_scope', 'worker_command', 'permission_denied', 'tool_failure']);
+const REASONS = new Set(['brief_invalid', 'review_plan', 'icm_gate', 'worker_scope', 'worker_command', 'permission_denied', 'tool_failure', 'routing_policy', 'coordinator_budget']);
 const PROFILES = new Set([
   'ricerca-haiku', 'decisione-opus', 'implementazione-haiku', 'implementazione-sonnet',
   'ecc-tdd-guide', 'ecc-build-error-resolver', 'ecc-java-build-resolver', 'ecc-typescript-reviewer',
