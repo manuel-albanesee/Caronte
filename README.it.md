@@ -45,7 +45,7 @@ L'orchestratore cattura una baseline Git prima che il worker parta. Il worker mo
 Caronte include specialisti [ECC](https://github.com/affaan-m/ECC) selezionati: guida TDD, risolutori di errori di build per JS/TS e Java, e revisori mirati per Java, C#, TypeScript e rischi trasversali. I worker hanno un perimetro definito e le escalation ripetute richiedono nuove evidenze.
 
 ### Un lavoro che sopravvive alla sessione
-Le fasi ICM registrano dipendenze e output. Alla ripresa, Caronte mostra l'obiettivo, l'ultima evidenza valida, cosa è cambiato e il prossimo passo, poi riparte dalla prima fase che richiede ancora lavoro.
+Le fasi ICM registrano dipendenze e output. Alla ripresa, Caronte mostra l'obiettivo, l'ultima evidenza valida, cosa è cambiato e il prossimo passo, poi riparte dalla prima fase che richiede ancora lavoro. Gli hook nativi `TaskCreated` e `TaskCompleted` collegano la barra dei task alle fasi: un task con marcatore `[ICM:<run.json>/<fase>]` viene rifiutato se run o fase non esistono e non si completa finché la fase non ha una ricevuta di check valida.
 
 ### Una finestra di contesto più silenziosa
 RTK filtra l'output shell supportato e Caronte accorcia i log verbosi di test e build prima che arrivino a Claude. Le finestre di auto-compact sono configurate a 200k per la sessione principale e 100k per i worker inclusi. Il tuo comando di avvio Headroom continua a gestire la compressione del contesto lato richiesta. Sono controlli sul contesto, non limiti di spesa.
