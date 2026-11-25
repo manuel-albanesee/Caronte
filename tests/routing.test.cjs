@@ -8,8 +8,16 @@ const { parseBrief, inputMetadata, validate } = require('../.claude/hooks/valida
 const { loadRun, valid, gate, check, status } = require('../.claude/routing/icm.cjs');
 const { install } = require('../install.cjs');
 const { gateRtkStatus } = require('../.claude/hooks/sync-dependencies.cjs');
+const { makeIndex } = require('./helpers/fsr-index.cjs');
 // Isolate the suite from the developer's own Caronte installation (ECC full mode is set in the user's shell).
 delete process.env.CARONTE_ECC_FULL;
+delete process.env.CARONTE_DELEGATION;
+delete process.env.CLAUDE_CODE_SUBAGENT_MODEL;
+// Config utente vuota e indice FSR di prova senza hit per la query dei brief.
+process.env.CLAUDE_CONFIG_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'caronte config vuota-'));
+const fsrDir = makeIndex();
+process.env.CARONTE_SKILL_INDEX = fsrDir;
+test.after(() => { fs.rmSync(fsrDir, { recursive: true, force: true }); fs.rmSync(process.env.CLAUDE_CONFIG_DIR, { recursive: true, force: true }); });
 const kit = path.resolve(__dirname, '..');
 const brief = 'OBIETTIVO: trova il chiamante\nINPUT: nessuno\nFATTI: errore riproducibile\nVINCOLI: sola lettura\nUSCITA: percorso e riga\nVERIFICA: identifica il chiamante e fermati';
 function temporary(t) { const p = fs.mkdtempSync(path.join(os.tmpdir(), 'routing test-')); t.after(() => fs.rmSync(p, { recursive: true, force: true })); return p; }
@@ -45,7 +53,33 @@ function executable(file, posix, js) {
   return file;
 }
 function write(root, name, text) { const p = path.join(root, name); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); }
-function event(prompt = brief, type = 'Agent') { return { tool_name: type, tool_input: { prompt } }; }
+// Completa un brief con i campi obbligatori (FSR e ROUTING) se mancanti; altri testi restano invariati.
+function ready(prompt, cls = 'ricerca') {
+  if (!/^OBIETTIVO:/.test(prompt)) return prompt;
+  let out = prompt;
+  if (!/^ECC_QUERY:/m.test(out)) out = out.replace(/^INPUT:.*$/m, line => line + '\nECC_QUERY: zzqq wwvv');
+  if (!/^ECC_TOOLS:/m.test(out)) out = out.replace(/^INPUT:.*$/m, line => line + '\nECC_TOOLS: []');
+  if (!/^ROUTING:/m.test(out)) out = out.replace(/^VINCOLI:.*$/m, line => line + '\nROUTING: ' + cls);
+  return out;
+}
+function event(prompt = brief, type = 'Agent', cls) { return { tool_name: type, tool_input: { subagent_type: 'ricerca-haiku', prompt: ready(prompt, cls) } }; }
+// Progetto di prova con policy e agent del kit (obbligatori per validate).
+function kitFiles(root) {
+  fs.cpSync(path.join(kit, '.claude', 'agents'), path.join(root, '.claude', 'agents'), { recursive: true });
+  fs.mkdirSync(path.join(root, '.claude', 'routing'), { recursive: true });
+  fs.copyFileSync(path.join(kit, '.claude', 'routing', 'policy.json'), path.join(root, '.claude', 'routing', 'policy.json'));
+  return root;
+}
+function project(t) { return kitFiles(temporary(t)); }
+// Run ICM minimo (fase a senza dipendenze) per le deleghe di scrittura.
+function icmFiles(root, outputs = ['out-a.txt']) {
+  for (const [n, v] of Object.entries({ 'input.txt': 'a', 'contract-a.md': 'A', 'out-a.txt': 'A' })) write(root, n, v);
+  write(root, '.icm/task/run.json', JSON.stringify({ version: 1, runId: 'test-w', stages: [
+    { id: 'a', contract: 'contract-a.md', inputs: ['input.txt'], outputs, dependsOn: [], verify: { command: process.execPath, args: ['-e', 'process.exit(0)'] } },
+  ] }));
+  return root;
+}
+const icmInput = '\nICM_RUN: .icm/task/run.json\nICM_STAGE: a';
 function fixture(t) {
   const root = temporary(t);
   for (const [n,v] of Object.entries({ 'input.txt':'a', 'contract-a.md':'A', 'contract-b.md':'B', 'out-a.txt':'A', 'out-b.txt':'B', 'verify.cjs':'process.exit(0)' })) write(root,n,v);
@@ -68,11 +102,11 @@ test('fence tilde e righe indentate',()=>{assert.doesNotThrow(()=>parseBrief(bri
 test('fence aperto rifiutato',()=>assert.throws(()=>parseBrief(brief+'\n```')));
 test('metadata citati non attivi',()=>assert.deepEqual(inputMetadata('```\nICM_RUN: missing\n```'),{}));
 test('metadata duplicati rifiutati',()=>assert.throws(()=>inputMetadata('ICM_RUN: a\nICM_RUN: b')));
-test('file esistente con spazi e unicode',t=>{const r=temporary(t);write(r,'dati è/a b.txt','ok');assert.doesNotThrow(()=>validate(event(brief.replace('INPUT: nessuno','INPUT: dati\nINPUT_FILES: ["dati è/a b.txt"]')),r));});
+test('file esistente con spazi e unicode',t=>{const r=project(t);write(r,'dati è/a b.txt','ok');assert.doesNotThrow(()=>validate(event(brief.replace('INPUT: nessuno','INPUT: dati\nINPUT_FILES: ["dati è/a b.txt"]')),r));});
 test('file assente e path esterno rifiutati',t=>{const r=temporary(t);for(const p of ['missing.txt','../outside'])assert.throws(()=>validate(event(brief.replace('INPUT: nessuno','INPUT: dati\nINPUT_FILES: '+JSON.stringify([p]))),r));});
 test('INPUT_FILES schema errato rifiutato',t=>{const r=temporary(t);assert.throws(()=>validate(event(brief.replace('INPUT: nessuno','INPUT: dati\nINPUT_FILES: {}')),r));});
-test('stesso controllo ogni modello e depth',t=>{const r=temporary(t);for(const model of ['haiku','sonnet','opus']){const e=event();e.agent_id='nested';e.tool_input.model=model;validate(e,r);assert.throws(()=>validate({...e,tool_input:{...e.tool_input,prompt:'TODO'}},r));}});
-test('Task validato, altri tool fuori scope',t=>{const r=temporary(t);validate(event(brief,'Task'),r);validate(event('x','Bash'),r);assert.throws(()=>validate(event('x','Task'),r));});
+test('stesso controllo ogni modello e depth',t=>{const r=project(t);for(const model of ['haiku','sonnet','opus']){const e=event();e.agent_id='nested';e.tool_input.model=model;e.tool_input.prompt=e.tool_input.prompt.replace('ROUTING: ricerca','ROUTING: ricerca\nESCALATION: tentativo haiku fallito, nuova evidenza');validate(e,r);assert.throws(()=>validate({...e,tool_input:{...e.tool_input,prompt:'TODO'}},r));}});
+test('Task validato, altri tool fuori scope',t=>{const r=project(t);validate(event(brief,'Task'),r);validate(event('x','Bash'),r);assert.throws(()=>validate(event('x','Task'),r));});
 test('worker lettore non riceve capability write',t=>{const r=temporary(t);const e=event(brief.replace('VINCOLI: sola lettura','VINCOLI: modifica src/x\nCAPABILITY: write'));e.tool_input.subagent_type='ricerca-haiku';assert.throws(()=>validate(e,r));});
 test('stdin malformato negato con JSON valido',()=>{const p=spawnSync(process.execPath,[path.join(kit,'.claude/hooks/validate-agent-brief.cjs')],{input:'{broken',encoding:'utf8'});assert.equal(JSON.parse(p.stdout).hookSpecificOutput.permissionDecision,'deny');});
 test('SubagentStart propaga la procedura',()=>{const p=spawnSync(process.execPath,[path.join(kit,'.claude/hooks/delegation-context.cjs')],{input:JSON.stringify({hook_event_name:'SubagentStart'}),encoding:'utf8'});assert.match(JSON.parse(p.stdout).hookSpecificOutput.additionalContext,/OBIETTIVO/);});
@@ -86,23 +120,26 @@ function fullEccHook(root, script, payload) {
   return result.stdout && JSON.parse(result.stdout).hookSpecificOutput;
 }
 
+const eccBrief = (extra = '', constraints = '') => brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_QUERY: zzqq wwvv' + extra).replace('VINCOLI: sola lettura', 'VINCOLI: sola lettura\nROUTING: ricerca' + constraints);
 test('ECC completo lascia funzionare i profili nativi, le loro sotto-deleghe generiche e il tool Skill', t => {
-  const root = temporary(t);
+  const root = project(t);
   assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
   const native = { agent_id: 'native', agent_type: 'ecc:tdd-guide', session_id: 'session' };
   const task = { tool_name: 'Agent', tool_input: { subagent_type: native.agent_type, prompt: 'Review the failing test.' } };
-  assert.equal(fullEccHook(root, 'validate-agent-brief', task), '');
+  // Il thread principale non può aggirare il validatore con un prompt libero verso un profilo non del kit.
+  assert.match(fullEccHook(root, 'validate-agent-brief', task).permissionDecisionReason, /Inizia con OBIETTIVO:/);
   assert.match(fullEccHook(root, 'validate-agent-brief', {
-    ...task, tool_input: { ...task.tool_input, prompt: brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_TOOLS: []') },
-  }).permissionDecisionReason, /sola lettura/);
-  assert.match(fullEccHook(root, 'validate-agent-brief', {
-    ...task, tool_input: { ...task.tool_input, prompt: brief },
+    ...task, tool_input: { ...task.tool_input, prompt: eccBrief() },
   }).permissionDecisionReason, /ECC_TOOLS/);
   assert.match(fullEccHook(root, 'validate-agent-brief', {
-    ...task, tool_input: { ...task.tool_input, prompt: brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_TOOLS: ecc:tdd-workflow') },
+    ...task, tool_input: { ...task.tool_input, prompt: eccBrief('\nECC_TOOLS: ecc:tdd-workflow') },
   }).permissionDecisionReason, /array JSON/);
+  // Un agent ECC nativo può delegare con prompt libero.
   assert.equal(fullEccHook(root, 'validate-agent-brief', {
     ...native, ...task, tool_input: { subagent_type: 'general-purpose', prompt: 'Read the test output.' },
+  }), '');
+  assert.equal(fullEccHook(root, 'validate-agent-brief', {
+    ...native, ...task, tool_input: { subagent_type: 'ecc:code-reviewer', prompt: 'Read the test output.' },
   }), '');
   assert.equal(fullEccHook(root, 'delegation-context', { ...native, hook_event_name: 'SubagentStart' }), '');
   assert.equal(fullEccHook(root, 'enforce-worker', {
@@ -113,29 +150,33 @@ test('ECC completo lascia funzionare i profili nativi, le loro sotto-deleghe gen
   }), '');
   const kitTask = { ...task, tool_input: { ...task.tool_input, subagent_type: 'ecc-tdd-guide' } };
   assert.equal(fullEccHook(root, 'validate-agent-brief', kitTask).permissionDecision, 'deny');
+  assert.match(fullEccHook(root, 'validate-agent-brief', { ...kitTask, ...native, agent_type: 'ecc-tdd-guide' }).permissionDecisionReason, /OBIETTIVO|profilo Caronte/);
   assert.equal(fullEccHook(root, 'enforce-worker', {
     ...native, agent_type: 'ecc-tdd-guide', tool_name: 'Bash', tool_input: { command: 'npm test' },
   }).permissionDecision, 'deny');
 });
 
 test('ECC completo conserva i limiti di un piano Caronte anche con un profilo del plugin', t => {
-  const root = temporary(t);
-  assert.equal(spawnSync('git', ['init', '-q', root]).status, 0);
+  const { root } = gitRepo(t);
+  icmFiles(root, ['app.txt']);
   write(root, 'app.txt', 'hello');
   const { plan } = require('../.claude/routing/delivery.cjs');
   const type = 'ecc:tdd-guide';
   const planned = plan(root, { profile: type, files: ['app.txt'], tests: [], noTestsReason: 'Modifica di testo.' });
-  const prompt = brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_TOOLS: ["ecc:tdd-workflow"]').replace('VINCOLI: sola lettura', 'VINCOLI: solo app.txt\nCAPABILITY: write\nREVIEW_ID: ' + planned.id);
-  assert.equal(fullEccHook(root, 'validate-agent-brief', {
-    tool_name: 'Agent', tool_input: { subagent_type: type, prompt }, session_id: 'session',
-  }), '');
+  const prompt = brief.replace('INPUT: nessuno', 'INPUT: nessuno\nECC_QUERY: zzqq wwvv\nECC_TOOLS: []' + icmInput).replace('VINCOLI: sola lettura', 'VINCOLI: solo app.txt\nROUTING: regressione\nCAPABILITY: write\nREVIEW_ID: ' + planned.id);
+  const decision = fullEccHook(root, 'validate-agent-brief', {
+    tool_name: 'Agent', tool_input: { subagent_type: type, model: 'sonnet', prompt }, session_id: 'session',
+  });
+  assert.equal(decision, '', decision && decision.permissionDecisionReason);
   const agent = { agent_id: 'managed', agent_type: type, session_id: 'session' };
   assert.match(fullEccHook(root, 'delegation-context', { ...agent, hook_event_name: 'SubagentStart' }).additionalContext, /REVIEW_ID/);
   assert.equal(fullEccHook(root, 'enforce-worker', { ...agent, tool_name: 'Edit', tool_input: { file_path: 'app.txt' } }), '');
   assert.equal(fullEccHook(root, 'enforce-worker', { ...agent, tool_name: 'Edit', tool_input: { file_path: 'other.txt' } }).permissionDecision, 'deny');
-  assert.equal(fullEccHook(root, 'validate-agent-brief', {
+  const sub = fullEccHook(root, 'validate-agent-brief', {
     ...agent, tool_name: 'Agent', tool_input: { subagent_type: 'general-purpose', prompt: 'Edit the file.' },
-  }).permissionDecision, 'deny');
+  });
+  assert.equal(sub.permissionDecision, 'deny');
+  assert.match(sub.permissionDecisionReason, /profilo Caronte per una sotto-delega gestita dal kit/);
 });
 
 test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie ECC completo', t => {
@@ -150,7 +191,7 @@ test('l’installer mantiene plugin, hook e preferenza fork quando si sceglie EC
   assert.equal(install(root, false, null, true).eccFull, true);
   const config = JSON.parse(fs.readFileSync(path.join(root, localSettings), 'utf8'));
   assert.deepEqual(config.enabledPlugins, { 'ecc@ecc': true });
-  assert.deepEqual(config.env, { ECC_HOOK_PROFILE: 'strict', CLAUDE_CODE_FORK_SUBAGENT: '1', CARONTE_ECC_FULL: '1' });
+  assert.deepEqual(config.env, { ECC_HOOK_PROFILE: 'strict', CLAUDE_CODE_FORK_SUBAGENT: '1', CARONTE_ECC_FULL: '1', ...require('../.claude/routing/caronte-home.cjs').caronteEnv(fs.realpathSync(root)) });
   assert.deepEqual(config.hooks.PreToolUse[0], eccHook);
   assert.deepEqual(install(root).changed, []);
 });
@@ -181,7 +222,7 @@ test('install-project plans the full ECC and Headroom checkouts and preserves an
   assert.ok(planned.changed.includes(checkout));
   assert.equal(planned.headroom.status, 'planned');
   assert.equal(planned.headroom.runtime, 'planned');
-  assert.ok(planned.changed.includes('.claude/vendor/headroom'));
+  assert.ok(planned.changed.includes('.caronte/.headroom'));
   assert.deepEqual(fs.readdirSync(root), ['.git']);
   write(root, '.claude/settings.json', JSON.stringify({ enabledPlugins: { 'ecc@ecc': true } }));
   assert.equal(dryRun().ecc.plugin, 'ecc@ecc');
@@ -192,7 +233,7 @@ test('a working Headroom environment is reused even if its version differs from 
   if (stubBlocked(t)) return;
   const { setupHeadroom } = require('../headroom-setup.cjs');
   const root = temporary(t);
-  const bin = path.join(root, '.claude/vendor/headroom/.venv', win ? 'Scripts' : 'bin');
+  const bin = path.join(root, '.caronte/.headroom/.venv', win ? 'Scripts' : 'bin');
   executable(path.join(bin, 'python' + exeSuffix), '#!/bin/sh\ncase "$*" in *importlib.metadata*) echo 0.45.0;; *) exit 12;; esac\n',
     "if (process.argv.slice(2).join(' ').includes('importlib.metadata')) console.log('0.45.0'); else process.exitCode = 12;");
   executable(path.join(bin, 'headroom' + exeSuffix), '#!/bin/sh\ntest "$1" = --version\n',
@@ -219,7 +260,7 @@ test('install-project skips the Headroom checkout when the CLI is already on PAT
   assert.equal(result.status, 0, result.stderr);
   const { changed, headroom: report } = JSON.parse(result.stdout);
   assert.deepEqual(report, { executable: headroom, version: '0.45.0', status: 'external', runtime: 'present' });
-  assert.ok(!changed.includes('.claude/vendor/headroom'));
+  assert.ok(!changed.includes('.caronte/.headroom'));
 
   const python = executable(path.join(root, 'uv tools', 'headroom-ai', win ? 'Scripts' : 'bin', 'python' + exeSuffix),
     '#!/bin/sh\ntest "$1 $2" = "-I -c" || exit 13\nshift 3\nexec ' + JSON.stringify(headroom) + ' "$@"\n',
@@ -231,7 +272,7 @@ test('install-project skips the Headroom checkout when the CLI is already on PAT
   assert.equal(viaPython.status, 0, viaPython.stderr);
   const pythonPlan = JSON.parse(viaPython.stdout);
   assert.deepEqual(pythonPlan.headroom, { ...report, executable: python, launcher: 'python' });
-  assert.ok(!pythonPlan.changed.includes('.claude/vendor/headroom'));
+  assert.ok(!pythonPlan.changed.includes('.caronte/.headroom'));
 });
 
 test('Headroom in the user bin is selected automatically, and a blocked copy does not trigger another download', t => {
@@ -346,7 +387,7 @@ test('l’aggiornamento ignora i settings locali del clone di Caronte', t => {
   assert.equal(settings.model, projectSettings.model);
   assert.deepEqual(settings.permissions, projectSettings.permissions);
   assert.deepEqual(settings.enabledPlugins, projectSettings.enabledPlugins);
-  assert.deepEqual(settings.env, { ...projectSettings.env, CARONTE_ECC_FULL: '1' });
+  assert.deepEqual(settings.env, { ...projectSettings.env, CARONTE_ECC_FULL: '1', ...require('../.claude/routing/caronte-home.cjs').caronteEnv(fs.realpathSync(target)) });
   assert.equal(fs.readFileSync(path.join(target, result.backup, settingsFile), 'utf8'), targetSettings);
   assert.equal(fs.readFileSync(path.join(source, settingsFile), 'utf8'), sourceSettings);
   assert.deepEqual(update(target, true, null, true).changed, []);
@@ -380,7 +421,7 @@ test('input cambiato dal verificatore rifiutato',t=>{const f=fixture(t);write(f.
 test('timeout registrato come fallimento',t=>{const f=fixture(t);f.data.stages[0].verify={command:process.execPath,args:['-e','setTimeout(()=>{},10000)'],timeoutMs:30};f.save();assert.throws(()=>check(f.run(),'a'));assert.equal(valid(f.run(),'a').ok,false);});
 test('dipendenze cicliche rifiutate',t=>{const f=fixture(t);f.data.stages[0].dependsOn=['b'];f.save();assert.throws(f.run);});
 test('ricevuta corrotta non accettata',t=>{const f=fixture(t);check(f.run(),'a');write(f.run().stateDir,'a.json','{}');assert.equal(valid(f.run(),'a').ok,false);});
-test('hook ICM blocca dipendenza obsoleta',t=>{const f=fixture(t);const e=event(brief.replace('INPUT: nessuno','INPUT: contratto\nICM_RUN: .icm/task/run.json\nICM_STAGE: b'));assert.throws(()=>validate(e,f.root));check(f.run(),'a');validate(e,f.root);write(f.root,'input.txt','new');assert.throws(()=>validate(e,f.root));});
+test('hook ICM blocca dipendenza obsoleta',t=>{const f=fixture(t);kitFiles(f.root);const e=event(brief.replace('INPUT: nessuno','INPUT: contratto\nICM_RUN: .icm/task/run.json\nICM_STAGE: b'));assert.throws(()=>validate(e,f.root));check(f.run(),'a');validate(e,f.root);write(f.root,'input.txt','new');assert.throws(()=>validate(e,f.root));});
 test('metadata ICM incompleti rifiutati',t=>{const f=fixture(t);assert.throws(()=>validate(event(brief.replace('INPUT: nessuno','INPUT: dati\nICM_RUN: .icm/task/run.json')),f.root));});
 test('installazione conserva proxy e hook, ripetibile',t=>{const r=temporary(t);write(r,'CLAUDE.md','# Regole aziendali\nMantieni naming.\n');write(r,'.claude/settings.local.json',JSON.stringify({model:'custom-model',env:{ANTHROPIC_BASE_URL:'http://localhost:8787'},hooks:{PreToolUse:[{matcher:'Bash',hooks:[{type:'command',command:'ecc-check'}]}]}}));install(r);const s=JSON.parse(fs.readFileSync(path.join(r,'.claude/settings.local.json')));assert.equal(s.env.ANTHROPIC_BASE_URL,'http://localhost:8787');assert.equal(s.model,'custom-model');assert.equal(s.hooks.PreToolUse[0].hooks[0].command,'ecc-check');assert.match(fs.readFileSync(path.join(r,'CLAUDE.md'),'utf8'),/Regole aziendali/);assert.equal(install(r).changed.length,0);});
 test('startup distingue configurazione GateGuard→RTK, opt-out, conflitti e stato indeterminato', t => {
@@ -392,7 +433,8 @@ test('startup distingue configurazione GateGuard→RTK, opt-out, conflitti e sta
     type: 'command', command: 'node', args: ['${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs', gate, rtk],
   }] }] } }));
   assert.match(gateRtkStatus(root, env), /^configurata:/);
-  assert.match(gateRtkStatus(root, { ...env, ECC_GATEGUARD: 'off' }), /^disattivata: opt-out/);
+  assert.equal(gateRtkStatus(root, { ...env, ECC_GATEGUARD: 'off' }), 'configurata: RTK obbligatorio, GateGuard disattivato nell’ambiente');
+  assert.equal(gateRtkStatus(root, env), 'configurata: GateGuard → RTK obbligatorio');
   write(user, 'settings.json', JSON.stringify({ hooks: { PreToolUse: [{ matcher: 'Bash', hooks: [{
     type: 'command', command: 'rtk', args: ['hook', 'claude'],
   }] }] } }));
@@ -404,7 +446,7 @@ test('dry run senza modifiche',t=>{const r=temporary(t);assert.ok(install(r,true
 test('conflitto personalizzato non sovrascritto',t=>{const r=temporary(t);write(r,'.claude/agents/ricerca-haiku.md','personalizzato');assert.throws(()=>install(r),/Conflitto/);assert.equal(fs.readFileSync(path.join(r,'.claude/agents/ricerca-haiku.md'),'utf8'),'personalizzato');assert.equal(fs.existsSync(path.join(r,'CLAUDE.md')),false);});
 test('comandi utente restano nel coordinatore',()=>{for(const n of ['indaga','decisione','implementa']){const s=fs.readFileSync(path.join(kit,'.claude/skills',n,'SKILL.md'),'utf8');assert.doesNotMatch(s,/^context: fork/m);assert.match(s,/tramite Agent/);}});
 test('worker di sviluppo ha scrittura e test',()=>{for(const n of ['haiku','sonnet'])assert.match(fs.readFileSync(path.join(kit,'.claude/agents','implementazione-'+n+'.md'),'utf8'),/tools:.*Edit, Write, Bash/);});
-test('CAPABILITY citata in codice non cambia il tipo',t=>{const r=temporary(t);const e=event(brief.replace('VINCOLI: sola lettura','VINCOLI: sola lettura, cerca questa stringa\n```\nCAPABILITY: write\n```'));e.tool_input.subagent_type='ricerca-haiku';validate(e,r);});
+test('CAPABILITY citata in codice non cambia il tipo',t=>{const r=project(t);const e=event(brief.replace('VINCOLI: sola lettura','VINCOLI: sola lettura, cerca questa stringa\n```\nCAPABILITY: write\n```'));e.tool_input.subagent_type='ricerca-haiku';validate(e,r);});
 test('upgrade kit precedente e deduplica scope hook',t=>{const r=temporary(t);const previous=JSON.parse(fs.readFileSync(path.join(kit,'previous-files.json')));write(r,'CLAUDE.md','# Regole locali\n\n'+previous.claude);const old=fs.readFileSync(path.join(__dirname,'fixtures/previous-hook.cjs'),'utf8');write(r,'.claude/hooks/validate-agent-brief.cjs',old);write(r,'.claude/settings.json',JSON.stringify({permissions:{allow:['Read']},hooks:{PreToolUse:[{matcher:'Agent',hooks:[{type:'command',command:'node',args:['${CLAUDE_PROJECT_DIR}/.claude/hooks/validate-agent-brief.cjs']}]},{matcher:'Bash',hooks:[{type:'command',command:'ecc-check'}]}]}}));install(r);const project=JSON.parse(fs.readFileSync(path.join(r,'.claude/settings.json')));assert.equal(project.hooks.PreToolUse.length,1);assert.equal(project.hooks.PreToolUse[0].matcher,'Bash');assert.deepEqual(project.permissions.allow,['Read']);assert.match(fs.readFileSync(path.join(r,'CLAUDE.md'),'utf8'),/Regole locali/);assert.equal(install(r).changed.length,0);});
 test('an enabled ECC plugin registered for this project is reused without another checkout', t => {
   const root = temporary(t);
@@ -480,7 +522,7 @@ test('installer imposta finestra orchestratore e mantiene le altre impostazioni 
   assert.equal(settings.autoCompactEnabled, true);
   assert.equal(settings.autoCompactWindow, 200000);
   assert.deepEqual(settings.modelSettings.custom, { autoCompactWindow: 200000, effortLevel: 'low' });
-  assert.deepEqual(settings.env, { CLAUDE_CODE_FORK_SUBAGENT: '0', CLAUDE_CODE_SUBAGENT_MODEL: 'sonnet', ANTHROPIC_BASE_URL: 'http://localhost:8787' });
+  assert.deepEqual(settings.env, { CLAUDE_CODE_FORK_SUBAGENT: '0', CLAUDE_CODE_SUBAGENT_MODEL: 'sonnet', ANTHROPIC_BASE_URL: 'http://localhost:8787', ...require('../.claude/routing/caronte-home.cjs').caronteEnv(fs.realpathSync(root)) });
   assert.equal(settings.hooks.PreCompact[0].matcher, 'auto');
   assert.equal(install(root).changed.length, 0);
 });
@@ -491,6 +533,19 @@ test('installer segnala un override del wrapper senza cancellarlo', t => {
   assert.ok(install(root).checkEnvironmentOverrides.includes('CLAUDE_CODE_AUTO_COMPACT_WINDOW'));
   const projectSettings = JSON.parse(fs.readFileSync(path.join(root, '.claude/settings.json'), 'utf8'));
   assert.equal(projectSettings.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW, '300000');
+});
+
+
+test('install non dry scrive caronteEnv in settings.local.json e crea .caronte/.gitignore', t => {
+  const root = temporary(t);
+  const dry = install(root, true);
+  assert.equal(dry.caronte, '.caronte');
+  assert.equal(fs.existsSync(path.join(root, '.caronte')), false);
+  install(root);
+  const settings = JSON.parse(fs.readFileSync(path.join(root, '.claude/settings.local.json'), 'utf8'));
+  const expected = require('../.claude/routing/caronte-home.cjs').caronteEnv(fs.realpathSync(root));
+  for (const [key, value] of Object.entries(expected)) assert.equal(settings.env[key], value);
+  assert.match(fs.readFileSync(path.join(root, '.caronte', '.gitignore'), 'utf8'), /^\*$/m);
 });
 
 test('un hook RTK autonomo utente impedisce la configurazione predefinita', t => {
@@ -549,7 +604,7 @@ test('RTK mancante usa WinGet soltanto dopo il dry-run e configura il progetto u
   assert.equal(result.rtk.hook, 'configured');
   assert.deepEqual(calls[0].slice(0, 7), ['winget', 'install', '--id', 'rtk-ai.rtk', '--exact', '--source', 'winget']);
   const settings = JSON.parse(fs.readFileSync(path.join(root, '.claude/settings.local.json'), 'utf8'));
-  const bash = settings.hooks.PreToolUse.find(group => group.matcher === 'Bash');
+  const bash = settings.hooks.PreToolUse.find(group => group.matcher === '^(Bash|PowerShell)$');
   assert.deepEqual(bash.hooks[0].args.slice(1), [gateGuard, 'rtk']);
   const repeated = install(root, false, setup, false, { progress });
   assert.equal(repeated.rtk.hook, 'reused');
@@ -588,14 +643,18 @@ function gitRepo(t) {
   git('init', '-q');
   git('config', 'user.name', 'Test');
   git('config', 'user.email', 'test@example.invalid');
+  kitFiles(root);
+  git('add', '.claude');
+  git('commit', '-qm', 'kit');
   return { root, git };
 }
 
 test('delegato esegue un solo test impattato, orchestratore verifica il delta Git e mantiene lo staging', t => {
   const { plan, enforceWorker, check, review } = require('../.claude/routing/delivery.cjs');
   const { root, git } = gitRepo(t);
+  icmFiles(root, ['src.js', 'nuovo.txt']);
   write(root, 'src.js', 'module.exports = 0;\n');
-  git('add', 'src.js');
+  git('add', '.');
   git('commit', '-qm', 'base');
   write(root, 'src.js', '// modifica già staged\nmodule.exports = 0;\n');
   git('add', 'src.js');
@@ -609,7 +668,7 @@ test('delegato esegue un solo test impattato, orchestratore verifica il delta Gi
     tests: [{ runner: 'node', file: 'test parser.cjs', selector: 'parser (A)', because: 'Regressione del parser' }],
   });
   const base = { cwd: root, session_id: 'parent', agent_id: 'worker', agent_type: profile };
-  const parent = event(brief.replace('VINCOLI: sola lettura', 'VINCOLI: modifica i due file\nCAPABILITY: write\nREVIEW_ID: ' + planned.id));
+  const parent = event(brief.replace('VINCOLI: sola lettura', 'VINCOLI: modifica i due file\nROUTING: regressione\nCAPABILITY: write\nREVIEW_ID: ' + planned.id).replace('INPUT: nessuno', 'INPUT: nessuno' + icmInput));
   parent.session_id = 'parent';
   parent.tool_input.subagent_type = profile;
   validate(parent, root);
@@ -762,13 +821,34 @@ test('GateGuard runs before RTK and preserves the original denial', async () => 
     hookEventName: 'PreToolUse',
     updatedInput: { command: 'rtk git status', description: 'Check working tree' },
   });
+  // GateGuard disattivato: nessuna chiamata al gate, RTK resta obbligatorio.
   for (const env of [{ GATEGUARD_DISABLED: '1' }, ...['0','false','off','disabled','disable'].map(value => ({ ECC_GATEGUARD: value }))]) {
     let gateCalls = 0, rtkCalls = 0;
-    const allowed = await run(input, () => { gateCalls++; return input; }, () => { rtkCalls++; return {}; }, env);
-    assert.deepEqual(allowed, {});
+    const rewritten = await run(input, () => { gateCalls++; return input; }, original => { rtkCalls++; assert.equal(original, input); return { status: 0, stdout: JSON.stringify({ hookSpecificOutput: {
+      hookEventName: 'PreToolUse', permissionDecision: 'allow', updatedInput: { command: 'rtk git status' },
+    } }) }; }, env);
     assert.equal(gateCalls, 0);
-    assert.equal(rtkCalls, 0);
+    assert.equal(rtkCalls, 1);
+    assert.equal(JSON.parse(rewritten.stdout).hookSpecificOutput.updatedInput.command, 'rtk git status');
   }
+  // PowerShell: mai GateGuard, sempre RTK.
+  const ps = JSON.stringify({ hook_event_name: 'PreToolUse', tool_name: 'PowerShell', tool_input: { command: 'git status' } });
+  let psRtk = 0;
+  const psResult = await run(ps, () => assert.fail('GateGuard non si applica a PowerShell'), () => { psRtk++; return { status: 0, stdout: JSON.stringify({ hookSpecificOutput: {
+    hookEventName: 'PreToolUse', permissionDecision: 'allow', updatedInput: { command: 'rtk git status' },
+  } }) }; });
+  assert.equal(psRtk, 1);
+  assert.equal(JSON.parse(psResult.stdout).hookSpecificOutput.updatedInput.command, 'rtk git status');
+  // RTK_DISABLED e RTK non raggiungibile negano; nessuna riscrittura lascia il comando invariato.
+  for (const value of ['1', 'true', 'yes']) {
+    const denied = await run(input, original => original, () => assert.fail('RTK disattivato'), { RTK_DISABLED: value });
+    assert.equal(JSON.parse(denied.stdout).hookSpecificOutput.permissionDecision, 'deny');
+  }
+  const unreachable = await run(input, original => original, () => ({ error: new Error('spawn rtk ENOENT') }));
+  const unreachableOut = JSON.parse(unreachable.stdout).hookSpecificOutput;
+  assert.equal(unreachableOut.permissionDecision, 'deny');
+  assert.match(unreachableOut.permissionDecisionReason, /RTK non raggiungibile/);
+  assert.deepEqual(await run(input, original => original, () => ({ status: 0, stdout: '' })), {});
 });
 
 test('ordered RTK replaces the old local hook and survives an installer rerun', t => {
@@ -786,14 +866,18 @@ test('ordered RTK replaces the old local hook and survives an installer rerun', 
       { type: 'command', command: 'rtk', args: ['hook', 'claude'], timeout: 5 },
     ] }] },
   }));
-  assert.equal(install(root, true, setup).rtk.hook, 'disabled');
-  assert.equal(install(root, false, setup).rtk.hook, 'disabled');
+  assert.equal(install(root, true, setup).rtk.hook, 'planned');
+  const noGate = install(root, false, setup).rtk;
+  assert.equal(noGate.hook, 'configured');
+  assert.equal(noGate.gateGuard, 'non configurato');
   const migrated = JSON.parse(fs.readFileSync(path.join(root, '.claude/settings.local.json')));
   assert.equal(migrated.hooks.PreToolUse.some(group =>
     group.hooks.some(hook => hook.command === 'rtk')), false);
+  const rtkOnly = migrated.hooks.PreToolUse.find(group => group.matcher === '^(Bash|PowerShell)$');
+  assert.equal(rtkOnly.hooks[0].args[1], '');
   assert.equal(install(root, false, config => setup(config, { gateGuard })).rtk.ordered, true);
   const settings = JSON.parse(fs.readFileSync(path.join(root, '.claude/settings.local.json')));
-  const bash = settings.hooks.PreToolUse.filter(group => group.matcher === 'Bash');
+  const bash = settings.hooks.PreToolUse.filter(group => group.matcher === '^(Bash|PowerShell)$');
   assert.equal(bash.length, 1);
   assert.equal(bash[0].hooks[0].args[1], gateGuard);
   assert.deepEqual(install(root, false, setup).changed, []);

@@ -14,7 +14,7 @@ const repositories = {
 // Componenti che la SessionStart aggiorna da sola. FastSkillRetrieval (pip da Git, minuti) e Headroom
 // (eseguibile in uso durante caronte start) sono solo segnalati e si aggiornano con caronte update.
 const sessionApply = ['ecc', 'rtk'];
-const headroomVenv = '.claude/vendor/headroom/.venv';
+const headroomVenv = require('./caronte-home.cjs').relative.headroom + '/.venv';
 const fsrVerify = 'import fastskillretrieval.agent_index, fastskillretrieval.install_agent';
 const headroomRuntime = 'import importlib.metadata as m\nm.version("fastapi")\nm.version("uvicorn")\nprint(m.version("headroom-ai"))';
 const sha = /^[0-9a-f]{40}$/;
@@ -164,8 +164,8 @@ async function fsrCandidate(get) {
   if (typeof branch !== 'string' || !branch) throw Error('Ramo predefinito di FastSkillRetrieval non valido.');
   return { ref: branch, commit: (await get(repositories.fsr, 'commits/' + branch)).sha };
 }
-async function updateFsr(env, get, exec, apply) {
-  const python = fsrPython(env);
+async function updateFsr(env, get, exec, apply, root) {
+  const python = fsrPython(env, process.platform, root);
   if (!fs.existsSync(python)) return { version: null, changed: false };
   const marker = path.join(path.dirname(path.dirname(python)), 'caronte-fsr-revision');
   let installed = null;
@@ -239,7 +239,7 @@ async function sync(root, {
   const results = {
     ecc: cache ? await safe(() => updateEcc(cache, get, apply.includes('ecc'))) : { version: bundled.version, changed: false },
     rtk: await safe(() => updateRtk(os.homedir(), get, exec, platform, apply.includes('rtk'))),
-    fsr: await safe(() => updateFsr(env, get, exec, apply.includes('fsr'))),
+    fsr: await safe(() => updateFsr(env, get, exec, apply.includes('fsr'), root)),
     headroom: await safe(() => updateHeadroom(root, get, exec, platform, apply.includes('headroom'))),
   };
   if (cache) {

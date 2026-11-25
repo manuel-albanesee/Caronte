@@ -8,6 +8,7 @@ const { location: eccLocation, planEcc } = require('./ecc-setup.cjs');
 const { location: headroomLocation, planHeadroom, resolveHeadroomPython, setupHeadroom } = require('./headroom-setup.cjs');
 const { planFsr, setupFsr } = require('./fsr-setup.cjs');
 const { applyRepositories } = require('./repository-setup.cjs');
+const { DIR, caronteEnv, ensureCaronteDir } = require('./.claude/routing/caronte-home.cjs');
 const hash = b => crypto.createHash('sha256').update(b).digest('hex');
 const begin = '<!-- claude-routing-kit:begin -->', end = '<!-- claude-routing-kit:end -->';
 const localSettingsFile = '.claude/settings.local.json';
@@ -136,7 +137,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   const ecc = manageEcc ? planEcc(root, settings, project, configuredPaths.ecc) : null;
   if (headroomPython) progress?.('Headroom: verifico il runtime tramite Python da ' + headroomPython + '.', undefined, 'Headroom', 0);
   const headroom = manageEcc ? planHeadroom(root, configuredPaths.headroom, headroomPython) : null;
-  const fsr = manageEcc ? planFsr() : null;
+  const fsr = manageEcc ? planFsr({ root }) : null;
   const repositories = [ecc, headroom].filter(plan => plan?.spec);
   for (const repo of repositories) {
     if (repo.report.status === 'present') progress?.(repo.spec.name + ': repository già presente, riuso la copia locale.', undefined, repo.spec.name, repo.spec.name === 'ECC' ? 100 : 25);
@@ -145,9 +146,10 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   const fullEcc = (settings.env?.CARONTE_ECC_FULL ?? project.env?.CARONTE_ECC_FULL) === '1';
   settings.env = fullEcc ? { ...settings.env } : automatic
     ? { ...sample.env, ...settings.env } : { ...settings.env, ...sample.env };
+  settings.env = { ...settings.env, ...caronteEnv(root) };
   const overrides = ['CLAUDE_CODE_AUTO_COMPACT_WINDOW', 'CLAUDE_AUTOCOMPACT_PCT_OVERRIDE', 'DISABLE_AUTO_COMPACT', 'DISABLE_COMPACT']
     .filter(key => [process.env, settings.env, project.env].some(env => env?.[key]));
-  const summary = { model: settings.model, autoCompactWindow: settings.autoCompactWindow };
+  const summary = { model: settings.model, autoCompactWindow: settings.autoCompactWindow, caronte: DIR };
   if (fullEcc) summary.eccFull = true;
   if (ecc) {
     summary.ecc = ecc.report;
@@ -193,6 +195,7 @@ function install(target, dry = false, configureRtk = null, enableFullEcc = false
   for (const repo of repositories) {
     if (repo.report.status === 'planned' || repo.exclude || repo.report.runtime === 'planned') summary.changed.push(repo.spec.location);
   }
+  if (!dry) ensureCaronteDir(root);
   if (dry || !summary.changed.length) {
     // FastSkillRetrieval è opzionale: si installa dal repository ufficiale anche quando i file del kit non cambiano.
     if (!dry && fsr?.report.status === 'planned') setupFsr(fsr, { progress });

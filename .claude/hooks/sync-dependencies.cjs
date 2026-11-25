@@ -33,11 +33,13 @@ function gateRtkStatus(root, env = process.env) {
   });
   if (coordinator && autonomous) return 'conflitto: hook RTK autonomo rilevato';
   if (!coordinator) return autonomous ? 'conflitto: RTK autonomo senza GateGuard' : 'disattivata: hook sequenziale assente';
-  if (isGateGuardDisabled(env)) return 'disattivata: opt-out GateGuard nell’ambiente';
   const gate = coordinator.args?.find(arg => path.basename(arg).toLowerCase() === 'gateguard-fact-force.js');
   const rtk = coordinator.args?.find(arg => ['rtk', 'rtk.exe'].includes(path.basename(arg).toLowerCase()));
-  if (!gate || !fs.existsSync(gate) || !rtk || !fs.existsSync(rtk)) return 'indeterminato: eseguibile o modulo non trovato';
-  return 'configurata: GateGuard → RTK su Bash';
+  if (!rtk || !fs.existsSync(rtk) || (gate && !fs.existsSync(gate))) return 'indeterminato: eseguibile o modulo non trovato';
+  // RTK è obbligatorio: resta attivo anche con GateGuard spento o non configurato.
+  if (!gate) return 'configurata: RTK obbligatorio, GateGuard non configurato';
+  if (isGateGuardDisabled(env)) return 'configurata: RTK obbligatorio, GateGuard disattivato nell’ambiente';
+  return 'configurata: GateGuard → RTK obbligatorio';
 }
 
 async function main() {

@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
+const caronteHome = require('./.claude/routing/caronte-home.cjs');
 
 // FastSkillRetrieval (MIT, Manuel Albanese): indice BM25 locale di skill, agent e comandi installati.
 // Come per gli altri prodotti terzi viene scaricato dal repository ufficiale a ogni installazione di Caronte.
@@ -15,8 +16,8 @@ const verifyCode = 'import fastskillretrieval.agent_index, fastskillretrieval.in
 
 const fsrHome = (env = process.env, home = os.homedir()) => env.FSR_HOME || path.join(home, '.fsr');
 
-function paths(env = process.env, home = os.homedir(), platform = process.platform) {
-  const base = fsrHome(env, home);
+function paths(env = process.env, home = os.homedir(), platform = process.platform, root) {
+  const base = root ? caronteHome.fsrHome(root, env) : fsrHome(env, home);
   const venv = path.join(base, 'venv');
   return {
     base, venv,
@@ -46,8 +47,8 @@ function current(run, location) {
   return /^[0-9a-f]{40}$/.test(revision || '') && execute(run, location.python, ['-I', '-c', verifyCode], 10000).status === 0 ? revision : null;
 }
 
-function planFsr({ env = process.env, home = os.homedir(), platform = process.platform, run = spawnSync } = {}) {
-  const location = paths(env, home, platform);
+function planFsr({ root, env = process.env, home = os.homedir(), platform = process.platform, run = spawnSync } = {}) {
+  const location = paths(env, home, platform, root);
   const present = current(run, location);
   return {
     location,

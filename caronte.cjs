@@ -37,7 +37,11 @@ async function start(args) {
   if (!executable) throw Error('Headroom assente. Esegui caronte install-project nella root del progetto.');
   await showLogo();
   console.error('Caronte | Avvio Headroom ' + (python ? 'tramite Python da ' : 'da ') + executable);
-  const env = { ...process.env };
+  const { caronteEnv } = require('./.claude/routing/caronte-home.cjs');
+  const env = { ...process.env, ...caronteEnv(root) };
+  for (const key of Object.keys(caronteEnv(root))) {
+    if (typeof settings.env?.[key] === 'string') env[key] = settings.env[key];
+  }
   if (!wrapOptions.some(arg => ['--code-memory', '--serena', '--no-serena'].includes(arg.split('=')[0]))) {
     env.HEADROOM_CODE_MEMORY = 'none';
   }

@@ -117,14 +117,17 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
   if (userSettings === null) {
     throw Error('Impossibile verificare la presenza di hook RTK autonomi nei settings utente.');
   }
-  if (!gateGuard) return { hook: 'disabled', reason: 'GateGuard ECC non configurato' };
-
-  const gateStat = fs.statSync(gateGuard, { throwIfNoEntry: false });
-  if (path.basename(gateGuard) !== 'gateguard-fact-force.js' ||
-      (gateStat ? !gateStat.isFile() : gateGuard !== bundledGateGuard)) {
-    throw Error('Indica il file ECC scripts/hooks/gateguard-fact-force.js.');
-  }
-  if (gateStat) gateGuard = fs.realpathSync(gateGuard);
+  // RTK è obbligatorio: senza GateGuard l'hook applica solo la riscrittura RTK (argomento GateGuard vuoto).
+  const gateConfigured = Boolean(gateGuard);
+  if (gateConfigured) {
+    const gateStat = fs.statSync(gateGuard, { throwIfNoEntry: false });
+    if (path.basename(gateGuard) !== 'gateguard-fact-force.js' ||
+        (gateStat ? !gateStat.isFile() : gateGuard !== bundledGateGuard)) {
+      throw Error('Indica il file ECC scripts/hooks/gateguard-fact-force.js.');
+    }
+    if (gateStat) gateGuard = fs.realpathSync(gateGuard);
+  } else gateGuard = '';
+  const gateNote = gateConfigured ? {} : { gateGuard: 'non configurato' };
 
   const directories = (env.PATH || '').split(path.delimiter);
   const extraDirectories = [
@@ -229,6 +232,7 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
     binary, executable,
     version: version.stdout.trim(),
     ...(binary === 'installed' ? { packageManager } : {}),
+    ...gateNote,
   };
   const onPath = findOnPath('rtk');
   if (onPath !== executable) {
@@ -243,7 +247,9 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
   progress?.('RTK ' + status.version.replace(/^rtk\s+/i, '') + (binary === 'existing' ? ': binario già disponibile.' : ': installato.'), undefined, 'RTK', 100);
 
   const args = ['${CLAUDE_PROJECT_DIR}/.claude/hooks/gateguard-rtk.cjs', gateGuard, executable];
-  if (coordinator && JSON.stringify(coordinator.args) === JSON.stringify(args)) {
+  const matcher = '^(Bash|PowerShell)$';
+  const coordinatorGroup = groups.find(group => group.hooks.includes(coordinator));
+  if (coordinator && JSON.stringify(coordinator.args) === JSON.stringify(args) && coordinatorGroup?.matcher === matcher) {
     return { ...status, hook: 'reused', ordered: true };
   }
   settings.hooks.PreToolUse = settings.hooks.PreToolUse.map(group => ({
@@ -252,7 +258,7 @@ function prepareRtk({ dry, settings, project, gateGuard, bundledGateGuard, progr
   return {
     ...status, hook: dry ? 'planned' : 'configured', ordered: true,
     entry: {
-      matcher: 'Bash',
+      matcher,
       hooks: [{ type: 'command', command: 'node', args, timeout: 20, onFailure: 'block' }],
     },
   };

@@ -92,7 +92,7 @@ test('FastSkillRetrieval senza release segue il ramo predefinito, solo in avanti
 
 test('Headroom del progetto: release stabile, stessa major, installazione verificata con caronte update', async t => {
   const root = temp(t);
-  const venv = path.join(root, '.claude', 'vendor', 'headroom', '.venv');
+  const venv = path.join(root, '.caronte', '.headroom', '.venv');
   touch(pythonIn(venv));
   let installed = '0.44.0', pipStatus = 0, release = 'v0.45.0';
   const calls = [];

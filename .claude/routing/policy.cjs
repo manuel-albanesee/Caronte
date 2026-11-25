@@ -1,15 +1,16 @@
 'use strict';
-// Policy di delega: classe di lavoro con tetto di modello, risoluzione del modello di qualsiasi agent installato,
-// legame con le fasi ICM e soglie del coordinatore. Nessun agent è respinto per nome.
-// Configurazione in .claude/routing/policy.json; CARONTE_DELEGATION (off | balanced | strict) sostituisce il campo mode.
-// Senza policy.json o con mode off nessun controllo viene applicato.
+// Policy di delega obbligatoria: classe di lavoro con tetto di modello, risoluzione del modello di qualsiasi agent installato,
+// specialista obbligatorio al posto dell'agent generico, run ICM per ogni scrittura e soglie del coordinatore.
+// Configurazione in .claude/routing/policy.json; CARONTE_DELEGATION (balanced | strict) sostituisce il campo mode.
+// Il routing non si disattiva: il valore off è ignorato e una policy.json mancante blocca le deleghe.
 const fs = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 
-const MODES = new Set(['off', 'balanced', 'strict']);
+const MODES = new Set(['balanced', 'strict']);
+const GENERIC_AGENTS = ['general-purpose', 'claude'];
 const TIERS = [['fable', 4], ['opus', 3], ['sonnet', 2], ['haiku', 1]];
 const EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 function policyError(message, reason = 'routing_policy') {
@@ -23,12 +24,13 @@ function load(root, env = process.env) {
   let data;
   try { data = readJSON(path.join(root, '.claude', 'routing', 'policy.json')); }
   catch (error) {
-    if (error.code === 'ENOENT') return null;
+    if (error.code === 'ENOENT') throw policyError('policy.json mancante in .claude/routing: il routing di Caronte è obbligatorio. Ripristinalo con caronte update o caronte install-project.');
     throw policyError('policy.json non leggibile: ' + error.message);
   }
-  const mode = env.CARONTE_DELEGATION || data.mode || 'balanced';
-  if (!MODES.has(mode)) throw policyError('Modalità di delega non valida: ' + mode + ' (off, balanced, strict).');
-  if (mode === 'off') return null;
+  // off non è più ammesso: un CARONTE_DELEGATION=off residuo è ignorato a favore del mode della policy.
+  const pick = value => value && value !== 'off' ? value : null;
+  const mode = pick(env.CARONTE_DELEGATION) || pick(data.mode) || 'balanced';
+  if (!MODES.has(mode)) throw policyError('Modalità di delega non valida: ' + mode + ' (balanced, strict).');
   if (data.version !== 1 || !data.classes || typeof data.classes !== 'object') throw policyError('policy.json non valido.');
   for (const [name, cls] of Object.entries(data.classes)) {
     if (tierOf(cls.maxModel) === null) throw policyError('Classe senza maxModel valido (haiku, sonnet, opus, fable): ' + name);
@@ -157,18 +159,42 @@ function recentNativeFlow(policy, root, event) {
 // ---- Nessun agent è respinto per nome: il costo si governa con classe e tetto di modello ----
 function checkAgentType() {}
 
-// ---- Dopo il parsing del brief: classe, profilo, modello, fase ICM ----
-function checkRouting(policy, root, event, { constraints, meta, stage, run, plan, activeRuns }, env = process.env) {
+// ---- Specialisti: agent generici e candidati specialisti per una classe ----
+function genericAgents(policy) {
+  return new Set(Array.isArray(policy.genericAgents) ? policy.genericAgents : GENERIC_AGENTS);
+}
+function isGeneric(policy, name) { return genericAgents(policy).has(name || 'general-purpose'); }
+// Specialisti installati per la classe: nomi citati in preferred/specialists della classe più gli agent trovati da FSR,
+// esclusi i generici, gli agent non installati e quelli oltre il tetto di modello della classe.
+function specialistsFor(policy, root, cls, fsrAgents = [], env = process.env) {
+  const rule = policy.classes[cls] || {};
+  const named = [...(rule.specialists || []), ...(rule.preferred || [])].flatMap(text => String(text).match(/[\w][\w:.-]*[\w]/g) || []);
+  const found = [];
+  for (const name of new Set([...named, ...fsrAgents])) {
+    if (isGeneric(policy, name)) continue;
+    const info = agentInfo(root, name, policy, env);
+    if (info.source === 'unknown') continue;
+    const eff = effectiveModel(policy, info, {}, env);
+    if (tierOf(eff.model) !== null && tierOf(eff.model) > tierOf(rule.maxModel)) continue;
+    found.push(name);
+  }
+  return found;
+}
+
+// ---- Dopo il parsing del brief: classe, profilo, specialista, modello, fase ICM ----
+function checkRouting(policy, root, event, { constraints, meta, stage, run, plan, activeRuns, fsrAgents }, env = process.env) {
   const input = event.tool_input || {};
   const profile = input.subagent_type;
   const write = constraints.CAPABILITY === 'write' || constraints.REVIEW_ID !== undefined;
-  // Fase ICM aperta: una delega di scrittura deve dichiarare la fase o motivare l'esclusione.
-  if (write && !meta.ICM_STAGE && !meta.ICM_SKIP) {
+  // ICM obbligatorio: ogni delega di scrittura appartiene a una fase di un run ICM.
+  if (meta.ICM_SKIP !== undefined) {
+    throw policyError('ICM_SKIP non è più ammesso: la metodologia ICM è obbligatoria. Collega la delega a una fase con ICM_RUN e ICM_STAGE in INPUT.', 'icm_gate');
+  }
+  if (write && (!meta.ICM_RUN || !meta.ICM_STAGE)) {
     const open = (activeRuns || []).filter(r => r.next);
-    if (open.length) {
-      const list = open.map(r => `${r.manifest} → ${r.next}${r.profile ? ' (' + r.profile + ')' : ''}`).join('; ');
-      throw policyError(`Run ICM aperto: ${list}. Aggiungi in INPUT ICM_RUN e ICM_STAGE della fase, oppure ICM_SKIP: <motivo> se la modifica è estranea al run.`, 'icm_gate');
-    }
+    const list = open.length ? ' Run aperti: ' + open.map(r => `${r.manifest} → ${r.next}${r.profile ? ' (' + r.profile + ')' : ''}`).join('; ') + '.' : '';
+    throw policyError('Ogni delega di scrittura richiede un run ICM: aggiungi in INPUT ICM_RUN: <percorso/run.json> e ICM_STAGE: <id>. ' +
+      'Se manca, crea il manifest con la skill sviluppo-icm (status, gate, check).' + list, 'icm_gate');
   }
   if (stage?.profile && stage.profile !== profile) {
     throw policyError(`La fase ${stage.id} è assegnata a ${stage.profile}: usa quel profilo o aggiorna il manifest (la ricevuta della fase verrà invalidata).`, 'icm_gate');
@@ -183,6 +209,14 @@ function checkRouting(policy, root, event, { constraints, meta, stage, run, plan
   if (!cls) throw policyError(`Indica in VINCOLI ROUTING: <classe> (${classes.join(', ')}). Qualsiasi agent installato è ammesso entro il tetto di modello della classe.`);
   if (!Object.hasOwn(policy.classes, cls)) throw policyError(`Classe di routing sconosciuta: ${cls}. Classi: ${classes.join(', ')}.`);
   const name = profile || 'general-purpose';
+  // Specialista obbligatorio: un agent generico è negato se esiste uno specialista installato per la classe.
+  if (isGeneric(policy, name)) {
+    const specialists = specialistsFor(policy, root, cls, fsrAgents, env);
+    if (specialists.length) {
+      throw policyError(`${name} è un agent generico: per la classe ${cls} usa uno specialista installato (${specialists.join(', ')}). ` +
+        'Gli agent generici sono ammessi solo quando nessuno specialista copre la classe.', 'specialist_required');
+    }
+  }
   const rule = policy.classes[cls], info = agentInfo(root, name, policy, env);
   const eff = effectiveModel(policy, info, input, env);
   const effort = input.effort || info.effort;
@@ -290,7 +324,7 @@ function coordinatorPre(policy, root, event) {
     if (state.reads > limits.maxReads) {
       throw policyError(`Il coordinatore ha superato ${limits.maxReads} letture dirette dall'ultima delega in questo turno (policy ${policy.mode}). ` +
         'Affida l\'esplorazione a ricerca-haiku o a un altro agent Haiku con un brief (ROUTING: ricerca) e lavora sui riferimenti restituiti; ' +
-        'le letture sotto .icm, .claude e .git (diff di review) restano libere. Per disattivare: CARONTE_DELEGATION=off.', 'coordinator_budget');
+        'le letture sotto .icm, .claude e .git (diff di review) restano libere.', 'coordinator_budget');
     }
     return;
   }
@@ -346,6 +380,7 @@ function routingHint(policy, root, prompt) {
   if (c.size === 'large') parts.push('lavoro ampio: prepara un run ICM (skill sviluppo-icm) con profile e class per fase, decisione-opus solo per la fase di scelta');
   else if (c.size === 'small' && c.class && ['meccanica', 'ricerca'].includes(c.class)) parts.push('se resta entro le soglie del coordinatore eseguilo direttamente');
   for (const r of runs) parts.push(`run ICM aperto ${r.manifest}: prossima fase ${r.next}${r.profile ? ' → ' + r.profile : ''}`);
+  if (c.class) parts.push('obblighi: ogni delega di scrittura in una fase ICM (ICM_RUN, ICM_STAGE), specialista al posto degli agent generici, ECC_QUERY ed ECC_TOOLS dagli strumenti FSR');
   if (!parts.length) return null;
   const l = coordinatorLimits(policy);
   return `Routing Caronte (${policy.mode}): ${parts.join('; ')}. Soglie dirette del coordinatore per turno: ${l.maxEditLines} righe, ${l.maxEditFiles} file, ${l.maxReads} letture.`;
@@ -373,5 +408,6 @@ if (require.main === module) {
 
 module.exports = {
   load, tier, effortRank, profileInfo, agentInfo, effectiveModel, listAgents, checkAgentType, checkRouting, activeRuns, findManifests,
-  coordinatorPre, coordinatorPost, newTurn, classify, routingHint, readState, nativeFlowName, policyError,
+  coordinatorPre, coordinatorPost, newTurn, classify, routingHint, readState, nativeFlowName, recentNativeFlow, policyError,
+  isGeneric, specialistsFor,
 };

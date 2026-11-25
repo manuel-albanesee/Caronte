@@ -2,6 +2,7 @@
   "version": 1,
   "mode": "balanced",
   "inheritedModel": "opus",
+  "genericAgents": ["general-purpose", "claude"],
   "classes": {
     "decisione": {
       "maxModel": "opus",

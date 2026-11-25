@@ -5,7 +5,8 @@ const { spawnSync } = require('node:child_process');
 const { planRepository } = require('./repository-setup.cjs');
 const { filePath } = require('./.claude/routing/icm.cjs');
 
-const location = '.claude/vendor/headroom';
+const location = require('./.claude/routing/caronte-home.cjs').relative.headroom;
+const legacyLocation = '.claude/vendor/headroom';
 const version = '0.44.0';
 const spec = {
   name: 'Headroom', location,
@@ -60,6 +61,7 @@ function planHeadroom(root, explicitPath, python) {
     return { report: { ...external, status: 'external', runtime: 'unavailable' } };
   }
   const repository = planRepository(root, spec);
+  if (fs.existsSync(filePath(root, legacyLocation))) plan.report.legacy = legacyLocation;
   return { ...repository, report: { ...repository.report, ...plan.report } };
 }
 
@@ -89,8 +91,10 @@ function locateHeadroom(root, configured) {
     if (fs.existsSync(executable)) return executable;
   }
   const command = process.platform === 'win32' ? 'Scripts/headroom.exe' : 'bin/headroom';
-  const local = filePath(root, location + '/.venv/' + command);
-  if (fs.existsSync(local)) return local;
+  for (const base of [location, legacyLocation]) {
+    const local = filePath(root, base + '/.venv/' + command);
+    if (fs.existsSync(local)) return local;
+  }
 }
 
 // Windows reports an executable it refuses to run (policy, antivirus, corrupted file) as UNKNOWN or EFTYPE.
@@ -173,4 +177,4 @@ function commandError(result) {
   return result.error?.message || output?.slice(-3).join(' ').slice(0, 600) || 'codice ' + result.status;
 }
 
-module.exports = { location, locateHeadroom, planHeadroom, pythonEntry, resolveHeadroomPython, setupHeadroom };
+module.exports = { location, legacyLocation, locateHeadroom, planHeadroom, pythonEntry, resolveHeadroomPython, setupHeadroom };

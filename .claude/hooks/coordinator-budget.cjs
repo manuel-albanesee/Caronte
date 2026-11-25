@@ -1,7 +1,7 @@
 'use strict';
 // PreToolUse (Read|Grep|Edit|Write|MultiEdit|NotebookEdit|Skill) e PostToolUse (Agent|Task) del solo thread principale:
 // conta letture e modifiche dirette del coordinatore nel turno e, oltre le soglie di policy.json, nega con l'indicazione del profilo a cui delegare.
-// Errori interni non bloccano mai (fail open); CARONTE_DELEGATION=off disattiva il controllo.
+// Errori interni non bloccano mai (fail open); il controllo non si disattiva (CARONTE_DELEGATION accetta balanced o strict).
 const fs = require('node:fs');
 const policyRules = require('../routing/policy.cjs');
 const { toolEvent } = require('../routing/telemetry.cjs');

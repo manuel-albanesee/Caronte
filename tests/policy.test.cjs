@@ -15,11 +15,18 @@ const { plan } = require('../.claude/routing/delivery.cjs');
 const { loadRun } = require('../.claude/routing/icm.cjs');
 const budget = require('../.claude/hooks/coordinator-budget.cjs');
 const suggest = require('../.claude/hooks/suggest-skills.cjs');
+const { makeIndex } = require('./helpers/fsr-index.cjs');
+// Indice FSR di prova: la query dei brief non produce hit, quindi ECC_TOOLS: [] è valido.
+const fsrDir = makeIndex([{ name: 'ecc:java-reviewer', kind: 'agent', description: 'java spring reviewer agent' }]);
+process.env.CARONTE_SKILL_INDEX = fsrDir;
+test.after(() => fs.rmSync(fsrDir, { recursive: true, force: true }));
 
 const kit = path.resolve(__dirname, '..');
 const base = 'OBIETTIVO: trova il chiamante\nINPUT: nessuno\nFATTI: errore riproducibile\nVINCOLI: sola lettura\nUSCITA: percorso e riga\nVERIFICA: identifica il chiamante e fermati';
-const brief = ({ input = [], constraints = [] } = {}) => base
-  .replace('INPUT: nessuno', ['INPUT: nessuno', ...input].join('\n'))
+const fsrInput = ['ECC_QUERY: zzqq wwvv', 'ECC_TOOLS: []'];
+const stageInput = ['ICM_RUN: .icm/task/run.json', 'ICM_STAGE: a'];
+const brief = ({ input = [], constraints = [], fsr = true } = {}) => base
+  .replace('INPUT: nessuno', ['INPUT: nessuno', ...(fsr ? fsrInput : []), ...input].join('\n'))
   .replace('VINCOLI: sola lettura', ['VINCOLI: perimetro limitato', ...constraints].join('\n'));
 const agent = (subagent_type, prompt, extra = {}) => ({ tool_name: 'Agent', session_id: 'sessione-test', tool_input: { subagent_type, prompt, ...extra } });
 function write(root, name, text) { const p = path.join(root, name); fs.mkdirSync(path.dirname(p), { recursive: true }); fs.writeFileSync(p, text); }
@@ -43,27 +50,43 @@ function icm(root, stageA = {}) {
 }
 const denied = (fn, pattern) => assert.throws(fn, error => pattern.test(error.message) || assert.fail(error.message));
 
-test('senza policy.json o con CARONTE_DELEGATION=off nessun controllo', t => {
+test('policy.json obbligatorio; CARONTE_DELEGATION=off ignorato, valori ammessi balanced e strict', t => {
   const root = project(t, { policy: false });
-  assert.equal(policyRules.load(root), null);
-  validate(agent('general-purpose', base), root);
+  assert.throws(() => policyRules.load(root), /policy\.json mancante/);
+  assert.throws(() => validate(agent('ricerca-haiku', brief({ constraints: ['ROUTING: ricerca'] })), root), /policy\.json mancante/);
   const withPolicy = project(t);
-  assert.equal(policyRules.load(withPolicy, { CARONTE_DELEGATION: 'off' }), null);
+  assert.equal(policyRules.load(withPolicy, { CARONTE_DELEGATION: 'off' }).mode, 'balanced');
+  assert.equal(policyRules.load(withPolicy, { CARONTE_DELEGATION: 'strict' }).mode, 'strict');
   assert.throws(() => policyRules.load(withPolicy, { CARONTE_DELEGATION: 'massima' }), /Modalità di delega non valida/);
   assert.equal(policyRules.load(withPolicy, {}).mode, 'balanced');
 });
 
-test('nessun agent respinto per nome: vale il tetto di modello della classe', t => {
+test('agent generici negati se esiste uno specialista; specialistsFor esclude generici, non installati e oltre il tetto', t => {
+  const root = project(t);
+  const policy = policyRules.load(root, {});
+  assert.ok(policyRules.isGeneric(policy, 'general-purpose') && policyRules.isGeneric(policy, 'claude') && policyRules.isGeneric(policy, undefined));
+  assert.ok(!policyRules.isGeneric(policy, 'Explore'));
+  const found = policyRules.specialistsFor(policy, root, 'ricerca', [], {});
+  assert.ok(found.includes('ricerca-haiku') && !found.includes('general-purpose'));
+  // decisione-opus supera il tetto della classe ricerca; ecc:inesistente non è installato.
+  const extra = policyRules.specialistsFor(policy, root, 'ricerca', ['decisione-opus', 'ecc:inesistente', 'general-purpose'], {});
+  assert.ok(!extra.includes('decisione-opus') && !extra.includes('ecc:inesistente') && !extra.includes('general-purpose'));
+  const r = brief({ constraints: ['ROUTING: ricerca'] });
+  assert.throws(() => validate(agent('general-purpose', r), root), e => e.reason === 'specialist_required' && /ricerca-haiku/.test(e.message));
+  assert.throws(() => validate(agent('general-purpose', r, { model: 'haiku' }), root), e => e.reason === 'specialist_required');
+  assert.throws(() => validate({ tool_name: 'Agent', session_id: 's', tool_input: { prompt: r } }, root), e => e.reason === 'specialist_required');
+  validate(agent('ricerca-haiku', r), root);
+});
+
+test('nessun agent specialista respinto per nome: vale il tetto di modello della classe', t => {
   const root = project(t);
   const r = cls => brief({ constraints: ['ROUTING: ' + cls] });
   // Explore del kit è Haiku in sola lettura: ammesso per la ricerca.
   validate(agent('Explore', r('ricerca')), root);
-  // general-purpose e Plan ereditano il modello della sessione (inheritedModel: opus).
-  denied(() => validate(agent('general-purpose', r('ricerca')), root), /opus.*tetto haiku/);
-  validate(agent('general-purpose', r('ricerca'), { model: 'haiku' }), root);
+  // Plan eredita il modello della sessione (inheritedModel: opus).
+  denied(() => validate(agent('Plan', r('ricerca')), root), /opus.*tetto haiku/);
+  validate(agent('Plan', r('ricerca'), { model: 'haiku' }), root);
   validate(agent('Plan', r('decisione')), root);
-  denied(() => validate({ tool_name: 'Agent', session_id: 's', tool_input: { prompt: r('sviluppo') } }, root), /general-purpose.*tetto sonnet/);
-  validate({ tool_name: 'Agent', session_id: 's', tool_input: { prompt: brief({ constraints: ['ROUTING: sviluppo', 'ESCALATION: sonnet ha fallito due volte sul parser ricorsivo'] }) } }, root);
   // CLAUDE_CODE_SUBAGENT_MODEL abbassa il modello ereditato.
   const policy = policyRules.load(root, {});
   const parsed = { constraints: { ROUTING: 'sviluppo' }, meta: {}, stage: null, run: null, plan: null, activeRuns: [] };
@@ -121,9 +144,9 @@ test('salire di modello o effort rispetto ad agent o classe richiede ESCALATION 
   validate(agent('ricerca-haiku', p, { model: 'haiku' }), root);
   validate(agent('ricerca-haiku', brief({ constraints: ['ROUTING: ricerca', 'ESCALATION: haiku ha mancato due chiamanti dinamici nel tentativo precedente'] }), { model: 'sonnet' }), root);
   // meccanica: Sonnet ammesso solo con effort low.
-  write(root, 'a.txt', 'a');
-  const id = plan(root, { profile: 'implementazione-sonnet', files: ['a.txt'], tests: [], noTestsReason: 'testo' }).id;
-  const m = brief({ constraints: ['ROUTING: meccanica', 'CAPABILITY: write', 'REVIEW_ID: ' + id] });
+  icm(root, { profile: 'implementazione-sonnet', class: 'meccanica' });
+  const id = plan(root, { profile: 'implementazione-sonnet', files: ['out-a.txt'], tests: [], noTestsReason: 'testo' }).id;
+  const m = brief({ input: stageInput, constraints: ['ROUTING: meccanica', 'CAPABILITY: write', 'REVIEW_ID: ' + id] });
   denied(() => validate(agent('implementazione-sonnet', m), root), /effort medium oltre il tetto low/);
   validate(agent('implementazione-sonnet', m, { effort: 'low' }), root);
 });
@@ -132,7 +155,7 @@ test('una ricevuta ICM fallita della fase giustifica l\'escalation', t => {
   const root = project(t);
   icm(root, { profile: 'implementazione-sonnet', class: 'meccanica' });
   const id = plan(root, { profile: 'implementazione-sonnet', files: ['out-a.txt'], tests: [], noTestsReason: 'testo' }).id;
-  const p = brief({ input: ['ICM_RUN: .icm/task/run.json', 'ICM_STAGE: a'], constraints: ['CAPABILITY: write', 'REVIEW_ID: ' + id] });
+  const p = brief({ input: stageInput, constraints: ['CAPABILITY: write', 'REVIEW_ID: ' + id] });
   denied(() => validate(agent('implementazione-sonnet', p), root), /effort medium oltre il tetto low.*ricevuta check fallita/);
   write(root, '.icm/task/.state-policy-001/a.json', JSON.stringify({ status: 'fail', reason: 'comando terminato con exit 1' }));
   validate(agent('implementazione-sonnet', p), root);
@@ -141,9 +164,10 @@ test('una ricevuta ICM fallita della fase giustifica l\'escalation', t => {
 
 test('implementazione-haiku: al massimo 2 file e test mirato obbligatorio', t => {
   const root = project(t);
+  icm(root, { outputs: ['a.txt', 'b.txt', 'c.txt'] });
   for (const f of ['a.txt', 'b.txt', 'c.txt']) write(root, f, f);
   const wide = plan(root, { profile: 'implementazione-haiku', files: ['a.txt', 'b.txt', 'c.txt'], tests: [], noTestsReason: 'testo' });
-  const writing = (id, cls = 'meccanica') => brief({ constraints: ['ROUTING: ' + cls, 'CAPABILITY: write', 'REVIEW_ID: ' + id] });
+  const writing = (id, cls = 'meccanica') => brief({ input: stageInput, constraints: ['ROUTING: ' + cls, 'CAPABILITY: write', 'REVIEW_ID: ' + id] });
   denied(() => validate(agent('implementazione-haiku', writing(wide.id)), root), /al massimo 2 file/);
   const untested = plan(root, { profile: 'implementazione-haiku', files: ['a.txt'], tests: [], noTestsReason: 'testo' });
   denied(() => validate(agent('implementazione-haiku', writing(untested.id)), root), /test mirato/);
@@ -151,16 +175,16 @@ test('implementazione-haiku: al massimo 2 file e test mirato obbligatorio', t =>
   validate(agent('implementazione-sonnet', writing(sonnet.id, 'sviluppo')), root);
 });
 
-test('run ICM aperto: la scrittura dichiara la fase o ICM_SKIP; profilo, classe e output della fase vincolano la delega', t => {
+test('ICM obbligatorio: la scrittura dichiara la fase, ICM_SKIP è negato; profilo, classe e output della fase vincolano la delega', t => {
   const root = project(t);
   icm(root, { profile: 'implementazione-sonnet', class: 'sviluppo' });
   write(root, 'other.txt', 'x');
   const outside = plan(root, { profile: 'implementazione-sonnet', files: ['other.txt'], tests: [], noTestsReason: 'testo' });
   const p = (id, input = []) => brief({ input, constraints: ['CAPABILITY: write', 'REVIEW_ID: ' + id] });
   assert.throws(() => validate(agent('implementazione-sonnet', p(outside.id)), root), e => e.reason === 'icm_gate' && /\.icm\/task\/run\.json → a/.test(e.message));
-  // ICM_SKIP esenta dal run ma non dalla classe: senza fase non c'è un ROUTING ereditato.
-  denied(() => validate(agent('implementazione-sonnet', p(outside.id, ['ICM_SKIP: correzione indipendente dal run'])), root), /ROUTING/);
-  const stageInput = ['ICM_RUN: .icm/task/run.json', 'ICM_STAGE: a'];
+  // ICM_SKIP non è più ammesso, nemmeno in sola lettura.
+  assert.throws(() => validate(agent('implementazione-sonnet', p(outside.id, ['ICM_SKIP: correzione indipendente dal run'])), root), e => e.reason === 'icm_gate' && /ICM_SKIP/.test(e.message));
+  assert.throws(() => validate(agent('ricerca-haiku', brief({ input: ['ICM_SKIP: nessun run necessario qui'], constraints: ['ROUTING: ricerca'] })), root), e => e.reason === 'icm_gate');
   denied(() => validate(agent('implementazione-sonnet', p(outside.id, stageInput)), root), /non dichiarati negli output/);
   const inside = plan(root, { profile: 'implementazione-sonnet', files: ['out-a.txt'], tests: [], noTestsReason: 'testo' });
   const haiku = plan(root, { profile: 'implementazione-haiku', files: ['out-a.txt'], tests: [], noTestsReason: 'testo' });
@@ -199,7 +223,8 @@ test('soglie del coordinatore: modifiche e letture oltre il limite negate, esenz
   assert.match(read.permissionDecisionReason, /ricerca-haiku/);
   budget.run({ hook_event_name: 'PostToolUse', session_id: 's1', cwd: root, tool_name: 'Agent', tool_input: {} }, env);
   assert.equal(budget.run(ev('Read', { file_path: 'src/g.js' }), env), null);
-  assert.equal(budget.run(ev('Edit', { file_path: 'z.js', old_string: 'x', new_string: lines(80) }), { ...env, CARONTE_DELEGATION: 'off' }), null);
+  // off non è più ammesso: CARONTE_DELEGATION=off è ignorato e valgono le soglie di balanced.
+  assert.equal(budget.run(ev('Edit', { file_path: 'z.js', old_string: 'x', new_string: lines(80) }), { ...env, CARONTE_DELEGATION: 'off' }).hookSpecificOutput.permissionDecision, 'deny');
   assert.equal(budget.run(ev('Edit', { file_path: 'z.js', old_string: 'x', new_string: 'y' }), { ...env, CARONTE_DELEGATION: 'strict' }).hookSpecificOutput.permissionDecision, 'deny');
   // Una procedura ECC nativa sospende le soglie in balanced, non in strict.
   suggest.run({ session_id: 's1', cwd: root, prompt: '/ecc:tdd aggiungi il caso limite' }, { ...env, CARONTE_SKILL_MODE: 'off' });
@@ -207,7 +232,7 @@ test('soglie del coordinatore: modifiche e letture oltre il limite negate, esenz
   assert.equal(budget.run(ev('Edit', { file_path: 'z.js', old_string: 'x', new_string: 'y' }), { ...env, CARONTE_DELEGATION: 'strict' }).hookSpecificOutput.permissionDecision, 'deny');
 });
 
-test('classificazione deterministica e suggerimento di routing senza indice delle skill', t => {
+test('classificazione deterministica e suggerimento di routing con obblighi e avviso FSR senza indice', t => {
   const root = project(t);
   const policy = policyRules.load(root, {});
   assert.equal(policyRules.classify(policy, 'rinomina la funzione load in app.js').class, 'meccanica');
@@ -219,6 +244,10 @@ test('classificazione deterministica e suggerimento di routing senza indice dell
   const context = suggest.run({ session_id: 's2', cwd: root, prompt: 'cerca dove viene chiamato parse' }, env).hookSpecificOutput.additionalContext;
   assert.match(context, /ROUTING: ricerca\): qualsiasi agent fino a haiku\/low;.*ricerca-haiku/);
   assert.match(context, /prossima fase a → implementazione-sonnet/);
-  assert.equal(suggest.run({ session_id: 's2', cwd: root, prompt: '/ecc:plan' }, env), null);
-  assert.equal(suggest.run({ session_id: 's2', cwd: root, prompt: 'cerca x' }, { ...env, CARONTE_DELEGATION: 'off' }), null);
+  assert.match(context, /obblighi: /);
+  assert.match(context, /Indice FastSkillRetrieval non ancora disponibile/);
+  // Una procedura ECC nativa non produce il suggerimento di routing, solo l'avviso FSR.
+  assert.doesNotMatch(suggest.run({ session_id: 's2', cwd: root, prompt: '/ecc:plan' }, env).hookSpecificOutput.additionalContext, /ROUTING: /);
+  // off è ignorato: il suggerimento resta attivo.
+  assert.match(suggest.run({ session_id: 's2', cwd: root, prompt: 'cerca x' }, { ...env, CARONTE_DELEGATION: 'off' }).hookSpecificOutput.additionalContext, /ROUTING: ricerca/);
 });
