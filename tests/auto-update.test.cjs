@@ -55,8 +55,13 @@ function fixture(t) {
   function enable() {
     const updaterFiles = [
       'install.cjs', 'auto-update.cjs', 'rtk-setup.cjs', 'ecc-setup.cjs', 'headroom-setup.cjs', 'fsr-setup.cjs', 'repository-setup.cjs', 'terminal-ui.cjs',
+      // Modulo dei percorsi .caronte richiesto dall'installer: in un vero git pull arriva insieme ai file in root.
+      '.claude/routing/caronte-home.cjs',
     ];
-    for (const name of updaterFiles) fs.copyFileSync(path.join(kit, name), path.join(remote, name));
+    for (const name of updaterFiles) {
+      fs.mkdirSync(path.dirname(path.join(remote, name)), { recursive: true });
+      fs.copyFileSync(path.join(kit, name), path.join(remote, name));
+    }
     const revision = commit(...updaterFiles);
     git(source, 'pull', '-q', '--ff-only');
     const cli = flag => JSON.parse(node([path.join(source, 'install.cjs'), flag], { env }));
@@ -166,7 +171,9 @@ test('one user hook updates legacy projects and worktrees after pulling Caronte'
   assert.equal(json(project, installationFile).revision, next);
   assert.match(read(project, agent), /Updated from the local clone/);
   assert.match(read(project, 'CLAUDE.md'), /^# Project notes/);
-  assert.deepEqual(json(project, local), settings);
+  // L'aggiornamento aggiunge le variabili della cartella .caronte e conserva il resto dei settings.
+  const { caronteEnv } = require('../.claude/routing/caronte-home.cjs');
+  assert.deepEqual(json(project, local), { ...settings, env: { ...settings.env, ...caronteEnv(fs.realpathSync(project)) } });
   assert.equal(start(project), '');
   assert.equal(start(worktree, 'clear'), '');
   assert.equal(fs.existsSync(path.join(worktree, installationFile)), false);
@@ -182,7 +189,8 @@ test('a conflict is retryable and a checkout at an older commit cannot downgrade
   installOld(project);
   const oldAgent = read(project, agent);
   const { revision, start } = enable();
-  assert.equal(start(project), '');
+  // Il primo aggiornamento di un'installazione precedente aggiunge le variabili .caronte ai settings.
+  assert.match(JSON.parse(start(project)).systemMessage, /aggiornato/);
   assert.equal(json(project, installationFile).revision, revision);
 
   write(project, agent, '\nUser change.\n');
