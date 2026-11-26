@@ -71,4 +71,8 @@ Per verificare i collegamenti sotto `.icm`, passa quella cartella esplicitamente
 python .claude/skills/icm-architect/scripts/links.py .icm
 ```
 
-Collaudo locale riproducibile del meccanismo: dalla cartella del kit `node --test tests/routing.test.cjs`. Per la prova sul tuo repo interrompi una fase, riapri Claude, esegui status; poi cambia un input e verifica che la fase e le sue dipendenze risultino non valide.
+## Task e barra di avanzamento
+
+Un task per fase, con `[ICM:<percorso run.json>/<id fase>]` nel titolo o nella descrizione. L'hook `.claude/hooks/icm-task.cjs` (eventi TaskCreated e TaskCompleted) blocca con exit 2 un task che punta a un run o a una fase inesistenti e il completamento di una fase senza ricevuta `pass` valida; senza marcatore, o se la lettura fallisce, consente. Segna completed solo dopo `check`.
+
+Collaudo locale riproducibile del meccanismo: dalla cartella del kit `node --test tests/routing.test.cjs tests/icm-task.test.cjs`. Per la prova sul tuo repo interrompi una fase, riapri Claude, esegui status; poi cambia un input e verifica che la fase e le sue dipendenze risultino non valide.

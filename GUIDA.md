@@ -362,6 +362,7 @@ modalità ECC completo restano esenti solo i flussi ECC nativi indicati sotto.
 | general-purpose e claude | Negati se esiste uno specialista per la classe; altrimenti come sopra |
 | Flussi ECC nativi | Senza brief Caronte solo entro 30 minuti da una procedura `/ecc:` avviata nel thread principale o come sotto-deleghe di un agent ECC nativo |
 | Letture e modifiche dirette del coordinatore | Soglie per turno dell'hook coordinator-budget |
+| TaskCreated e TaskCompleted con marcatore `[ICM:<run.json>/<fase>]` | Hook `icm-task.cjs`: la creazione è bloccata (exit 2) se run o fase non esistono, il completamento se la fase non ha una ricevuta valida. Senza marcatore o con errori interni di lettura consente |
 | SendMessage/ripresa di agente esistente | Procedura di delta nelle istruzioni; nessun controllo sintattico del messaggio |
 | Fork manuali, skill di terze parti con context: fork, team e processi CLI separati | Non hanno copertura pre-avvio completa da questo validatore; non usarli come alternative ai comandi del kit per deleghe controllate |
 | Hook disabilitati/policy che li escludono | Nessuna garanzia tecnica del validatore |
