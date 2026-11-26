@@ -84,6 +84,14 @@ restano da svolgere.
 | R6 — contesto | Documentata la scelta tra thread caldo e fase isolata; nessuna promessa di svuotamento automatico o tetto 8.000 token |
 | R7 — installazione e misure | Installer e test riproducibili; collaudo Claude Code/Windows/Headroom e benchmark di consumo restano da eseguire nell'ambiente utente |
 
+## Conteggi dei test nel tempo
+
+I numeri citati sopra (70, 67 e 63 test) fotografano esecuzioni diverse in date diverse: la suite è cresciuta e ciascuna sezione riporta il conteggio di quel momento, non il totale attuale. Ultima esecuzione completa (`node --test tests/*.test.cjs`, Windows, Node 25.8.0): 141 test, 137 superati, 0 falliti, 4 saltati (alcuni per eseguibili non firmati bloccati da Windows). La CI della PR #7 ha superato gli stessi test su ubuntu e windows con Node 22 e 24. Questo conteggio cambia a ogni nuovo test: per il valore corrente esegui il comando.
+
+## Profili ECC inclusi
+
+I sette profili adattati sono `ecc-build-error-resolver`, `ecc-code-reviewer`, `ecc-csharp-reviewer`, `ecc-java-build-resolver`, `ecc-java-reviewer`, `ecc-tdd-guide` ed `ecc-typescript-reviewer` (cartella `.claude/agents`).
+
 ## Limiti delle prove
 
 Il collaudo locale verifica la configurazione di compattazione e i relativi file. La soglia effettiva osservata nella tua sessione e il consumo di token richiedono Claude Code e Headroom in esecuzione.
